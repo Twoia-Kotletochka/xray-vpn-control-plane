@@ -17,7 +17,8 @@
         "noExplicitAny": "error"
       },
       "style": {
-        "noNonNullAssertion": "error"
+        "noNonNullAssertion": "error",
+        "useImportType": "off"
       }
     }
   },

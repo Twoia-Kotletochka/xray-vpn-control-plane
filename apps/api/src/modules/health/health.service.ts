@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 
 import type { AppEnv } from '../../common/config/env.schema';
-import type { PrismaService } from '../../common/database/prisma.service';
+import { PrismaService } from '../../common/database/prisma.service';
 
 @Injectable()
 export class HealthService {

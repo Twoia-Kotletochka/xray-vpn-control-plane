@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 
-import type { XrayService } from './xray.service';
+import { XrayService } from './xray.service';
 
 @Controller('xray')
 export class XrayController {

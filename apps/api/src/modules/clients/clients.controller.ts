@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import type { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
-import type { ClientsService } from './clients.service';
+import { ClientsService } from './clients.service';
 import type { CreateClientDto } from './dto/create-client.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
 

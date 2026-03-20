@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
 import type { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
-import type { AuditLogService } from './audit-log.service';
+import { AuditLogService } from './audit-log.service';
 
 @Controller('audit-log')
 export class AuditLogController {
