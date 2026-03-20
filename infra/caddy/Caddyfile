@@ -9,10 +9,6 @@
   tls internal
   encode zstd gzip
 
-  basic_auth {
-    {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
-  }
-
   header {
     Strict-Transport-Security "max-age=31536000; includeSubDomains"
     X-Content-Type-Options "nosniff"
@@ -22,21 +18,33 @@
     Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   }
 
-  handle /api/* {
+  @public_subscription path_regexp public_subscription ^/api/subscriptions/[A-Za-z0-9_-]+$
+
+  handle @public_subscription {
     reverse_proxy api:3000
   }
 
-  handle /healthz {
-    reverse_proxy api:3000
-  }
+  route {
+    basic_auth {
+      {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
+    }
 
-  handle /readyz {
-    reverse_proxy api:3000
-  }
+    handle /api/* {
+      reverse_proxy api:3000
+    }
 
-  handle {
-    root * /srv/web
-    try_files {path} /index.html
-    file_server
+    handle /healthz {
+      reverse_proxy api:3000
+    }
+
+    handle /readyz {
+      reverse_proxy api:3000
+    }
+
+    handle {
+      root * /srv/web
+      try_files {path} /index.html
+      file_server
+    }
   }
 }

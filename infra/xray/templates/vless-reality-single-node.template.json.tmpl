@@ -4,10 +4,18 @@
   },
   "api": {
     "tag": "api",
+    "listen": "__XRAY_API_LISTEN__",
     "services": ["HandlerService", "LoggerService", "StatsService"]
   },
   "stats": {},
   "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true,
+        "statsUserOnline": true
+      }
+    },
     "system": {
       "statsInboundUplink": true,
       "statsInboundDownlink": true
@@ -37,15 +45,6 @@
         "enabled": true,
         "destOverride": ["http", "tls", "quic"]
       }
-    },
-    {
-      "listen": "127.0.0.1",
-      "port": 10085,
-      "protocol": "dokodemo-door",
-      "tag": "api-inbound",
-      "settings": {
-        "address": "127.0.0.1"
-      }
     }
   ],
   "outbounds": [
@@ -57,14 +56,5 @@
       "protocol": "blackhole",
       "tag": "blocked"
     }
-  ],
-  "routing": {
-    "rules": [
-      {
-        "type": "field",
-        "inboundTag": ["api-inbound"],
-        "outboundTag": "api"
-      }
-    ]
-  }
+  ]
 }

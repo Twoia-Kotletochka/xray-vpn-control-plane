@@ -23,11 +23,14 @@ export const envSchema = z.object({
   PANEL_PUBLIC_URL: z.string().url(),
   XRAY_VLESS_PORT: z.coerce.number().int().positive().default(443),
   XRAY_INBOUND_TAG: z.string().default('vless-reality-main'),
+  XRAY_API_TARGET: z.string().default('xray:10085'),
   XRAY_REALITY_PUBLIC_KEY: z.string().min(1),
   XRAY_SHORT_IDS: z.string().min(1),
   XRAY_DEFAULT_SNI: z.string().min(1),
   XRAY_DEFAULT_SPIDER_X: z.string().default('/'),
   XRAY_SUBSCRIPTION_BASE_URL: z.string().url(),
+  XRAY_USAGE_SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  XRAY_CONTROL_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

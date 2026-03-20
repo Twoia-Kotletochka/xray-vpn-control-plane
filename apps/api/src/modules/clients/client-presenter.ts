@@ -28,7 +28,11 @@ function asStringArray(value: Prisma.JsonValue | null): string[] {
 }
 
 export function resolveEffectiveClientStatus(
-  client: Pick<Client, 'status' | 'expiresAt'>,
+  client: Pick<Client, 'expiresAt' | 'status'> & {
+    isTrafficUnlimited?: boolean;
+    trafficLimitBytes?: bigint | null;
+    trafficUsedBytes?: bigint | null;
+  },
 ): ClientStatus {
   if (client.status === ClientStatus.DISABLED || client.status === ClientStatus.BLOCKED) {
     return client.status;
@@ -36,6 +40,15 @@ export function resolveEffectiveClientStatus(
 
   if (client.expiresAt && client.expiresAt.getTime() <= Date.now()) {
     return ClientStatus.EXPIRED;
+  }
+
+  if (
+    !client.isTrafficUnlimited &&
+    client.trafficLimitBytes !== null &&
+    client.trafficLimitBytes !== undefined &&
+    (client.trafficUsedBytes ?? 0n) >= client.trafficLimitBytes
+  ) {
+    return ClientStatus.BLOCKED;
   }
 
   return ClientStatus.ACTIVE;
@@ -51,7 +64,10 @@ export function emptyClientUsage(): ClientUsageAggregate {
 }
 
 export function serializeClient(client: ClientRecord, usage: ClientUsageAggregate) {
-  const status = resolveEffectiveClientStatus(client);
+  const status = resolveEffectiveClientStatus({
+    ...client,
+    trafficUsedBytes: usage.totalBytes,
+  });
   const remainingTrafficBytes =
     client.isTrafficUnlimited || client.trafficLimitBytes === null
       ? null

@@ -37,7 +37,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -405,6 +406,17 @@ a {
   align-items: center;
 }
 
+.status-row__content,
+.status-row__meta {
+  display: grid;
+  gap: 4px;
+}
+
+.status-row__meta {
+  justify-items: end;
+  color: var(--text-soft);
+}
+
 .button,
 .icon-button {
   border: 1px solid var(--border);
@@ -520,6 +532,15 @@ a {
   color: var(--text);
 }
 
+.login-form__field select {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -585,6 +606,91 @@ a {
 
 .wrap-actions {
   flex-wrap: wrap;
+}
+
+.guide-grid,
+.history-list {
+  display: grid;
+  gap: 14px;
+}
+
+.history-row {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-soft);
+}
+
+.history-row__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--text-soft);
+}
+
+.history-row__bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.history-row__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.16));
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(10px);
+}
+
+.modal {
+  width: min(100%, 720px);
+  max-height: min(88vh, 900px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(22, 22, 26, 0.98), rgba(12, 12, 16, 0.98));
+  box-shadow: var(--shadow);
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal__body {
+  display: grid;
+  gap: 16px;
+}
+
+.qr-shell {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.qr-shell img {
+  width: min(100%, 320px);
+  height: auto;
+  display: block;
 }
 
 @keyframes rise {

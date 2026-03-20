@@ -78,6 +78,11 @@ export type ClientSubscriptionBundle = {
     subscriptionUrl: string;
   };
   instructions: string[];
+  platformGuides: Array<{
+    platform: string;
+    clientApp: string;
+    steps: string[];
+  }>;
 };
 
 export type DashboardSummary = {
@@ -93,6 +98,12 @@ export type DashboardSummary = {
     cpuPercent: number | null;
     ramPercent: number | null;
     diskPercent: number | null;
+  };
+  runtime: {
+    lastConfigSyncAt: string | null;
+    lastStatsSnapshotAt: string | null;
+    onlineUsers: number;
+    xrayStatus: string;
   };
   message: string;
 };
@@ -137,8 +148,26 @@ export type AdminUsersResponse = {
 
 export type SystemStatusResponse = {
   services: Array<{
+    details: string;
+    latencyMs: number;
     name: string;
     status: string;
+    target: string;
   }>;
+  host: {
+    cpuPercent: number | null;
+    ramPercent: number | null;
+    diskPercent: number | null;
+  };
+  runtime: {
+    apiTarget: string;
+    lastConfigSyncAt: string | null;
+    lastStatsSnapshotAt: string | null;
+    lastSyncReason: string | null;
+    latencyMs: number;
+    onlineUsers: number;
+    status: string;
+    uptimeSeconds: number | null;
+  };
   message: string;
 };

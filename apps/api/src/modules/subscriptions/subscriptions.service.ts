@@ -4,13 +4,19 @@ import { ClientStatus, TransportProfile } from '@prisma/client';
 
 import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
-import { emptyClientUsage, serializeClient } from '../clients/client-presenter';
+import {
+  emptyClientUsage,
+  resolveEffectiveClientStatus,
+  serializeClient,
+} from '../clients/client-presenter';
+import { XrayService } from '../xray/xray.service';
 
 @Injectable()
 export class SubscriptionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService<AppEnv, true>,
+    private readonly xrayService: XrayService,
   ) {}
 
   listTemplates() {
@@ -27,6 +33,8 @@ export class SubscriptionsService {
   }
 
   async getClientBundle(clientId: string) {
+    await this.captureUsageSnapshotBestEffort();
+
     const client = await this.prisma.client.findUnique({
       where: {
         id: clientId,
@@ -37,10 +45,11 @@ export class SubscriptionsService {
       throw new NotFoundException('Client was not found.');
     }
 
+    const usage = await this.loadClientUsage(client.id);
     const uri = this.buildConnectionUri(client);
 
     return {
-      client: serializeClient(client, emptyClientUsage()),
+      client: serializeClient(client, usage),
       config: {
         uri,
         qrcodeText: uri,
@@ -48,13 +57,53 @@ export class SubscriptionsService {
       },
       instructions: [
         'Импортируйте subscription URL в совместимый VLESS/Xray клиент.',
-        'Если клиент не поддерживает подписки, используйте VLESS-ссылку напрямую.',
-        'Для iOS/macOS подойдут FoXray и Streisand; для Windows/Android — v2rayN и v2rayNG.',
+        'Если клиент не поддерживает подписки, используйте VLESS-ссылку напрямую или QR-код.',
+        'После продления и изменения лимитов ссылка обычно остаётся прежней, достаточно обновить подписку.',
+      ],
+      platformGuides: [
+        {
+          clientApp: 'v2rayN',
+          platform: 'Windows',
+          steps: [
+            'Откройте v2rayN и перейдите в управление подписками.',
+            'Вставьте subscription URL, выполните обновление и выберите профиль.',
+            'Если нужно разовое подключение, импортируйте VLESS-ссылку вручную.',
+          ],
+        },
+        {
+          clientApp: 'FoXray или Streisand',
+          platform: 'macOS',
+          steps: [
+            'Добавьте профиль через subscription URL или вставьте VLESS-ссылку.',
+            'Проверьте, что security = reality, transport = tcp, flow = vision.',
+            'После импорта сохраните профиль и подключитесь одним кликом.',
+          ],
+        },
+        {
+          clientApp: 'v2rayNG',
+          platform: 'Android',
+          steps: [
+            'Импортируйте subscription URL в v2rayNG.',
+            'При необходимости используйте QR-код для быстрого импорта.',
+            'После обновления сервера просто выполните refresh subscription.',
+          ],
+        },
+        {
+          clientApp: 'Streisand или FoXray',
+          platform: 'iPhone/iPad',
+          steps: [
+            'Откройте клиент и импортируйте subscription URL.',
+            'Если подписки нет, добавьте VLESS-ссылку вручную.',
+            'Подтвердите добавление профиля и подключитесь к сохранённой конфигурации.',
+          ],
+        },
       ],
     };
   }
 
   async renderSubscription(subscriptionToken: string) {
+    await this.captureUsageSnapshotBestEffort();
+
     const client = await this.prisma.client.findUnique({
       where: {
         subscriptionToken,
@@ -65,7 +114,13 @@ export class SubscriptionsService {
       throw new NotFoundException('Subscription was not found.');
     }
 
-    if (client.status !== ClientStatus.ACTIVE) {
+    const usage = await this.loadClientUsage(client.id);
+    const status = resolveEffectiveClientStatus({
+      ...client,
+      trafficUsedBytes: usage.totalBytes,
+    });
+
+    if (status !== ClientStatus.ACTIVE) {
       throw new ForbiddenException('Client subscription is not active.');
     }
 
@@ -111,5 +166,47 @@ export class SubscriptionsService {
         .map((item: string) => item.trim())
         .find((item: string) => item.length > 0) ?? ''
     );
+  }
+
+  private async loadClientUsage(clientId: string) {
+    const [aggregate, latestConnections] = await Promise.all([
+      this.prisma.dailyClientUsage.aggregate({
+        where: {
+          clientId,
+        },
+        _sum: {
+          incomingBytes: true,
+          outgoingBytes: true,
+          totalBytes: true,
+        },
+      }),
+      this.prisma.dailyClientUsage.findFirst({
+        where: {
+          clientId,
+        },
+        orderBy: [{ bucketDate: 'desc' }, { updatedAt: 'desc' }],
+        select: {
+          activeConnections: true,
+        },
+      }),
+    ]);
+
+    return {
+      ...emptyClientUsage(),
+      activeConnections: latestConnections?.activeConnections ?? 0,
+      incomingBytes: aggregate._sum.incomingBytes ?? 0n,
+      outgoingBytes: aggregate._sum.outgoingBytes ?? 0n,
+      totalBytes: aggregate._sum.totalBytes ?? 0n,
+    };
+  }
+
+  private async captureUsageSnapshotBestEffort() {
+    try {
+      await this.xrayService.captureUsageSnapshot({
+        reason: 'subscriptions',
+      });
+    } catch {
+      // Subscription rendering should remain available even while Xray control API is restarting.
+    }
   }
 }

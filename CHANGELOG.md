@@ -11,3 +11,5 @@ All notable changes to this project will be documented in this file.
 - Added Prisma-backed client lifecycle APIs: list, detail, create, update, extend, delete, traffic reset, and dashboard summary.
 - Added VLESS + REALITY subscription generation and per-client config bundle endpoint.
 - Added Russian-localized web panel with authenticated routes, live dashboard, client management, subscriptions, admin users, audit feed, and system status views.
+- Added live Xray control API integration for client sync, runtime reconciliation, and periodic traffic snapshots into PostgreSQL.
+- Added quota enforcement, richer system probes, QR modal UX, editable client limits/statuses, and public client subscription delivery behind Caddy without exposing the admin panel.

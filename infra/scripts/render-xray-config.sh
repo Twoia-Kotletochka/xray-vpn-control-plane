@@ -19,6 +19,7 @@ required_vars=(
   XRAY_VLESS_LISTEN
   XRAY_VLESS_PORT
   XRAY_INBOUND_TAG
+  XRAY_API_LISTEN
   XRAY_REALITY_DEST
   XRAY_REALITY_SERVER_NAMES
   XRAY_REALITY_PRIVATE_KEY
@@ -65,10 +66,18 @@ cat > "${OUTPUT_FILE}" <<EOF
   },
   "api": {
     "tag": "api",
+    "listen": "${XRAY_API_LISTEN}",
     "services": ["HandlerService", "LoggerService", "StatsService"]
   },
   "stats": {},
   "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true,
+        "statsUserOnline": true
+      }
+    },
     "system": {
       "statsInboundUplink": true,
       "statsInboundDownlink": true
@@ -98,15 +107,6 @@ cat > "${OUTPUT_FILE}" <<EOF
         "enabled": true,
         "destOverride": ["http", "tls", "quic"]
       }
-    },
-    {
-      "listen": "127.0.0.1",
-      "port": 10085,
-      "protocol": "dokodemo-door",
-      "tag": "api-inbound",
-      "settings": {
-        "address": "127.0.0.1"
-      }
     }
   ],
   "outbounds": [
@@ -118,18 +118,8 @@ cat > "${OUTPUT_FILE}" <<EOF
       "protocol": "blackhole",
       "tag": "blocked"
     }
-  ],
-  "routing": {
-    "rules": [
-      {
-        "type": "field",
-        "inboundTag": ["api-inbound"],
-        "outboundTag": "api"
-      }
-    ]
-  }
+  ]
 }
 EOF
 
 echo "Rendered ${OUTPUT_FILE}"
-

@@ -7,8 +7,9 @@ Self-hosted VPN control plane for a single VPS, built around Xray-core and VLESS
 This repository now contains the first connected MVP slice for the control plane:
 
 - NestJS backend with real admin auth, refresh sessions, audit logging, client CRUD, expiry handling, traffic reset, and subscription generation.
-- Vite + React admin panel with Russian localization, authenticated routes, live dashboard, client management, subscription bundle view, admin list, and audit feed.
-- Docker Compose topology for `api`, `postgres`, `xray`, and `caddy`.
+- NestJS backend with live Xray control-plane sync, internal gRPC stats snapshots, quota blocking, and public subscription feed generation.
+- Vite + React admin panel with Russian localization, authenticated routes, live dashboard, editable client cards, QR modal, system probes, admin list, and audit feed.
+- Docker Compose topology for `api`, `postgres`, `xray`, and `caddy`, split into isolated backend/control networks.
 - Operational docs and idempotent bootstrap/deploy/backup scripts.
 - Security-first secret handling via `.env.example` and ignored local files.
 
@@ -18,6 +19,7 @@ This repository now contains the first connected MVP slice for the control plane
 - Port `443` is reserved for Xray to maximize client compatibility.
 - The admin panel is served on `8443` behind Caddy in the MVP, because no panel domain was provided yet.
 - Firewall and Fail2ban stay on the host, where they are more reliable than containerized equivalents.
+- Subscription URLs stay publicly reachable for clients, while the admin panel remains protected behind panel auth and application auth.
 
 ## Repository Layout
 

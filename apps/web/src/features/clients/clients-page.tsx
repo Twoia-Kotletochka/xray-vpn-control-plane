@@ -1,6 +1,8 @@
-import { MoreHorizontal, Plus, QrCode, RotateCcw, Search } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useState } from 'react';
+import { MoreHorizontal, Plus, QrCode, RotateCcw, Save, Search } from 'lucide-react';
+import QRCode from 'qrcode';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 
+import { Modal } from '../../components/ui/modal';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
@@ -22,6 +24,18 @@ type CreateClientFormState = {
   isTrafficUnlimited: boolean;
 };
 
+type EditClientFormState = {
+  deviceLimit: string;
+  displayName: string;
+  expiresAt: string;
+  ipLimit: string;
+  isTrafficUnlimited: boolean;
+  note: string;
+  status: ClientRecord['status'];
+  tags: string;
+  trafficLimitGb: string;
+};
+
 const initialCreateFormState: CreateClientFormState = {
   displayName: '',
   note: '',
@@ -29,6 +43,18 @@ const initialCreateFormState: CreateClientFormState = {
   durationDays: '30',
   trafficLimitGb: '100',
   isTrafficUnlimited: false,
+};
+
+const emptyEditFormState: EditClientFormState = {
+  deviceLimit: '',
+  displayName: '',
+  expiresAt: '',
+  ipLimit: '',
+  isTrafficUnlimited: false,
+  note: '',
+  status: 'ACTIVE',
+  tags: '',
+  trafficLimitGb: '',
 };
 
 function toTrafficLimitBytes(value: string): number | undefined {
@@ -39,6 +65,45 @@ function toTrafficLimitBytes(value: string): number | undefined {
   }
 
   return Math.round(numeric * 1024 * 1024 * 1024);
+}
+
+function toDateTimeLocal(value: string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  const timezoneOffset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
+function mapClientToEditState(client: ClientDetailResponse): EditClientFormState {
+  return {
+    deviceLimit: client.deviceLimit?.toString() ?? '',
+    displayName: client.displayName,
+    expiresAt: toDateTimeLocal(client.expiresAt),
+    ipLimit: client.ipLimit?.toString() ?? '',
+    isTrafficUnlimited: client.isTrafficUnlimited,
+    note: client.note ?? '',
+    status: client.status,
+    tags: client.tags.join(', '),
+    trafficLimitGb: client.trafficLimitBytes
+      ? (Number(client.trafficLimitBytes) / 1024 / 1024 / 1024).toFixed(2)
+      : '',
+  };
+}
+
+async function downloadText(filename: string, content: string) {
+  const blob = new Blob([content], {
+    type: 'text/plain;charset=utf-8',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 export function ClientsPage() {
@@ -53,7 +118,11 @@ export function ClientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingClient, setIsSavingClient] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [formState, setFormState] = useState<CreateClientFormState>(initialCreateFormState);
+  const [editFormState, setEditFormState] = useState<EditClientFormState>(emptyEditFormState);
   const deferredSearch = useDeferredValue(search);
 
   const loadClientDetails = useCallback(
@@ -65,6 +134,7 @@ export function ClientsPage() {
 
       setSelectedClient(client);
       setSubscriptionBundle(bundle);
+      setEditFormState(mapClientToEditState(client));
     },
     [apiFetch],
   );
@@ -108,6 +178,39 @@ export function ClientsPage() {
     void loadClients(deferredSearch);
   }, [deferredSearch, loadClients]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const renderQr = async () => {
+      if (!isQrOpen || !subscriptionBundle?.config.qrcodeText) {
+        setQrImageUrl(null);
+        return;
+      }
+
+      try {
+        const dataUrl = await QRCode.toDataURL(subscriptionBundle.config.qrcodeText, {
+          errorCorrectionLevel: 'M',
+          margin: 1,
+          width: 320,
+        });
+
+        if (!cancelled) {
+          setQrImageUrl(dataUrl);
+        }
+      } catch {
+        if (!cancelled) {
+          setQrImageUrl(null);
+        }
+      }
+    };
+
+    void renderQr();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isQrOpen, subscriptionBundle]);
+
   const handleCreateClient = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -144,6 +247,47 @@ export function ClientsPage() {
     }
   };
 
+  const handleSaveClient = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedClient) {
+      return;
+    }
+
+    setIsSavingClient(true);
+
+    try {
+      await apiFetch(`/api/clients/${selectedClient.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          deviceLimit: Number(editFormState.deviceLimit) || undefined,
+          displayName: editFormState.displayName,
+          expiresAt: editFormState.expiresAt
+            ? new Date(editFormState.expiresAt).toISOString()
+            : null,
+          ipLimit: Number(editFormState.ipLimit) || undefined,
+          isTrafficUnlimited: editFormState.isTrafficUnlimited,
+          note: editFormState.note || undefined,
+          status: editFormState.status,
+          tags: editFormState.tags
+            .split(',')
+            .map((item) => item.trim())
+            .filter((item) => item.length > 0),
+          trafficLimitBytes: editFormState.isTrafficUnlimited
+            ? undefined
+            : toTrafficLimitBytes(editFormState.trafficLimitGb),
+        }),
+      });
+
+      await loadClients(search);
+      await loadClientDetails(selectedClient.id);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Не удалось обновить клиента.');
+    } finally {
+      setIsSavingClient(false);
+    }
+  };
+
   const handleToggleClient = async (client: ClientRecord) => {
     const nextStatus = client.status === 'DISABLED' ? 'ACTIVE' : 'DISABLED';
 
@@ -174,6 +318,7 @@ export function ClientsPage() {
     });
 
     await loadClients(search);
+    await loadClientDetails(clientId);
   };
 
   const handleDeleteClient = async (clientId: string) => {
@@ -185,6 +330,7 @@ export function ClientsPage() {
       method: 'DELETE',
     });
 
+    setIsQrOpen(false);
     await loadClients(search);
   };
 
@@ -192,11 +338,19 @@ export function ClientsPage() {
     await navigator.clipboard.writeText(value);
   };
 
+  const usageHistory = useMemo(() => {
+    return [...(selectedClient?.usageHistory ?? [])].reverse();
+  }, [selectedClient?.usageHistory]);
+
+  const usageHistoryMax = useMemo(() => {
+    return usageHistory.reduce((max, item) => Math.max(max, Number(item.totalBytes)), 0);
+  }, [usageHistory]);
+
   return (
     <div className="page">
       <PageHeader
         title="Клиенты"
-        description="Реальный реестр клиентов с лимитами, сроками действия, действиями управления и готовыми подписками."
+        description="Реальный реестр клиентов с лимитами, сроками действия, редактированием профиля и готовыми VLESS/REALITY конфигами."
         actionLabel={isComposerOpen ? 'Скрыть форму' : 'Новый клиент'}
         onAction={() => setIsComposerOpen((value) => !value)}
       />
@@ -205,7 +359,7 @@ export function ClientsPage() {
 
       <SectionCard
         title="Управление клиентами"
-        subtitle="Поиск, создание и быстрые действия без пересоздания конфигов."
+        subtitle="Поиск, создание, редактирование лимитов, статусов и готовые конфиги без пересоздания UUID."
       >
         <div className="toolbar">
           <label className="toolbar__search">
@@ -351,8 +505,11 @@ export function ClientsPage() {
                         <button
                           className="icon-button"
                           type="button"
-                          aria-label="Показать конфиг"
-                          onClick={() => void loadClientDetails(client.id)}
+                          aria-label="Показать QR и конфиг"
+                          onClick={async () => {
+                            await loadClientDetails(client.id);
+                            setIsQrOpen(true);
+                          }}
                         >
                           <QrCode size={16} />
                         </button>
@@ -430,6 +587,9 @@ export function ClientsPage() {
                   >
                     {selectedClient.status === 'DISABLED' ? 'Включить' : 'Отключить'}
                   </button>
+                  <button className="button" type="button" onClick={() => setIsQrOpen(true)}>
+                    Показать QR
+                  </button>
                   <button
                     className="button button--danger"
                     type="button"
@@ -439,18 +599,173 @@ export function ClientsPage() {
                   </button>
                 </div>
 
+                <form className="inline-form" onSubmit={(event) => void handleSaveClient(event)}>
+                  <div className="field-grid">
+                    <label className="login-form__field">
+                      <span>Имя клиента</span>
+                      <input
+                        value={editFormState.displayName}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            displayName: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="login-form__field">
+                      <span>Статус</span>
+                      <select
+                        value={editFormState.status}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            status: event.target.value as ClientRecord['status'],
+                          }))
+                        }
+                      >
+                        <option value="ACTIVE">Активен</option>
+                        <option value="DISABLED">Отключен</option>
+                        <option value="BLOCKED">Заблокирован</option>
+                        <option value="EXPIRED">Истек</option>
+                      </select>
+                    </label>
+                    <label className="login-form__field">
+                      <span>Дата окончания</span>
+                      <input
+                        type="datetime-local"
+                        value={editFormState.expiresAt}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            expiresAt: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="login-form__field">
+                      <span>Лимит трафика, ГБ</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editFormState.trafficLimitGb}
+                        disabled={editFormState.isTrafficUnlimited}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            trafficLimitGb: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="login-form__field">
+                      <span>Лимит устройств</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editFormState.deviceLimit}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            deviceLimit: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="login-form__field">
+                      <span>IP limit</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editFormState.ipLimit}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            ipLimit: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <label className="login-form__field">
+                    <span>Теги через запятую</span>
+                    <input
+                      value={editFormState.tags}
+                      onChange={(event) =>
+                        setEditFormState((current) => ({
+                          ...current,
+                          tags: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="login-form__field">
+                    <span>Заметка</span>
+                    <input
+                      value={editFormState.note}
+                      onChange={(event) =>
+                        setEditFormState((current) => ({
+                          ...current,
+                          note: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={editFormState.isTrafficUnlimited}
+                      onChange={(event) =>
+                        setEditFormState((current) => ({
+                          ...current,
+                          isTrafficUnlimited: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>Безлимитный трафик</span>
+                  </label>
+
+                  <div className="toolbar__actions">
+                    <button
+                      className="button button--primary"
+                      type="submit"
+                      disabled={isSavingClient}
+                    >
+                      <Save size={16} />
+                      {isSavingClient ? 'Сохраняем...' : 'Сохранить изменения'}
+                    </button>
+                  </div>
+                </form>
+
                 {subscriptionBundle ? (
                   <div className="detail-stack">
                     <div className="mono-card">
                       <div className="mono-card__header">
                         <strong>Subscription URL</strong>
-                        <button
-                          className="button"
-                          type="button"
-                          onClick={() => void copyText(subscriptionBundle.config.subscriptionUrl)}
-                        >
-                          Скопировать
-                        </button>
+                        <div className="toolbar__actions">
+                          <button
+                            className="button"
+                            type="button"
+                            onClick={() => void copyText(subscriptionBundle.config.subscriptionUrl)}
+                          >
+                            Скопировать
+                          </button>
+                          <button
+                            className="button"
+                            type="button"
+                            onClick={() =>
+                              void downloadText(
+                                `${selectedClient.displayName}-subscription.txt`,
+                                subscriptionBundle.config.subscriptionUrl,
+                              )
+                            }
+                          >
+                            Скачать
+                          </button>
+                        </div>
                       </div>
                       <code>{subscriptionBundle.config.subscriptionUrl}</code>
                     </div>
@@ -469,6 +784,20 @@ export function ClientsPage() {
                       <code>{subscriptionBundle.config.uri}</code>
                     </div>
 
+                    <div className="guide-grid">
+                      {subscriptionBundle.platformGuides.map((guide) => (
+                        <div key={guide.platform} className="insight-card">
+                          <span>{guide.platform}</span>
+                          <strong>{guide.clientApp}</strong>
+                          <ul className="feature-list">
+                            {guide.steps.map((step) => (
+                              <li key={step}>{step}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+
                     <ul className="feature-list">
                       {subscriptionBundle.instructions.map((item) => (
                         <li key={item}>{item}</li>
@@ -476,6 +805,33 @@ export function ClientsPage() {
                     </ul>
                   </div>
                 ) : null}
+
+                <SectionCard title="История потребления" subtitle="Последние 30 daily buckets">
+                  <div className="history-list">
+                    {usageHistory.length > 0 ? (
+                      usageHistory.map((bucket) => {
+                        const width =
+                          usageHistoryMax > 0
+                            ? `${Math.max(8, (Number(bucket.totalBytes) / usageHistoryMax) * 100)}%`
+                            : '8%';
+
+                        return (
+                          <div key={bucket.date} className="history-row">
+                            <div className="history-row__meta">
+                              <strong>{formatDateTime(bucket.date, '—')}</strong>
+                              <span>{formatBytes(Number(bucket.totalBytes))}</span>
+                            </div>
+                            <div className="history-row__bar">
+                              <span style={{ width }} />
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="empty-state">История трафика пока пустая.</div>
+                    )}
+                  </div>
+                </SectionCard>
               </div>
             ) : (
               <div className="empty-state">
@@ -485,6 +841,49 @@ export function ClientsPage() {
           </SectionCard>
         </div>
       </SectionCard>
+
+      <Modal
+        isOpen={isQrOpen}
+        onClose={() => setIsQrOpen(false)}
+        title={selectedClient ? `Подключение: ${selectedClient.displayName}` : 'QR конфиг'}
+      >
+        {subscriptionBundle ? (
+          <div className="detail-stack">
+            <div className="qr-shell">
+              {qrImageUrl ? (
+                <img alt="QR конфиг клиента" src={qrImageUrl} />
+              ) : (
+                <div>Генерируем QR...</div>
+              )}
+            </div>
+
+            <div className="toolbar__actions wrap-actions">
+              <button
+                className="button"
+                type="button"
+                onClick={() => void copyText(subscriptionBundle.config.subscriptionUrl)}
+              >
+                Скопировать subscription URL
+              </button>
+              <button
+                className="button"
+                type="button"
+                onClick={() => void copyText(subscriptionBundle.config.uri)}
+              >
+                Скопировать VLESS ссылку
+              </button>
+            </div>
+
+            <ul className="feature-list">
+              {subscriptionBundle.instructions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="empty-state">Конфиг клиента ещё не загружен.</div>
+        )}
+      </Modal>
     </div>
   );
 }

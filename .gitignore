@@ -35,6 +35,7 @@ apps/web/coverage/
 infra/backup/output/
 infra/runtime/
 infra/xray/generated/
+.tmp/
 
 .DS_Store
 Thumbs.db

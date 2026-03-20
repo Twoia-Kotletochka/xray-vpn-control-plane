@@ -11,5 +11,5 @@ coverage
 secrets
 infra/backup/output
 infra/xray/generated
+.tmp
 npm-debug.log*
-

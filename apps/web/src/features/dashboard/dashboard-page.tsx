@@ -4,8 +4,12 @@ import { MetricCard } from '../../components/ui/metric-card';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import type { DashboardSummary } from '../../lib/api-types';
-import { formatBytes } from '../../lib/format';
+import { formatBytes, formatDateTime } from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
+
+function formatPercent(value: number | null) {
+  return value === null ? '—' : `${value.toFixed(1)}%`;
+}
 
 export function DashboardPage() {
   const { apiFetch } = useAuth();
@@ -59,13 +63,28 @@ export function DashboardPage() {
       value: String(summary?.totals.clients ?? 0),
       hint: 'активные, истекшие, отключенные и заблокированные',
     },
+    {
+      label: 'CPU',
+      value: formatPercent(summary?.host.cpuPercent ?? null),
+      hint: 'приблизительная текущая загрузка окружения',
+    },
+    {
+      label: 'RAM',
+      value: formatPercent(summary?.host.ramPercent ?? null),
+      hint: 'использование памяти по данным рантайма',
+    },
+    {
+      label: 'Disk',
+      value: formatPercent(summary?.host.diskPercent ?? null),
+      hint: 'доступная ёмкость файловой системы контейнера',
+    },
   ];
 
   return (
     <div className="page">
       <PageHeader
         title="Дашборд"
-        description="Живой обзор клиентской базы, трафика и общего состояния панели управления."
+        description="Живой обзор клиентской базы, трафика, Xray runtime и общего состояния панели управления."
         actionLabel="Обновить"
         onAction={() => {
           void apiFetch<DashboardSummary>('/api/dashboard/summary')
@@ -94,6 +113,12 @@ export function DashboardPage() {
           <ul className="feature-list">
             <li>Отключенных клиентов: {summary?.totals.disabled ?? 0}</li>
             <li>Заблокированных клиентов: {summary?.totals.blocked ?? 0}</li>
+            <li>Онлайн пользователей в Xray: {summary?.runtime.onlineUsers ?? 0}</li>
+            <li>Статус Xray control API: {summary?.runtime.xrayStatus ?? 'unknown'}</li>
+            <li>
+              Последний snapshot трафика:{' '}
+              {formatDateTime(summary?.runtime.lastStatsSnapshotAt ?? null, 'ещё не выполнялся')}
+            </li>
             <li>{summary?.message ?? 'Загрузка сводки из PostgreSQL...'}</li>
           </ul>
         </SectionCard>
@@ -101,9 +126,12 @@ export function DashboardPage() {
         <SectionCard title="Контрольный фокус релиза">
           <ul className="feature-list">
             <li>Аутентификация администратора уже переведена на реальные refresh-сессии.</li>
-            <li>Управление клиентами и подписками теперь идёт через PostgreSQL и API.</li>
             <li>
-              Следующий операционный шаг — live-sync конфигурации Xray и системные метрики хоста.
+              Клиенты синхронизируются с Xray через control API, без docker.sock в приложении.
+            </li>
+            <li>
+              Последняя успешная синхронизация Xray:{' '}
+              {formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, 'ещё не выполнялась')}
             </li>
           </ul>
         </SectionCard>

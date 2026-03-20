@@ -1,11 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ClientStatus, Prisma, type TransportProfile } from '@prisma/client';
+import { type Client, ClientStatus, Prisma, type TransportProfile } from '@prisma/client';
 import type { Request } from 'express';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { PrismaService } from '../../common/database/prisma.service';
 import type { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { XrayService } from '../xray/xray.service';
 import {
   emptyClientUsage,
   resolveEffectiveClientStatus,
@@ -17,10 +18,14 @@ import type { UpdateClientDto } from './dto/update-client.dto';
 
 @Injectable()
 export class ClientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly xrayService: XrayService,
+  ) {}
 
   async list(query: PaginationQueryDto) {
     await this.expireClients();
+    await this.captureUsageSnapshotBestEffort('clients-list');
 
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
@@ -70,6 +75,7 @@ export class ClientsService {
 
   async getById(clientId: string) {
     await this.expireClients();
+    await this.captureUsageSnapshotBestEffort('client-detail');
 
     const client = await this.prisma.client.findUnique({
       where: {
@@ -105,12 +111,19 @@ export class ClientsService {
   }
 
   async create(payload: CreateClientDto, admin: AuthenticatedAdmin, request: Request) {
+    const isTrafficUnlimited = payload.isTrafficUnlimited ?? false;
+    const trafficLimitBytes = this.resolveTrafficLimit(
+      isTrafficUnlimited,
+      payload.trafficLimitBytes,
+    );
     const startsAt = payload.startsAt ? new Date(payload.startsAt) : new Date();
     const expiresAt = this.resolveExpiry(startsAt, payload.expiresAt, payload.durationDays);
     const requestedStatus = payload.status ?? ClientStatus.ACTIVE;
     const status = resolveEffectiveClientStatus({
+      isTrafficUnlimited,
       status: requestedStatus,
       expiresAt,
+      trafficLimitBytes,
     });
 
     const client = await this.prisma.$transaction(async (tx) => {
@@ -125,11 +138,8 @@ export class ClientsService {
           startsAt,
           expiresAt,
           durationDays: payload.durationDays,
-          trafficLimitBytes: this.resolveTrafficLimit(
-            payload.isTrafficUnlimited ?? false,
-            payload.trafficLimitBytes,
-          ),
-          isTrafficUnlimited: payload.isTrafficUnlimited ?? false,
+          trafficLimitBytes,
+          isTrafficUnlimited,
           deviceLimit: payload.deviceLimit,
           ipLimit: payload.ipLimit,
           subscriptionToken: randomBytes(24).toString('base64url'),
@@ -155,6 +165,7 @@ export class ClientsService {
       return created;
     });
 
+    await this.syncClientBestEffort(client);
     return serializeClient(client, emptyClientUsage());
   }
 
@@ -180,8 +191,16 @@ export class ClientsService {
       requestedStatus === ClientStatus.DISABLED || requestedStatus === ClientStatus.BLOCKED
         ? requestedStatus
         : resolveEffectiveClientStatus({
+            isTrafficUnlimited: payload.isTrafficUnlimited ?? existing.isTrafficUnlimited,
             status: requestedStatus,
             expiresAt,
+            trafficLimitBytes:
+              payload.trafficLimitBytes !== undefined || payload.isTrafficUnlimited !== undefined
+                ? this.resolveTrafficLimit(
+                    payload.isTrafficUnlimited ?? existing.isTrafficUnlimited,
+                    payload.trafficLimitBytes,
+                  )
+                : existing.trafficLimitBytes,
           });
     const isTrafficUnlimited = payload.isTrafficUnlimited ?? existing.isTrafficUnlimited;
 
@@ -227,6 +246,7 @@ export class ClientsService {
       return updated;
     });
 
+    await this.syncClientBestEffort(client);
     const usageMap = await this.loadUsageMap([client.id]);
     return serializeClient(client, usageMap.get(client.id) ?? emptyClientUsage());
   }
@@ -278,12 +298,14 @@ export class ClientsService {
       return updated;
     });
 
+    await this.syncClientBestEffort(client);
     const usageMap = await this.loadUsageMap([client.id]);
     return serializeClient(client, usageMap.get(client.id) ?? emptyClientUsage());
   }
 
   async resetTraffic(clientId: string, admin: AuthenticatedAdmin, request: Request) {
     const client = await this.requireClient(clientId);
+    await this.captureUsageSnapshotBestEffort('client-reset-traffic', true);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.dailyClientUsage.deleteMany({
@@ -303,13 +325,34 @@ export class ClientsService {
           userAgent: request.get('user-agent') ?? undefined,
         },
       });
+
+      await tx.client.update({
+        where: {
+          id: clientId,
+        },
+        data: {
+          status:
+            client.status === ClientStatus.BLOCKED
+              ? resolveEffectiveClientStatus({
+                  ...client,
+                  isTrafficUnlimited: client.isTrafficUnlimited,
+                  status: ClientStatus.ACTIVE,
+                  trafficUsedBytes: 0n,
+                  trafficLimitBytes: client.trafficLimitBytes,
+                })
+              : client.status,
+        },
+      });
     });
 
+    const refreshed = await this.requireClient(clientId);
+    await this.syncClientBestEffort(refreshed);
     return this.getById(clientId);
   }
 
   async remove(clientId: string, admin: AuthenticatedAdmin, request: Request) {
     const client = await this.requireClient(clientId);
+    await this.captureUsageSnapshotBestEffort('client-delete', true);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.client.delete({
@@ -331,6 +374,11 @@ export class ClientsService {
       });
     });
 
+    await this.syncClientBestEffort({
+      ...client,
+      status: ClientStatus.DISABLED,
+    });
+
     return {
       success: true,
       id: client.id,
@@ -338,17 +386,36 @@ export class ClientsService {
   }
 
   private async expireClients(): Promise<void> {
-    await this.prisma.client.updateMany({
+    const expiredClients = await this.prisma.client.findMany({
       where: {
         status: ClientStatus.ACTIVE,
         expiresAt: {
           lt: new Date(),
         },
       },
+    });
+
+    if (expiredClients.length === 0) {
+      return;
+    }
+
+    await this.prisma.client.updateMany({
+      where: {
+        id: {
+          in: expiredClients.map((client) => client.id),
+        },
+      },
       data: {
         status: ClientStatus.EXPIRED,
       },
     });
+
+    for (const client of expiredClients) {
+      await this.syncClientBestEffort({
+        ...client,
+        status: ClientStatus.EXPIRED,
+      });
+    }
   }
 
   private async requireClient(clientId: string) {
@@ -397,20 +464,37 @@ export class ClientsService {
       return new Map<string, ReturnType<typeof emptyClientUsage>>();
     }
 
-    const rows = await this.prisma.dailyClientUsage.groupBy({
-      by: ['clientId'],
-      where: {
-        clientId: {
-          in: clientIds,
+    const [rows, latestConnectionSnapshots] = await Promise.all([
+      this.prisma.dailyClientUsage.groupBy({
+        by: ['clientId'],
+        where: {
+          clientId: {
+            in: clientIds,
+          },
         },
-      },
-      _sum: {
-        incomingBytes: true,
-        outgoingBytes: true,
-        totalBytes: true,
-        activeConnections: true,
-      },
-    });
+        _sum: {
+          incomingBytes: true,
+          outgoingBytes: true,
+          totalBytes: true,
+        },
+      }),
+      this.prisma.dailyClientUsage.findMany({
+        where: {
+          clientId: {
+            in: clientIds,
+          },
+        },
+        distinct: ['clientId'],
+        orderBy: [{ bucketDate: 'desc' }, { updatedAt: 'desc' }],
+        select: {
+          activeConnections: true,
+          clientId: true,
+        },
+      }),
+    ]);
+    const connectionsMap = new Map(
+      latestConnectionSnapshots.map((snapshot) => [snapshot.clientId, snapshot.activeConnections]),
+    );
 
     return new Map(
       rows.map((row) => [
@@ -419,10 +503,42 @@ export class ClientsService {
           incomingBytes: row._sum.incomingBytes ?? 0n,
           outgoingBytes: row._sum.outgoingBytes ?? 0n,
           totalBytes: row._sum.totalBytes ?? 0n,
-          activeConnections: row._sum.activeConnections ?? 0,
+          activeConnections: connectionsMap.get(row.clientId) ?? 0,
         },
       ]),
     );
+  }
+
+  private async syncClientBestEffort(
+    client: Pick<
+      Client,
+      | 'emailTag'
+      | 'expiresAt'
+      | 'id'
+      | 'isTrafficUnlimited'
+      | 'status'
+      | 'trafficLimitBytes'
+      | 'transportProfile'
+      | 'uuid'
+    >,
+  ) {
+    try {
+      await this.xrayService.syncClient(client);
+    } catch {
+      // The control plane keeps the canonical state in PostgreSQL.
+      // If Xray is temporarily unavailable, the periodic reconciler will repair runtime drift.
+    }
+  }
+
+  private async captureUsageSnapshotBestEffort(reason: string, force = false) {
+    try {
+      await this.xrayService.captureUsageSnapshot({
+        force,
+        reason,
+      });
+    } catch {
+      // Runtime stats are best-effort; listing clients should still work when Xray is unavailable.
+    }
   }
 
   private buildEmailTag(displayName: string): string {

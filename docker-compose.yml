@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - private
+      - backend
 
   api:
     build:
@@ -41,7 +41,8 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - private
+      - backend
+      - control
 
   xray:
     image: ${XRAY_IMAGE}
@@ -67,7 +68,7 @@ services:
       timeout: 5s
       retries: 3
     networks:
-      - private
+      - control
 
   caddy:
     build:
@@ -92,10 +93,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - private
+      - backend
 
 networks:
-  private:
+  backend:
+    driver: bridge
+  control:
     driver: bridge
 
 volumes:

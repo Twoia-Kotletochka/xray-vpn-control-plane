@@ -2,12 +2,26 @@ import { Injectable } from '@nestjs/common';
 import { ClientStatus } from '@prisma/client';
 
 import { PrismaService } from '../../common/database/prisma.service';
+import { SystemService } from '../system/system.service';
+import { XrayService } from '../xray/xray.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly systemService: SystemService,
+    private readonly xrayService: XrayService,
+  ) {}
 
   async summary() {
+    try {
+      await this.xrayService.captureUsageSnapshot({
+        reason: 'dashboard-summary',
+      });
+    } catch {
+      // Dashboard must stay available even if Xray restarts.
+    }
+
     await this.prisma.client.updateMany({
       where: {
         status: ClientStatus.ACTIVE,
@@ -20,7 +34,7 @@ export class DashboardService {
       },
     });
 
-    const [clients, active, expired, disabled, blocked, usage] = await this.prisma.$transaction([
+    const [clients, active, expired, disabled, blocked, usage, host, runtime] = await Promise.all([
       this.prisma.client.count(),
       this.prisma.client.count({
         where: {
@@ -47,6 +61,8 @@ export class DashboardService {
           totalBytes: true,
         },
       }),
+      this.systemService.getHostMetrics(),
+      this.xrayService.getRuntimeSummary(),
     ]);
 
     return {
@@ -58,13 +74,15 @@ export class DashboardService {
         blocked,
         totalTrafficBytes: (usage._sum.totalBytes ?? 0n).toString(),
       },
-      host: {
-        cpuPercent: null,
-        ramPercent: null,
-        diskPercent: null,
+      host,
+      runtime: {
+        lastConfigSyncAt: runtime.lastConfigSyncAt,
+        lastStatsSnapshotAt: runtime.lastStatsSnapshotAt,
+        onlineUsers: runtime.onlineUsers,
+        xrayStatus: runtime.status,
       },
       message:
-        'Сводка по клиентам и трафику уже читается из PostgreSQL. Хостовые метрики будут подключены отдельным безопасным system-probe этапом.',
+        'Сводка читает трафик из PostgreSQL, а live-активность и синхронизация пользователей подтягиваются из Xray control API.',
     };
   }
 }

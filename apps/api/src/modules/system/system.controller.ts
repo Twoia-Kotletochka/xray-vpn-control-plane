@@ -7,7 +7,7 @@ export class SystemController {
   constructor(private readonly systemService: SystemService) {}
 
   @Get('status')
-  status() {
+  async status() {
     return this.systemService.status();
   }
 }
