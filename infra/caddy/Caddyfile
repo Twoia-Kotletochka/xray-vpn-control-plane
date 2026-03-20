@@ -1,6 +1,8 @@
 {
   admin off
   auto_https disable_redirects
+  default_sni {$PANEL_HOST}
+  skip_install_trust
 }
 
 {$PANEL_HOST}:8443 {
