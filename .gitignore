@@ -10,6 +10,7 @@ coverage/
 *.tmp
 *.pid
 *.seed
+*.tsbuildinfo
 
 .env
 .env.local
@@ -37,4 +38,3 @@ infra/xray/generated/
 
 .DS_Store
 Thumbs.db
-
