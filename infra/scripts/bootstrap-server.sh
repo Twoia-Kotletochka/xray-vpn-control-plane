@@ -61,6 +61,13 @@ configure_fail2ban() {
 prepare_runtime_dirs() {
   mkdir -p "${ROOT_DIR}/infra/xray/generated"
   mkdir -p "${ROOT_DIR}/infra/backup/output"
+  mkdir -p "${ROOT_DIR}/infra/runtime/logs"
+  touch "${ROOT_DIR}/infra/runtime/logs/api.log"
+  touch "${ROOT_DIR}/infra/runtime/logs/xray-access.log"
+  touch "${ROOT_DIR}/infra/runtime/logs/xray-error.log"
+  touch "${ROOT_DIR}/infra/runtime/logs/caddy-access.log"
+  chmod 0644 "${ROOT_DIR}/infra/runtime/logs/api.log" "${ROOT_DIR}/infra/runtime/logs/caddy-access.log"
+  chmod 0666 "${ROOT_DIR}/infra/runtime/logs/xray-access.log" "${ROOT_DIR}/infra/runtime/logs/xray-error.log"
 }
 
 install_docker
@@ -69,4 +76,3 @@ configure_fail2ban
 prepare_runtime_dirs
 
 echo "Bootstrap completed. Fill .env, render the Xray config, then run infra/scripts/deploy.sh."
-

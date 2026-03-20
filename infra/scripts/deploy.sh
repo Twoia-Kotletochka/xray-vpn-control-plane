@@ -9,6 +9,23 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+prepare_runtime_dirs() {
+  local log_dir="${ROOT_DIR}/infra/runtime/logs"
+
+  mkdir -p "${ROOT_DIR}/infra/xray/generated"
+  mkdir -p "${ROOT_DIR}/infra/backup/output"
+  mkdir -p "${log_dir}"
+
+  touch "${log_dir}/api.log"
+  touch "${log_dir}/xray-access.log"
+  touch "${log_dir}/xray-error.log"
+  touch "${log_dir}/caddy-access.log"
+
+  chmod 0644 "${log_dir}/api.log" "${log_dir}/caddy-access.log"
+  chmod 0666 "${log_dir}/xray-access.log" "${log_dir}/xray-error.log"
+}
+
+prepare_runtime_dirs
 bash "${ROOT_DIR}/infra/scripts/render-xray-config.sh"
 
 docker compose -f "${ROOT_DIR}/docker-compose.yml" build api caddy
