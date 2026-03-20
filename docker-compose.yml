@@ -62,7 +62,7 @@ services:
     ports:
       - '${XRAY_VLESS_PORT}:${XRAY_VLESS_PORT}/tcp'
     healthcheck:
-      test: ['CMD-SHELL', 'test -s /etc/xray/config.json']
+      test: ['CMD', '/usr/local/bin/xray', 'run', '-test', '-config', '/etc/xray/config.json']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -86,8 +86,6 @@ services:
       - /tmp
       - /data
       - /config
-    security_opt:
-      - no-new-privileges:true
     cap_drop:
       - ALL
     healthcheck:
