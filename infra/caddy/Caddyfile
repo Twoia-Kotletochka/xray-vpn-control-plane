@@ -32,21 +32,21 @@
     reverse_proxy api:3000
   }
 
+  handle /api/* {
+    reverse_proxy api:3000
+  }
+
+  handle /healthz {
+    reverse_proxy api:3000
+  }
+
+  handle /readyz {
+    reverse_proxy api:3000
+  }
+
   route {
     basic_auth {
       {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
-    }
-
-    handle /api/* {
-      reverse_proxy api:3000
-    }
-
-    handle /healthz {
-      reverse_proxy api:3000
-    }
-
-    handle /readyz {
-      reverse_proxy api:3000
     }
 
     handle {
