@@ -9,7 +9,7 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
-"${ROOT_DIR}/infra/scripts/render-xray-config.sh"
+bash "${ROOT_DIR}/infra/scripts/render-xray-config.sh"
 
 docker compose -f "${ROOT_DIR}/docker-compose.yml" build api caddy
 docker compose -f "${ROOT_DIR}/docker-compose.yml" up -d postgres
@@ -18,4 +18,3 @@ docker compose -f "${ROOT_DIR}/docker-compose.yml" run --rm api npm run prisma:s
 docker compose -f "${ROOT_DIR}/docker-compose.yml" up -d api xray caddy
 
 echo "Deployment finished. Verify /healthz, /readyz, and panel reachability."
-
