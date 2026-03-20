@@ -9,6 +9,19 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+normalize_legacy_env_paths() {
+  local current_backup_dir
+
+  current_backup_dir="$(grep '^BACKUP_DIR=' "${ENV_FILE}" | cut -d'=' -f2- || true)"
+
+  case "${current_backup_dir}" in
+    "${ROOT_DIR}/infra/backup/output"|"/opt/server-vpn/infra/backup/output")
+      sed -i 's#^BACKUP_DIR=.*#BACKUP_DIR=/var/backups/server-vpn#' "${ENV_FILE}"
+      echo "Normalized BACKUP_DIR to container path /var/backups/server-vpn"
+      ;;
+  esac
+}
+
 prepare_runtime_dirs() {
   local log_dir="${ROOT_DIR}/infra/runtime/logs"
 
@@ -25,6 +38,7 @@ prepare_runtime_dirs() {
   chmod 0666 "${log_dir}/xray-access.log" "${log_dir}/xray-error.log"
 }
 
+normalize_legacy_env_paths
 prepare_runtime_dirs
 bash "${ROOT_DIR}/infra/scripts/render-xray-config.sh"
 
