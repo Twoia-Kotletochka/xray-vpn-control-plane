@@ -5,7 +5,7 @@ import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.i
 import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
 import { Public } from '../../common/auth/public.decorator';
 import { AuthService } from './auth.service';
-import type { LoginDto } from './dto/login.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {

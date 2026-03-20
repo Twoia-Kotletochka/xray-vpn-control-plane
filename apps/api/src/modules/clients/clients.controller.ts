@@ -3,11 +3,11 @@ import type { Request } from 'express';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
-import type { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ClientsService } from './clients.service';
-import type { CreateClientDto } from './dto/create-client.dto';
-import type { ExtendClientDto } from './dto/extend-client.dto';
-import type { UpdateClientDto } from './dto/update-client.dto';
+import { CreateClientDto } from './dto/create-client.dto';
+import { ExtendClientDto } from './dto/extend-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
 
 @Controller('clients')
 export class ClientsController {
