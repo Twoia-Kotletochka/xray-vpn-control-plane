@@ -1,20 +1,35 @@
+import { ui } from '../../i18n';
+
 type PageHeaderProps = {
   title: string;
   description: string;
   actionLabel?: string;
+  actionDisabled?: boolean;
+  onAction?: () => void;
 };
 
-export function PageHeader({ title, description, actionLabel }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actionLabel,
+  actionDisabled,
+  onAction,
+}: PageHeaderProps) {
   return (
     <div className="page-header">
       <div>
-        <p className="page-header__eyebrow">operations</p>
+        <p className="page-header__eyebrow">{ui.common.operations}</p>
         <h2>{title}</h2>
         <p>{description}</p>
       </div>
 
       {actionLabel ? (
-        <button className="button button--primary" type="button">
+        <button
+          className="button button--primary"
+          type="button"
+          onClick={onAction}
+          disabled={actionDisabled}
+        >
           {actionLabel}
         </button>
       ) : null}

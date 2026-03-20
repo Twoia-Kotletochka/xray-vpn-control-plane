@@ -1,5 +1,5 @@
 type StatusPillProps = {
-  tone: 'success' | 'warning' | 'muted';
+  tone: 'success' | 'warning' | 'muted' | 'danger';
   children: string;
 };
 

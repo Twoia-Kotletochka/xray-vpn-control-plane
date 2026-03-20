@@ -1,9 +1,11 @@
+import { ClientStatus, TransportProfile } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -27,6 +29,10 @@ export class CreateClientDto {
   @ArrayMaxSize(16)
   @IsString({ each: true })
   tags?: string[];
+
+  @IsOptional()
+  @IsDateString()
+  startsAt?: string;
 
   @IsOptional()
   @IsDateString()
@@ -61,6 +67,14 @@ export class CreateClientDto {
   @Min(1)
   @Max(32)
   ipLimit?: number;
+
+  @IsOptional()
+  @IsEnum(ClientStatus)
+  status?: ClientStatus;
+
+  @IsOptional()
+  @IsEnum(TransportProfile)
+  transportProfile?: TransportProfile = TransportProfile.VLESS_REALITY_TCP;
 
   @IsOptional()
   @IsUUID()

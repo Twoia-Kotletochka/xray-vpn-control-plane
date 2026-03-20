@@ -1,21 +1,17 @@
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
+import { ui } from '../../i18n';
 
 export function BackupsPage() {
   return (
     <div className="page">
-      <PageHeader
-        title="Backups"
-        description="Database and rendered Xray state will be backed up together so restores stay consistent."
-      />
+      <PageHeader title={ui.backups.title} description={ui.backups.description} />
 
-      <SectionCard title="Restore Design">
+      <SectionCard title={ui.backups.designTitle}>
         <ul className="feature-list">
-          <li>Backup metadata persisted in PostgreSQL for visibility and auditability.</li>
-          <li>
-            Restore flow will validate checksum, unpack artifacts, and restart services in order.
-          </li>
-          <li>Retention policy remains operator-configurable and script-driven.</li>
+          {ui.backups.items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
         </ul>
       </SectionCard>
     </div>

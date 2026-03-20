@@ -1,38 +1,80 @@
+import { useEffect, useState } from 'react';
+
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
+import type { SystemStatusResponse } from '../../lib/api-types';
+import { useAuth } from '../auth/auth-context';
+
+function serviceTone(status: string) {
+  if (status === 'up' || status === 'healthy') {
+    return 'success' as const;
+  }
+
+  if (status === 'unknown') {
+    return 'warning' as const;
+  }
+
+  return 'muted' as const;
+}
 
 export function ServerStatusPage() {
+  const { apiFetch } = useAuth();
+  const [response, setResponse] = useState<SystemStatusResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStatus = async () => {
+      try {
+        const nextResponse = await apiFetch<SystemStatusResponse>('/api/system/status');
+
+        if (isMounted) {
+          setResponse(nextResponse);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(
+            loadError instanceof Error ? loadError.message : 'Не удалось загрузить статус системы.',
+          );
+        }
+      }
+    };
+
+    void loadStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [apiFetch]);
+
   return (
     <div className="page">
       <PageHeader
-        title="Server Status"
-        description="A dedicated place for Xray, API, database, disk, RAM, CPU, and controlled restart actions."
+        title="Состояние сервера"
+        description="Текущие сигналы по основным сервисам платформы и общее пояснение по состоянию окружения."
       />
 
+      {error ? <div className="banner banner--danger">{error}</div> : null}
+
       <div className="content-grid">
-        <SectionCard title="Service Health">
+        <SectionCard title="Сервисы">
           <div className="status-list">
-            <div className="status-row">
-              <span>API</span>
-              <StatusPill tone="success">Ready for health checks</StatusPill>
-            </div>
-            <div className="status-row">
-              <span>Xray</span>
-              <StatusPill tone="warning">Pending runtime probe</StatusPill>
-            </div>
-            <div className="status-row">
-              <span>PostgreSQL</span>
-              <StatusPill tone="warning">Pending container startup</StatusPill>
-            </div>
+            {response?.services.map((service) => (
+              <div key={service.name} className="status-row">
+                <span>{service.name}</span>
+                <StatusPill tone={serviceTone(service.status)}>{service.status}</StatusPill>
+              </div>
+            ))}
           </div>
         </SectionCard>
 
-        <SectionCard title="Operational Intent">
+        <SectionCard title="Комментарий системы">
           <ul className="feature-list">
-            <li>Safe service restart buttons guarded by audit logs.</li>
-            <li>Readable health states without exposing raw internals by default.</li>
-            <li>A single page for both operator confidence and incident triage.</li>
+            <li>{response?.message ?? 'Собираем состояние сервисов...'}</li>
+            <li>Хостовые CPU/RAM/disk probe будут добавлены в отдельном изолированном шаге.</li>
+            <li>Безопасные действия рестарта будут завязаны на audit log и health-check gates.</li>
           </ul>
         </SectionCard>
       </div>

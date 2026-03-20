@@ -12,6 +12,9 @@ describe('validateEnv', () => {
       INITIAL_ADMIN_USERNAME: 'admin',
       INITIAL_ADMIN_PASSWORD: 'super-secure-password',
       PANEL_PUBLIC_URL: 'https://panel.example.com:8443',
+      XRAY_REALITY_PUBLIC_KEY: 'public-key',
+      XRAY_SHORT_IDS: '0123456789abcdef',
+      XRAY_DEFAULT_SNI: 'www.cloudflare.com',
       XRAY_SUBSCRIPTION_BASE_URL: 'https://panel.example.com:8443',
     });
 

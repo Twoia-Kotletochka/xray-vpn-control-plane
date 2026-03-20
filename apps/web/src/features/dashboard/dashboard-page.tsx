@@ -1,60 +1,111 @@
+import { useEffect, useState } from 'react';
+
 import { MetricCard } from '../../components/ui/metric-card';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
+import type { DashboardSummary } from '../../lib/api-types';
 import { formatBytes } from '../../lib/format';
-
-const dashboardMetrics = [
-  { label: 'Active Clients', value: '0', hint: 'ready for seeded data' },
-  { label: 'Expired Clients', value: '0', hint: 'expiry engine not wired yet' },
-  { label: 'Monthly Traffic', value: formatBytes(0), hint: 'daily rollups will land next' },
-  { label: 'Host Load', value: 'N/A', hint: 'system probe pending' },
-];
+import { useAuth } from '../auth/auth-context';
 
 export function DashboardPage() {
+  const { apiFetch } = useAuth();
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSummary = async () => {
+      try {
+        const nextSummary = await apiFetch<DashboardSummary>('/api/dashboard/summary');
+
+        if (isMounted) {
+          setSummary(nextSummary);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(
+            loadError instanceof Error ? loadError.message : 'Не удалось загрузить дашборд.',
+          );
+        }
+      }
+    };
+
+    void loadSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [apiFetch]);
+
+  const metrics = [
+    {
+      label: 'Активные клиенты',
+      value: String(summary?.totals.active ?? 0),
+      hint: 'текущее количество доступных клиентов',
+    },
+    {
+      label: 'Истекшие клиенты',
+      value: String(summary?.totals.expired ?? 0),
+      hint: 'автоматически обновляется по сроку действия',
+    },
+    {
+      label: 'Суммарный трафик',
+      value: formatBytes(Number(summary?.totals.totalTrafficBytes ?? '0')),
+      hint: 'агрегировано по daily usage buckets',
+    },
+    {
+      label: 'Всего клиентов',
+      value: String(summary?.totals.clients ?? 0),
+      hint: 'активные, истекшие, отключенные и заблокированные',
+    },
+  ];
+
   return (
     <div className="page">
       <PageHeader
-        title="Dashboard"
-        description="A clean operational surface for client lifecycle, server health, and traffic visibility."
-        actionLabel="Create client"
+        title="Дашборд"
+        description="Живой обзор клиентской базы, трафика и общего состояния панели управления."
+        actionLabel="Обновить"
+        onAction={() => {
+          void apiFetch<DashboardSummary>('/api/dashboard/summary')
+            .then((nextSummary) => {
+              setSummary(nextSummary);
+              setError(null);
+            })
+            .catch((loadError) => {
+              setError(
+                loadError instanceof Error ? loadError.message : 'Не удалось загрузить дашборд.',
+              );
+            });
+        }}
       />
 
+      {error ? <div className="banner banner--danger">{error}</div> : null}
+
       <div className="metrics-grid">
-        {dashboardMetrics.map((metric) => (
+        {metrics.map((metric) => (
           <MetricCard key={metric.label} {...metric} />
         ))}
       </div>
 
       <div className="content-grid">
-        <SectionCard
-          title="Release Focus"
-          subtitle="The first release optimizes for safe operations, clean data boundaries, and predictable Xray updates."
-        >
+        <SectionCard title="Текущая сводка">
           <ul className="feature-list">
-            <li>Secure admin auth with refresh sessions and future 2FA support.</li>
-            <li>Client limits, expiry policy, subscription generation, and audit logging.</li>
-            <li>Host-aware health signals for API, database, Xray, and backups.</li>
+            <li>Отключенных клиентов: {summary?.totals.disabled ?? 0}</li>
+            <li>Заблокированных клиентов: {summary?.totals.blocked ?? 0}</li>
+            <li>{summary?.message ?? 'Загрузка сводки из PostgreSQL...'}</li>
           </ul>
         </SectionCard>
 
-        <SectionCard
-          title="Why Reality First"
-          subtitle="The data plane stays simple and performant, while the panel can evolve independently."
-        >
-          <div className="insight-stack">
-            <div className="insight-card">
-              <span>Transport</span>
-              <strong>VLESS + REALITY</strong>
-            </div>
-            <div className="insight-card">
-              <span>Panel TLS</span>
-              <strong>HTTPS on 8443</strong>
-            </div>
-            <div className="insight-card">
-              <span>Persistence</span>
-              <strong>PostgreSQL + Prisma</strong>
-            </div>
-          </div>
+        <SectionCard title="Контрольный фокус релиза">
+          <ul className="feature-list">
+            <li>Аутентификация администратора уже переведена на реальные refresh-сессии.</li>
+            <li>Управление клиентами и подписками теперь идёт через PostgreSQL и API.</li>
+            <li>
+              Следующий операционный шаг — live-sync конфигурации Xray и системные метрики хоста.
+            </li>
+          </ul>
         </SectionCard>
       </div>
     </div>

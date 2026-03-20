@@ -16,6 +16,10 @@ async function bootstrap(): Promise<void> {
   const apiPort = configService.get('API_PORT', { infer: true });
   const corsOrigin = configService.get('API_CORS_ORIGIN', { infer: true });
 
+  const httpServer = app.getHttpAdapter().getInstance() as {
+    set?: (key: string, value: number) => void;
+  };
+  httpServer.set?.('trust proxy', 1);
   app.setGlobalPrefix('api', {
     exclude: ['healthz', 'readyz'],
   });

@@ -2,6 +2,7 @@ import { Shield } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 import { navigationItems } from '../../app/navigation';
+import { ui } from '../../i18n';
 
 export function Sidebar() {
   return (
@@ -11,7 +12,7 @@ export function Sidebar() {
           <Shield size={18} />
         </div>
         <div>
-          <p className="sidebar__eyebrow">single-vps control plane</p>
+          <p className="sidebar__eyebrow">{ui.common.singleVpsControlPlane}</p>
           <h1>server-vpn</h1>
         </div>
       </div>
@@ -36,7 +37,7 @@ export function Sidebar() {
       </nav>
 
       <div className="sidebar__footer">
-        <p>MVP profile</p>
+        <p>{ui.common.mvpProfile}</p>
         <strong>VLESS + REALITY</strong>
       </div>
     </aside>

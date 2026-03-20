@@ -10,14 +10,16 @@ import {
   ShieldUser,
 } from 'lucide-react';
 
+import { ui } from '../i18n';
+
 export const navigationItems = [
-  { label: 'Dashboard', path: '/dashboard', icon: Gauge },
-  { label: 'Clients', path: '/clients', icon: Cable },
-  { label: 'Subscriptions', path: '/subscriptions', icon: KeyRound },
-  { label: 'Server Status', path: '/server-status', icon: Activity },
-  { label: 'Logs', path: '/logs', icon: Logs },
-  { label: 'Backups', path: '/backups', icon: ArchiveRestore },
-  { label: 'Settings', path: '/settings', icon: ServerCog },
-  { label: 'Admin Users', path: '/admin-users', icon: ShieldUser },
-  { label: 'Audit Log', path: '/audit-log', icon: FileText },
+  { label: ui.navigation.dashboard, path: '/dashboard', icon: Gauge },
+  { label: ui.navigation.clients, path: '/clients', icon: Cable },
+  { label: ui.navigation.subscriptions, path: '/subscriptions', icon: KeyRound },
+  { label: ui.navigation.serverStatus, path: '/server-status', icon: Activity },
+  { label: ui.navigation.logs, path: '/logs', icon: Logs },
+  { label: ui.navigation.backups, path: '/backups', icon: ArchiveRestore },
+  { label: ui.navigation.settings, path: '/settings', icon: ServerCog },
+  { label: ui.navigation.adminUsers, path: '/admin-users', icon: ShieldUser },
+  { label: ui.navigation.auditLog, path: '/audit-log', icon: FileText },
 ] as const;

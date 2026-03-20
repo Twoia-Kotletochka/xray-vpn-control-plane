@@ -1,8 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
 
+import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
+import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
 import type { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ClientsService } from './clients.service';
 import type { CreateClientDto } from './dto/create-client.dto';
+import type { ExtendClientDto } from './dto/extend-client.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
 
 @Controller('clients')
@@ -20,12 +24,49 @@ export class ClientsController {
   }
 
   @Post()
-  create(@Body() payload: CreateClientDto) {
-    return this.clientsService.create(payload);
+  create(
+    @Body() payload: CreateClientDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() request: Request,
+  ) {
+    return this.clientsService.create(payload, admin, request);
   }
 
   @Patch(':clientId')
-  update(@Param('clientId') clientId: string, @Body() payload: UpdateClientDto) {
-    return this.clientsService.update(clientId, payload);
+  update(
+    @Param('clientId') clientId: string,
+    @Body() payload: UpdateClientDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() request: Request,
+  ) {
+    return this.clientsService.update(clientId, payload, admin, request);
+  }
+
+  @Post(':clientId/extend')
+  extend(
+    @Param('clientId') clientId: string,
+    @Body() payload: ExtendClientDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() request: Request,
+  ) {
+    return this.clientsService.extend(clientId, payload, admin, request);
+  }
+
+  @Post(':clientId/reset-traffic')
+  resetTraffic(
+    @Param('clientId') clientId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() request: Request,
+  ) {
+    return this.clientsService.resetTraffic(clientId, admin, request);
+  }
+
+  @Delete(':clientId')
+  remove(
+    @Param('clientId') clientId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() request: Request,
+  ) {
+    return this.clientsService.remove(clientId, admin, request);
   }
 }

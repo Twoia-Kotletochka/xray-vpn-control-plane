@@ -1,6 +1,5 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom';
 
-import { AppShell } from '../components/layout/app-shell';
 import { AdminUsersPage } from '../features/admin-users/admin-users-page';
 import { AuditLogPage } from '../features/audit-log/audit-log-page';
 import { LoginPage } from '../features/auth/login-page';
@@ -11,6 +10,7 @@ import { LogsPage } from '../features/logs/logs-page';
 import { SettingsPage } from '../features/settings/settings-page';
 import { SubscriptionsPage } from '../features/subscriptions/subscriptions-page';
 import { ServerStatusPage } from '../features/system/server-status-page';
+import { ProtectedShell } from './protected-shell';
 
 export const router = createBrowserRouter([
   {
@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AppShell />,
+    element: <ProtectedShell />,
     children: [
       {
         index: true,

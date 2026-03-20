@@ -1,19 +1,17 @@
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
+import { ui } from '../../i18n';
 
 export function LogsPage() {
   return (
     <div className="page">
-      <PageHeader
-        title="Logs"
-        description="Planned operator-friendly views for API events, Xray errors, and filtered system diagnostics."
-      />
+      <PageHeader title={ui.logs.title} description={ui.logs.description} />
 
-      <SectionCard title="Log UX Direction">
+      <SectionCard title={ui.logs.directionTitle}>
         <ul className="feature-list">
-          <li>Structured log stream with level filters.</li>
-          <li>Short retention in-app, long retention in rotated host files.</li>
-          <li>Fast pivot from a client record to related system events.</li>
+          {ui.logs.items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
         </ul>
       </SectionCard>
     </div>
