@@ -86,8 +86,6 @@ services:
       - /tmp
       - /data
       - /config
-    cap_drop:
-      - ALL
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://api:3000/healthz >/dev/null || exit 1']
       interval: 15s
