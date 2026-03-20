@@ -1,0 +1,70 @@
+{
+  "log": {
+    "loglevel": "warning"
+  },
+  "api": {
+    "tag": "api",
+    "services": ["HandlerService", "LoggerService", "StatsService"]
+  },
+  "stats": {},
+  "policy": {
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true
+    }
+  },
+  "inbounds": [
+    {
+      "listen": "__XRAY_VLESS_LISTEN__",
+      "port": __XRAY_VLESS_PORT__,
+      "protocol": "vless",
+      "tag": "__XRAY_INBOUND_TAG__",
+      "settings": {
+        "clients": [],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "dest": "__XRAY_REALITY_DEST__",
+          "serverNames": __XRAY_SERVER_NAMES_JSON__,
+          "privateKey": "__XRAY_REALITY_PRIVATE_KEY__",
+          "shortIds": __XRAY_SHORT_IDS_JSON__
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10085,
+      "protocol": "dokodemo-door",
+      "tag": "api-inbound",
+      "settings": {
+        "address": "127.0.0.1"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "blocked"
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["api-inbound"],
+        "outboundTag": "api"
+      }
+    ]
+  }
+}

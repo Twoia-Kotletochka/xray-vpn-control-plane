@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATOR
+  READ_ONLY
+}
+
+enum ClientStatus {
+  ACTIVE
+  DISABLED
+  EXPIRED
+  BLOCKED
+}
+
+enum TransportProfile {
+  VLESS_REALITY_TCP
+  VLESS_WS_TLS
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  ADMIN_CREATED
+  ADMIN_UPDATED
+  CLIENT_CREATED
+  CLIENT_UPDATED
+  CLIENT_DISABLED
+  CLIENT_DELETED
+  CLIENT_TRAFFIC_RESET
+  CLIENT_EXTENDED
+  XRAY_RELOAD
+  BACKUP_CREATED
+  BACKUP_RESTORED
+  SETTINGS_UPDATED
+}
+
+model AdminUser {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  username      String         @unique
+  passwordHash  String
+  role          AdminRole      @default(SUPER_ADMIN)
+  isActive      Boolean        @default(true)
+  totpSecretEnc String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessions      AdminSession[]
+  auditLogs     AuditLog[]
+}
+
+model AdminSession {
+  id               String    @id @default(cuid())
+  adminUserId      String
+  refreshTokenHash String
+  ipAddress        String?
+  userAgent        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  adminUser        AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+}
+
+model Client {
+  id                 String           @id @default(cuid())
+  uuid               String           @unique
+  emailTag           String           @unique
+  displayName        String
+  note               String?
+  tags               Json?
+  status             ClientStatus     @default(ACTIVE)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  startsAt           DateTime?
+  expiresAt          DateTime?
+  durationDays       Int?
+  trafficLimitBytes  BigInt?
+  isTrafficUnlimited Boolean          @default(false)
+  deviceLimit        Int?
+  ipLimit            Int?
+  subscriptionToken  String           @unique
+  transportProfile   TransportProfile @default(VLESS_REALITY_TCP)
+  xrayInboundTag     String           @default("vless-reality-main")
+  lastActivatedAt    DateTime?
+  lastSeenAt         DateTime?
+  usage              DailyClientUsage[]
+
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model DailyClientUsage {
+  id                String   @id @default(cuid())
+  clientId          String
+  bucketDate        DateTime
+  incomingBytes     BigInt   @default(0)
+  outgoingBytes     BigInt   @default(0)
+  totalBytes        BigInt   @default(0)
+  activeConnections Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, bucketDate])
+  @@index([bucketDate])
+}
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  actorAdminId String?
+  action       AuditAction
+  entityType   String
+  entityId     String?
+  summary      String
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime    @default(now())
+  actorAdmin   AdminUser?  @relation(fields: [actorAdminId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+model BackupSnapshot {
+  id            String   @id @default(cuid())
+  fileName      String
+  checksumSha256 String
+  fileSizeBytes BigInt
+  status        String
+  createdAt     DateTime @default(now())
+  restoredAt    DateTime?
+  notes         String?
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+

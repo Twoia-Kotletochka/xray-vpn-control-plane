@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+.env
+.env.local
+secrets
+infra/backup/output
+infra/xray/generated
+npm-debug.log*
+
