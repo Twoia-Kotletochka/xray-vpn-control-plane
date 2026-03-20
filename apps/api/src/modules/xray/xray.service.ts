@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
@@ -524,9 +524,9 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
     }
 
     const protoFiles = [
-      join(this.protoRootDir, 'app', 'proxyman', 'command', 'command.proto'),
-      join(this.protoRootDir, 'app', 'stats', 'command', 'command.proto'),
-      join(this.protoRootDir, 'proxy', 'vless', 'account.proto'),
+      'app/proxyman/command/command.proto',
+      'app/stats/command/command.proto',
+      'proxy/vless/account.proto',
     ];
     const packageDefinition = protoLoader.loadSync(protoFiles, {
       defaults: true,
@@ -547,7 +547,8 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
     const StatsService = statsCommandNamespace.StatsService as grpc.ServiceClientConstructor;
     const protobufRoot = new protobuf.Root();
 
-    protobufRoot.resolvePath = (_origin, target) => join(this.protoRootDir, target);
+    protobufRoot.resolvePath = (_origin, target) =>
+      isAbsolute(target) ? target : join(this.protoRootDir, target);
     protobufRoot.loadSync(protoFiles);
     protobufRoot.resolveAll();
 
