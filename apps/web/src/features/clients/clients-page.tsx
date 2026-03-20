@@ -1,6 +1,15 @@
-import { MoreHorizontal, Plus, QrCode, RotateCcw, Save, Search } from 'lucide-react';
+import {
+  Download,
+  FileUp,
+  MoreHorizontal,
+  Plus,
+  QrCode,
+  RotateCcw,
+  Save,
+  Search,
+} from 'lucide-react';
 import QRCode from 'qrcode';
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../../components/ui/modal';
 import { PageHeader } from '../../components/ui/page-header';
@@ -8,6 +17,8 @@ import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
 import type {
   ClientDetailResponse,
+  ClientExportBundle,
+  ClientImportResult,
   ClientListResponse,
   ClientRecord,
   ClientSubscriptionBundle,
@@ -108,6 +119,7 @@ async function downloadText(filename: string, content: string) {
 
 export function ClientsPage() {
   const { apiFetch } = useAuth();
+  const importFileRef = useRef<HTMLInputElement | null>(null);
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientDetailResponse | null>(null);
   const [subscriptionBundle, setSubscriptionBundle] = useState<ClientSubscriptionBundle | null>(
@@ -116,11 +128,17 @@ export function ClientsPage() {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [importPayload, setImportPayload] = useState('');
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [formState, setFormState] = useState<CreateClientFormState>(initialCreateFormState);
   const [editFormState, setEditFormState] = useState<EditClientFormState>(emptyEditFormState);
   const deferredSearch = useDeferredValue(search);
@@ -338,6 +356,75 @@ export function ClientsPage() {
     await navigator.clipboard.writeText(value);
   };
 
+  const handleExportClients = async () => {
+    setIsExporting(true);
+    setError(null);
+
+    try {
+      const payload = await apiFetch<ClientExportBundle>('/api/clients/export');
+      const stamp = new Date().toISOString().slice(0, 10);
+
+      await downloadText(`server-vpn-clients-${stamp}.json`, JSON.stringify(payload, null, 2));
+      setNotice(`Экспортировано клиентов: ${payload.items.length}.`);
+    } catch (exportError) {
+      setError(
+        exportError instanceof Error ? exportError.message : 'Не удалось выгрузить клиентов.',
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+
+      setImportPayload(text);
+      setIsImportOpen(true);
+      setError(null);
+    } catch {
+      setError('Не удалось прочитать файл импорта.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const handleImportClients = async () => {
+    setIsImporting(true);
+    setError(null);
+
+    try {
+      const parsed = JSON.parse(importPayload) as Record<string, unknown>;
+      const result = await apiFetch<ClientImportResult>('/api/clients/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...parsed,
+          overwriteExisting,
+        }),
+      });
+
+      setNotice(
+        `Импорт завершён: создано ${result.created}, обновлено ${result.updated}, пропущено ${result.skipped}.`,
+      );
+      setIsImportOpen(false);
+      setImportPayload('');
+      setOverwriteExisting(false);
+      await loadClients(search);
+    } catch (importError) {
+      setError(
+        importError instanceof Error ? importError.message : 'Не удалось импортировать клиентов.',
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const usageHistory = useMemo(() => {
     return [...(selectedClient?.usageHistory ?? [])].reverse();
   }, [selectedClient?.usageHistory]);
@@ -356,6 +443,7 @@ export function ClientsPage() {
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
+      {notice ? <div className="banner banner--success">{notice}</div> : null}
 
       <SectionCard
         title="Управление клиентами"
@@ -377,6 +465,19 @@ export function ClientsPage() {
               Сбросить
             </button>
             <button
+              className="button"
+              type="button"
+              onClick={() => void handleExportClients()}
+              disabled={isExporting}
+            >
+              <Download size={16} />
+              {isExporting ? 'Экспортируем...' : 'Экспорт'}
+            </button>
+            <button className="button" type="button" onClick={() => importFileRef.current?.click()}>
+              <FileUp size={16} />
+              Импорт
+            </button>
+            <button
               className="button button--primary"
               type="button"
               onClick={() => setIsComposerOpen((value) => !value)}
@@ -385,6 +486,13 @@ export function ClientsPage() {
               {isComposerOpen ? 'Закрыть форму' : 'Добавить клиента'}
             </button>
           </div>
+          <input
+            ref={importFileRef}
+            className="visually-hidden"
+            type="file"
+            accept="application/json,.json"
+            onChange={(event) => void handleImportFile(event)}
+          />
         </div>
 
         {isComposerOpen ? (
@@ -883,6 +991,49 @@ export function ClientsPage() {
         ) : (
           <div className="empty-state">Конфиг клиента ещё не загружен.</div>
         )}
+      </Modal>
+
+      <Modal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} title="Импорт клиентов">
+        <div className="detail-stack">
+          <p>
+            Вставьте экспортированный JSON или загрузите файл. Флаг overwrite включайте только если
+            хотите перезаписывать существующих клиентов по UUID или email tag.
+          </p>
+
+          <label className="login-form__field">
+            <span>JSON payload</span>
+            <textarea
+              className="textarea-field"
+              rows={14}
+              value={importPayload}
+              onChange={(event) => setImportPayload(event.target.value)}
+              placeholder='{"schemaVersion":1,"items":[...]}'
+            />
+          </label>
+
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={overwriteExisting}
+              onChange={(event) => setOverwriteExisting(event.target.checked)}
+            />
+            <span>Перезаписывать существующих клиентов при совпадении</span>
+          </label>
+
+          <div className="toolbar__actions wrap-actions">
+            <button
+              className="button button--primary"
+              type="button"
+              onClick={() => void handleImportClients()}
+              disabled={isImporting || importPayload.trim().length === 0}
+            >
+              {isImporting ? 'Импортируем...' : 'Запустить импорт'}
+            </button>
+            <button className="button" type="button" onClick={() => setIsImportOpen(false)}>
+              Отмена
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

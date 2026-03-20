@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { type Client, ClientStatus, Prisma, type TransportProfile } from '@prisma/client';
 import type { Request } from 'express';
 
@@ -7,6 +7,11 @@ import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.i
 import { PrismaService } from '../../common/database/prisma.service';
 import type { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { XrayService } from '../xray/xray.service';
+import {
+  type ImportedClientBundle,
+  type ImportedClientRecord,
+  importClientsSchema,
+} from './client-import-export.schema';
 import {
   emptyClientUsage,
   resolveEffectiveClientStatus,
@@ -107,6 +112,79 @@ export class ClientsService {
         totalBytes: bucket.totalBytes.toString(),
         activeConnections: bucket.activeConnections,
       })),
+    };
+  }
+
+  async exportClients() {
+    await this.expireClients();
+    await this.captureUsageSnapshotBestEffort('clients-export', true);
+
+    const items = await this.prisma.client.findMany({
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+    const usageMap = await this.loadUsageMap(items.map((item) => item.id));
+
+    return {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      items: items.map((item) =>
+        serializeClient(item, usageMap.get(item.id) ?? emptyClientUsage()),
+      ),
+    };
+  }
+
+  async importClients(payload: unknown, admin: AuthenticatedAdmin, request: Request) {
+    const parsed = this.parseImportPayload(payload);
+    const touchedClients: Client[] = [];
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const item of parsed.items) {
+      const outcome = await this.importSingleClient(item, parsed.overwriteExisting);
+
+      if (outcome.status === 'skipped') {
+        skipped += 1;
+        continue;
+      }
+
+      touchedClients.push(outcome.client);
+
+      if (outcome.status === 'created') {
+        created += 1;
+      } else {
+        updated += 1;
+      }
+    }
+
+    await Promise.all(touchedClients.map((client) => this.syncClientBestEffort(client)));
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorAdminId: admin.id,
+        action: 'CLIENT_UPDATED',
+        entityType: 'client-import',
+        summary: `Imported ${created + updated} client records (${created} created, ${updated} updated, ${skipped} skipped).`,
+        metadata: {
+          created,
+          overwriteExisting: parsed.overwriteExisting,
+          schemaVersion: parsed.schemaVersion,
+          skipped,
+          updated,
+        },
+        ipAddress: request.ip ?? undefined,
+        userAgent: request.get('user-agent') ?? undefined,
+      },
+    });
+
+    return {
+      created,
+      overwriteExisting: parsed.overwriteExisting,
+      skipped,
+      synced: touchedClients.length,
+      updated,
     };
   }
 
@@ -432,6 +510,23 @@ export class ClientsService {
     return client;
   }
 
+  private parseImportPayload(payload: unknown): ImportedClientBundle {
+    const parsed = importClientsSchema.safeParse(payload);
+
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((issue) => {
+        const path = issue.path.join('.');
+        return path ? `${path}: ${issue.message}` : issue.message;
+      });
+
+      throw new BadRequestException(
+        issues.length > 0 ? issues.join('; ') : 'Import payload is invalid.',
+      );
+    }
+
+    return parsed.data;
+  }
+
   private resolveExpiry(
     startsAt: Date,
     expiresAt?: string | null,
@@ -507,6 +602,190 @@ export class ClientsService {
         },
       ]),
     );
+  }
+
+  private async importSingleClient(item: ImportedClientRecord, overwriteExisting: boolean) {
+    const existing = await this.findImportTarget(item);
+
+    if (existing && !overwriteExisting) {
+      return {
+        status: 'skipped' as const,
+      };
+    }
+
+    const createdAt = item.createdAt ? new Date(item.createdAt) : new Date();
+    const startsAt = item.startsAt ? new Date(item.startsAt) : null;
+    const expiresAt = item.expiresAt ? new Date(item.expiresAt) : null;
+    const trafficLimitBytes = this.parseBigInt(item.trafficLimitBytes);
+    const incomingBytes = this.parseBigInt(item.incomingBytes) ?? 0n;
+    const outgoingBytes = this.parseBigInt(item.outgoingBytes) ?? 0n;
+    const totalBytes = this.parseBigInt(item.trafficUsedBytes) ?? 0n;
+    const requestedStatus = item.status ?? ClientStatus.ACTIVE;
+    const status =
+      requestedStatus === ClientStatus.DISABLED || requestedStatus === ClientStatus.BLOCKED
+        ? requestedStatus
+        : resolveEffectiveClientStatus({
+            expiresAt,
+            isTrafficUnlimited: item.isTrafficUnlimited,
+            status: requestedStatus,
+            trafficLimitBytes,
+            trafficUsedBytes: totalBytes,
+          });
+
+    const client = await this.prisma.$transaction(async (tx) => {
+      const emailTag = await this.ensureUniqueEmailTag(tx, item.emailTag, existing?.id);
+      const subscriptionToken = await this.ensureUniqueSubscriptionToken(
+        tx,
+        item.subscriptionToken,
+        existing?.id,
+      );
+      const data: Prisma.ClientUncheckedCreateInput = {
+        createdAt,
+        deviceLimit: item.deviceLimit ?? null,
+        displayName: item.displayName.trim(),
+        emailTag,
+        expiresAt,
+        ipLimit: item.ipLimit ?? null,
+        isTrafficUnlimited: item.isTrafficUnlimited,
+        note: item.note?.trim() || null,
+        startsAt,
+        status,
+        subscriptionToken,
+        tags: item.tags,
+        trafficLimitBytes,
+        transportProfile: item.transportProfile,
+        updatedAt: new Date(),
+        uuid: item.uuid,
+        xrayInboundTag: item.xrayInboundTag,
+        durationDays: item.durationDays ?? null,
+      };
+
+      const nextClient = existing
+        ? await tx.client.update({
+            where: {
+              id: existing.id,
+            },
+            data,
+          })
+        : await tx.client.create({
+            data,
+          });
+
+      await tx.dailyClientUsage.deleteMany({
+        where: {
+          clientId: nextClient.id,
+        },
+      });
+
+      if (
+        incomingBytes > 0n ||
+        outgoingBytes > 0n ||
+        totalBytes > 0n ||
+        item.activeConnections > 0
+      ) {
+        await tx.dailyClientUsage.create({
+          data: {
+            activeConnections: item.activeConnections,
+            bucketDate: new Date(new Date().setUTCHours(0, 0, 0, 0)),
+            clientId: nextClient.id,
+            incomingBytes,
+            outgoingBytes,
+            totalBytes,
+          },
+        });
+      }
+
+      return nextClient;
+    });
+
+    return {
+      client,
+      status: existing ? ('updated' as const) : ('created' as const),
+    };
+  }
+
+  private async findImportTarget(item: ImportedClientRecord) {
+    if (item.id) {
+      const byId = await this.prisma.client.findUnique({
+        where: {
+          id: item.id,
+        },
+      });
+
+      if (byId) {
+        return byId;
+      }
+    }
+
+    const byUuid = await this.prisma.client.findUnique({
+      where: {
+        uuid: item.uuid,
+      },
+    });
+
+    if (byUuid) {
+      return byUuid;
+    }
+
+    return this.prisma.client.findUnique({
+      where: {
+        emailTag: item.emailTag,
+      },
+    });
+  }
+
+  private async ensureUniqueEmailTag(
+    tx: Prisma.TransactionClient,
+    desired: string,
+    currentClientId?: string,
+  ) {
+    let candidate = desired.trim() || this.buildEmailTag('client');
+    let suffixCounter = 0;
+
+    while (true) {
+      const existing = await tx.client.findUnique({
+        where: {
+          emailTag: candidate,
+        },
+      });
+
+      if (!existing || existing.id === currentClientId) {
+        return candidate;
+      }
+
+      suffixCounter += 1;
+      candidate = `${desired}-${suffixCounter}`;
+    }
+  }
+
+  private async ensureUniqueSubscriptionToken(
+    tx: Prisma.TransactionClient,
+    desired: string,
+    currentClientId?: string,
+  ) {
+    let candidate = desired.trim() || randomBytes(24).toString('base64url');
+
+    while (true) {
+      const existing = await tx.client.findUnique({
+        where: {
+          subscriptionToken: candidate,
+        },
+      });
+
+      if (!existing || existing.id === currentClientId) {
+        return candidate;
+      }
+
+      candidate = randomBytes(24).toString('base64url');
+    }
+  }
+
+  private parseBigInt(value: string | number | null | undefined) {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    return BigInt(value);
   }
 
   private async syncClientBestEffort(

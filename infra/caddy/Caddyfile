@@ -8,6 +8,14 @@
 {$PANEL_HOST}:8443 {
   tls internal
   encode zstd gzip
+  log {
+    output file {$CADDY_ACCESS_LOG_FILE} {
+      roll_keep 14
+      roll_keep_for 336h
+      roll_size 25MiB
+    }
+    format json
+  }
 
   header {
     Strict-Transport-Security "max-age=31536000; includeSubDomains"

@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 
-import { ApiError, requestJson } from '../../lib/api';
+import { ApiError, requestJson, requestResponse } from '../../lib/api';
 import type { AdminUserRecord, AuthSessionPayload } from '../../lib/api-types';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -17,6 +17,7 @@ type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 type AuthContextValue = {
   admin: AuthSessionPayload['admin'] | null;
   apiFetch: <T>(path: string, init?: RequestInit) => Promise<T>;
+  apiFetchResponse: (path: string, init?: RequestInit) => Promise<Response>;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -117,12 +118,42 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const apiFetch = useCallback(
     async <T,>(path: string, init?: RequestInit): Promise<T> => {
+      const makeRequestInit = (accessToken: string | null): RequestInit => ({
+        ...init,
+        credentials: 'include',
+        headers: {
+          ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+          ...init?.headers,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      });
+
       const makeRequest = async (accessToken: string | null) =>
         requestJson<T>(path, {
+          ...makeRequestInit(accessToken),
+        });
+
+      try {
+        return await makeRequest(accessTokenRef.current);
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 401) {
+          throw error;
+        }
+
+        await refreshSession();
+        return makeRequest(accessTokenRef.current);
+      }
+    },
+    [refreshSession],
+  );
+
+  const apiFetchResponse = useCallback(
+    async (path: string, init?: RequestInit): Promise<Response> => {
+      const makeRequest = async (accessToken: string | null) =>
+        requestResponse(path, {
           ...init,
           credentials: 'include',
           headers: {
-            ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
             ...init?.headers,
             ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           },
@@ -185,12 +216,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       admin,
       apiFetch,
+      apiFetchResponse,
       login,
       logout,
       refreshSession,
       status,
     }),
-    [admin, apiFetch, login, logout, refreshSession, status],
+    [admin, apiFetch, apiFetchResponse, login, logout, refreshSession, status],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

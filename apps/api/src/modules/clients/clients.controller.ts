@@ -18,6 +18,20 @@ export class ClientsController {
     return this.clientsService.list(query);
   }
 
+  @Get('export')
+  exportClients() {
+    return this.clientsService.exportClients();
+  }
+
+  @Post('import')
+  importClients(
+    @Body() payload: unknown,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() request: Request,
+  ) {
+    return this.clientsService.importClients(payload, admin, request);
+  }
+
   @Get(':clientId')
   getById(@Param('clientId') clientId: string) {
     return this.clientsService.getById(clientId);

@@ -6,9 +6,11 @@ import { DatabaseModule } from './common/database/database.module';
 import { AdminUsersModule } from './modules/admin-users/admin-users.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BackupsModule } from './modules/backups/backups.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HealthModule } from './modules/health/health.module';
+import { LogsModule } from './modules/logs/logs.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { SystemModule } from './modules/system/system.module';
 import { XrayModule } from './modules/xray/xray.module';
@@ -25,8 +27,10 @@ import { XrayModule } from './modules/xray/xray.module';
     AuthModule,
     AdminUsersModule,
     ClientsModule,
+    BackupsModule,
     DashboardModule,
     SystemModule,
+    LogsModule,
     AuditLogModule,
     SubscriptionsModule,
     XrayModule,

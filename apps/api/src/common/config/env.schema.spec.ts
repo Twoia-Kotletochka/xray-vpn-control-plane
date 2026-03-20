@@ -11,17 +11,24 @@ describe('validateEnv', () => {
       INITIAL_ADMIN_EMAIL: 'admin@example.com',
       INITIAL_ADMIN_USERNAME: 'admin',
       INITIAL_ADMIN_PASSWORD: 'super-secure-password',
+      API_LOG_FILE: '/var/log/server-vpn/api.log',
       PANEL_PUBLIC_URL: 'https://panel.example.com:8443',
       XRAY_API_TARGET: 'xray:10085',
       XRAY_REALITY_PUBLIC_KEY: 'public-key',
       XRAY_SHORT_IDS: '0123456789abcdef',
       XRAY_DEFAULT_SNI: 'www.cloudflare.com',
       XRAY_SUBSCRIPTION_BASE_URL: 'https://panel.example.com:8443',
+      XRAY_ACCESS_LOG_FILE: '/var/log/server-vpn/xray-access.log',
+      XRAY_ERROR_LOG_FILE: '/var/log/server-vpn/xray-error.log',
+      CADDY_ACCESS_LOG_FILE: '/var/log/server-vpn/caddy-access.log',
+      BACKUP_DIR: '/var/backups/server-vpn',
+      BACKUP_RETENTION_DAYS: '14',
     });
 
     expect(env.API_PORT).toBe(3000);
     expect(env.BCRYPT_ROUNDS).toBe(12);
     expect(env.XRAY_API_TARGET).toBe('xray:10085');
     expect(env.XRAY_VLESS_PORT).toBe(443);
+    expect(env.BACKUP_RETENTION_DAYS).toBe(14);
   });
 });

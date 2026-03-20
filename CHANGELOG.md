@@ -13,3 +13,4 @@ All notable changes to this project will be documented in this file.
 - Added Russian-localized web panel with authenticated routes, live dashboard, client management, subscriptions, admin users, audit feed, and system status views.
 - Added live Xray control API integration for client sync, runtime reconciliation, and periodic traffic snapshots into PostgreSQL.
 - Added quota enforcement, richer system probes, QR modal UX, editable client limits/statuses, and public client subscription delivery behind Caddy without exposing the admin panel.
+- Added file-based runtime logs, panel log tail viewer, backup archive management, and JSON import/export for client records.

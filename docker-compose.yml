@@ -10,6 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/runtime/logs:/var/log/server-vpn
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 10s
@@ -35,6 +36,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    volumes:
+      - ./infra/backup/output:/var/backups/server-vpn
+      - ./infra/runtime/logs:/var/log/server-vpn
+      - ./infra/xray/generated:/var/lib/server-vpn/xray:ro
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/healthz >/dev/null || exit 1']
       interval: 15s
@@ -60,6 +65,7 @@ services:
       - ALL
     volumes:
       - ./infra/xray/generated/config.json:/etc/xray/config.json:ro
+      - ./infra/runtime/logs:/var/log/server-vpn
     ports:
       - '${XRAY_VLESS_PORT}:${XRAY_VLESS_PORT}/tcp'
     healthcheck:
@@ -87,6 +93,8 @@ services:
       - /tmp
       - /data
       - /config
+    volumes:
+      - ./infra/runtime/logs:/var/log/server-vpn
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://api:3000/healthz >/dev/null || exit 1']
       interval: 15s

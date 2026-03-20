@@ -6,6 +6,7 @@ import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import type { AppEnv } from './common/config/env.schema';
+import { FileConsoleLogger } from './common/logging/file-console.logger';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
@@ -15,6 +16,8 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService<AppEnv, true>);
   const apiPort = configService.get('API_PORT', { infer: true });
   const corsOrigin = configService.get('API_CORS_ORIGIN', { infer: true });
+  const apiLogFile = configService.get('API_LOG_FILE', { infer: true });
+  app.useLogger(new FileConsoleLogger(undefined, apiLogFile));
 
   const httpServer = app.getHttpAdapter().getInstance() as {
     set?: (key: string, value: number) => void;

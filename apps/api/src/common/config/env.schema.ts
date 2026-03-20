@@ -13,6 +13,7 @@ export const envSchema = z.object({
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(14).default(12),
   LOGIN_RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  API_LOG_FILE: z.string().default('/var/log/server-vpn/api.log'),
   DATABASE_URL: z.string().min(1),
   DATABASE_DIRECT_URL: z.string().min(1).optional(),
   JWT_ACCESS_SECRET: z.string().min(32),
@@ -29,8 +30,13 @@ export const envSchema = z.object({
   XRAY_DEFAULT_SNI: z.string().min(1),
   XRAY_DEFAULT_SPIDER_X: z.string().default('/'),
   XRAY_SUBSCRIPTION_BASE_URL: z.string().url(),
+  XRAY_ACCESS_LOG_FILE: z.string().default('/var/log/server-vpn/xray-access.log'),
+  XRAY_ERROR_LOG_FILE: z.string().default('/var/log/server-vpn/xray-error.log'),
   XRAY_USAGE_SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
   XRAY_CONTROL_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  CADDY_ACCESS_LOG_FILE: z.string().default('/var/log/server-vpn/caddy-access.log'),
+  BACKUP_DIR: z.string().default('/var/backups/server-vpn'),
+  BACKUP_RETENTION_DAYS: z.coerce.number().int().positive().default(14),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

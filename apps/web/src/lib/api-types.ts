@@ -85,6 +85,20 @@ export type ClientSubscriptionBundle = {
   }>;
 };
 
+export type ClientExportBundle = {
+  schemaVersion: number;
+  exportedAt: string;
+  items: ClientRecord[];
+};
+
+export type ClientImportResult = {
+  created: number;
+  overwriteExisting: boolean;
+  skipped: number;
+  synced: number;
+  updated: number;
+};
+
 export type DashboardSummary = {
   totals: {
     clients: number;
@@ -170,4 +184,46 @@ export type SystemStatusResponse = {
     uptimeSeconds: number | null;
   };
   message: string;
+};
+
+export type BackupRecord = {
+  id: string;
+  fileName: string;
+  checksumSha256: string;
+  fileSizeBytes: string;
+  status: string;
+  createdAt: string;
+  restoredAt: string | null;
+  notes: string | null;
+  exists: boolean;
+};
+
+export type BackupListResponse = {
+  items: BackupRecord[];
+  policy: {
+    backupDir: string;
+    retentionDays: number;
+    restoreCommand: string;
+  };
+};
+
+export type LogSourceRecord = {
+  id: string;
+  label: string;
+  path: string;
+  available: boolean;
+};
+
+export type LogSourceListResponse = {
+  items: LogSourceRecord[];
+};
+
+export type LogContentResponse = {
+  sourceId: string;
+  label: string;
+  path: string;
+  exists: boolean;
+  content: string;
+  sizeBytes?: number;
+  updatedAt?: string;
 };

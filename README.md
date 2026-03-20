@@ -8,9 +8,9 @@ This repository now contains the first connected MVP slice for the control plane
 
 - NestJS backend with real admin auth, refresh sessions, audit logging, client CRUD, expiry handling, traffic reset, and subscription generation.
 - NestJS backend with live Xray control-plane sync, internal gRPC stats snapshots, quota blocking, and public subscription feed generation.
-- Vite + React admin panel with Russian localization, authenticated routes, live dashboard, editable client cards, QR modal, system probes, admin list, and audit feed.
+- Vite + React admin panel with Russian localization, authenticated routes, live dashboard, editable client cards, QR modal, import/export flow, backups view, and live log tail for API/Xray/Caddy.
 - Docker Compose topology for `api`, `postgres`, `xray`, and `caddy`, split into isolated backend/control networks.
-- Operational docs and idempotent bootstrap/deploy/backup scripts.
+- Operational docs, idempotent bootstrap/deploy/backup/restore scripts, and file-based runtime logging.
 - Security-first secret handling via `.env.example` and ignored local files.
 
 ## Why This Shape

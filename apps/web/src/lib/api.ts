@@ -29,21 +29,37 @@ function extractMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
+async function parsePayload(response: Response) {
   const contentType = response.headers.get('content-type') ?? '';
   const isJson = contentType.includes('application/json');
-  const payload = isJson
-    ? await response.json().catch(() => null)
-    : await response.text().catch(() => null);
 
-  if (!response.ok) {
-    throw new ApiError(
-      extractMessage(payload, `Request failed with status ${response.status}`),
-      response.status,
-      payload,
-    );
+  return isJson ? await response.json().catch(() => null) : await response.text().catch(() => null);
+}
+
+async function throwIfNotOk(response: Response) {
+  if (response.ok) {
+    return;
   }
 
+  const payload = await parsePayload(response);
+
+  throw new ApiError(
+    extractMessage(payload, `Request failed with status ${response.status}`),
+    response.status,
+    payload,
+  );
+}
+
+export async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+  const response = await fetch(input, init);
+  await throwIfNotOk(response);
+  const payload = await parsePayload(response);
+
   return payload as T;
+}
+
+export async function requestResponse(input: RequestInfo | URL, init?: RequestInit) {
+  const response = await fetch(input, init);
+  await throwIfNotOk(response);
+  return response;
 }

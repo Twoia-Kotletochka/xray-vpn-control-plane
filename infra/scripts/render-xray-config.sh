@@ -24,6 +24,8 @@ required_vars=(
   XRAY_REALITY_SERVER_NAMES
   XRAY_REALITY_PRIVATE_KEY
   XRAY_SHORT_IDS
+  XRAY_ACCESS_LOG_FILE
+  XRAY_ERROR_LOG_FILE
 )
 
 for var_name in "${required_vars[@]}"; do
@@ -62,6 +64,8 @@ short_ids_json="$(printf '%s' "${XRAY_SHORT_IDS}" | awk -F',' '{
 cat > "${OUTPUT_FILE}" <<EOF
 {
   "log": {
+    "access": "${XRAY_ACCESS_LOG_FILE}",
+    "error": "${XRAY_ERROR_LOG_FILE}",
     "loglevel": "warning"
   },
   "api": {
