@@ -580,10 +580,11 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
 
       (
         callable as (
+          this: grpc.Client,
           request: unknown,
           callback: (error: grpc.ServiceError | null, response: T) => void,
         ) => void
-      )(request, (error, response) => {
+      ).call(client, request, (error, response) => {
         if (error) {
           reject(error);
           return;
