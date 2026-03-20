@@ -8,14 +8,10 @@
 {$PANEL_HOST}:8443 {
   tls internal
   encode zstd gzip
-  root * /srv/web
 
   basic_auth {
     {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
   }
-
-  @api path /api/* /healthz /readyz
-  reverse_proxy @api api:3000
 
   header {
     Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -26,6 +22,21 @@
     Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   }
 
-  try_files {path} /index.html
-  file_server
+  handle /api/* {
+    reverse_proxy api:3000
+  }
+
+  handle /healthz {
+    reverse_proxy api:3000
+  }
+
+  handle /readyz {
+    reverse_proxy api:3000
+  }
+
+  handle {
+    root * /srv/web
+    try_files {path} /index.html
+    file_server
+  }
 }
