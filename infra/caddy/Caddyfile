@@ -8,6 +8,10 @@
   encode zstd gzip
   root * /srv/web
 
+  basic_auth {
+    {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
+  }
+
   @api path /api/* /healthz /readyz
   reverse_proxy @api api:3000
 
@@ -23,4 +27,3 @@
   try_files {path} /index.html
   file_server
 }
-
