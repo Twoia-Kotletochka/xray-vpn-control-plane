@@ -3,7 +3,7 @@
   auto_https disable_redirects
 }
 
-:8443 {
+{$PANEL_HOST}:8443 {
   tls internal
   encode zstd gzip
   root * /srv/web
