@@ -117,7 +117,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return payload;
       }
 
-      hydrateWithSession(payload);
+      const sessionPayload: AuthSessionPayload = payload;
+
+      hydrateWithSession(sessionPayload);
       return {
         requiresTwoFactor: false,
       };
