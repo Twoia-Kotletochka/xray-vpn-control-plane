@@ -120,6 +120,9 @@ async function downloadText(filename: string, content: string) {
 export function ClientsPage() {
   const { apiFetch } = useAuth();
   const importFileRef = useRef<HTMLInputElement | null>(null);
+  const selectedClientIdRef = useRef<string | null>(null);
+  const listRequestIdRef = useRef(0);
+  const detailRequestIdRef = useRef(0);
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [selectedClient, setSelectedClient] = useState<ClientDetailResponse | null>(null);
   const [subscriptionBundle, setSubscriptionBundle] = useState<ClientSubscriptionBundle | null>(
@@ -143,12 +146,27 @@ export function ClientsPage() {
   const [editFormState, setEditFormState] = useState<EditClientFormState>(emptyEditFormState);
   const deferredSearch = useDeferredValue(search);
 
+  const clearSelectedClient = useCallback(() => {
+    detailRequestIdRef.current += 1;
+    selectedClientIdRef.current = null;
+    setSelectedClient(null);
+    setSubscriptionBundle(null);
+    setEditFormState(emptyEditFormState);
+  }, []);
+
   const loadClientDetails = useCallback(
     async (clientId: string) => {
+      const requestId = ++detailRequestIdRef.current;
+      selectedClientIdRef.current = clientId;
+
       const [client, bundle] = await Promise.all([
         apiFetch<ClientDetailResponse>(`/api/clients/${clientId}`),
         apiFetch<ClientSubscriptionBundle>(`/api/subscriptions/client/${clientId}`),
       ]);
+
+      if (requestId !== detailRequestIdRef.current || selectedClientIdRef.current !== clientId) {
+        return;
+      }
 
       setSelectedClient(client);
       setSubscriptionBundle(bundle);
@@ -158,7 +176,8 @@ export function ClientsPage() {
   );
 
   const loadClients = useCallback(
-    async (searchValue: string) => {
+    async (searchValue: string, preferredSelectedId?: string) => {
+      const requestId = ++listRequestIdRef.current;
       setIsLoading(true);
       setError(null);
 
@@ -167,29 +186,39 @@ export function ClientsPage() {
           `/api/clients?page=1&pageSize=50&search=${encodeURIComponent(searchValue)}`,
         );
 
-        setClients(response.items);
-
-        if (response.items.length === 0) {
-          setSelectedClient(null);
-          setSubscriptionBundle(null);
+        if (requestId !== listRequestIdRef.current) {
           return;
         }
 
+        setClients(response.items);
+
+        if (response.items.length === 0) {
+          clearSelectedClient();
+          return;
+        }
+
+        const currentSelectedId = preferredSelectedId ?? selectedClientIdRef.current;
         const nextSelectedId =
-          selectedClient && response.items.some((item) => item.id === selectedClient.id)
-            ? selectedClient.id
+          currentSelectedId && response.items.some((item) => item.id === currentSelectedId)
+            ? currentSelectedId
             : response.items[0]?.id;
 
         if (nextSelectedId) {
           await loadClientDetails(nextSelectedId);
         }
       } catch (loadError) {
+        if (requestId !== listRequestIdRef.current) {
+          return;
+        }
+
         setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить клиентов.');
       } finally {
-        setIsLoading(false);
+        if (requestId === listRequestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     },
-    [apiFetch, loadClientDetails, selectedClient],
+    [apiFetch, clearSelectedClient, loadClientDetails],
   );
 
   useEffect(() => {
@@ -254,8 +283,7 @@ export function ClientsPage() {
 
       setFormState(initialCreateFormState);
       setIsComposerOpen(false);
-      await loadClients('');
-      await loadClientDetails(created.id);
+      await loadClients('', created.id);
     } catch (submissionError) {
       setError(
         submissionError instanceof Error ? submissionError.message : 'Не удалось создать клиента.',
@@ -297,8 +325,7 @@ export function ClientsPage() {
         }),
       });
 
-      await loadClients(search);
-      await loadClientDetails(selectedClient.id);
+      await loadClients(search, selectedClient.id);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Не удалось обновить клиента.');
     } finally {
@@ -316,7 +343,7 @@ export function ClientsPage() {
       }),
     });
 
-    await loadClients(search);
+    await loadClients(search, client.id);
   };
 
   const handleExtendClient = async (clientId: string) => {
@@ -327,7 +354,7 @@ export function ClientsPage() {
       }),
     });
 
-    await loadClients(search);
+    await loadClients(search, clientId);
   };
 
   const handleResetTraffic = async (clientId: string) => {
@@ -335,8 +362,7 @@ export function ClientsPage() {
       method: 'POST',
     });
 
-    await loadClients(search);
-    await loadClientDetails(clientId);
+    await loadClients(search, clientId);
   };
 
   const handleDeleteClient = async (clientId: string) => {

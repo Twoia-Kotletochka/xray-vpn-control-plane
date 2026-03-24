@@ -1,0 +1,151 @@
+// @vitest-environment jsdom
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type {
+  ClientDetailResponse,
+  ClientListResponse,
+  ClientRecord,
+  ClientSubscriptionBundle,
+} from '../../lib/api-types';
+import { ClientsPage } from './clients-page';
+
+const mockApiFetch = vi.fn();
+
+vi.mock('../auth/auth-context', () => ({
+  useAuth: () => ({
+    apiFetch: mockApiFetch,
+  }),
+}));
+
+function createClient(id: string, displayName: string, emailTag: string, uuid: string): ClientRecord {
+  return {
+    id,
+    uuid,
+    emailTag,
+    displayName,
+    note: null,
+    tags: [],
+    status: 'ACTIVE',
+    createdAt: '2026-03-24T00:00:00.000Z',
+    updatedAt: '2026-03-24T00:00:00.000Z',
+    startsAt: '2026-03-24T00:00:00.000Z',
+    expiresAt: '2026-04-23T00:00:00.000Z',
+    durationDays: 30,
+    trafficLimitBytes: '1073741824',
+    isTrafficUnlimited: false,
+    trafficUsedBytes: '0',
+    incomingBytes: '0',
+    outgoingBytes: '0',
+    remainingTrafficBytes: '1073741824',
+    deviceLimit: null,
+    ipLimit: null,
+    subscriptionToken: `token-${id}`,
+    transportProfile: 'VLESS_REALITY_TCP',
+    xrayInboundTag: 'vless-reality-main',
+    activeConnections: 0,
+    lastActivatedAt: null,
+    lastSeenAt: null,
+  };
+}
+
+function createClientDetail(client: ClientRecord): ClientDetailResponse {
+  return {
+    ...client,
+    usageHistory: [],
+  };
+}
+
+function createBundle(client: ClientRecord): ClientSubscriptionBundle {
+  return {
+    client,
+    config: {
+      uri: `vless://${client.uuid}@example.com:443#${client.displayName}`,
+      qrcodeText: `vless://${client.uuid}@example.com:443#${client.displayName}`,
+      subscriptionUrl: `https://example.com/api/subscriptions/${client.subscriptionToken}`,
+    },
+    instructions: [],
+    platformGuides: [],
+  };
+}
+
+describe('ClientsPage', () => {
+  beforeEach(() => {
+    mockApiFetch.mockReset();
+    vi.stubGlobal('navigator', {
+      clipboard: {
+        writeText: vi.fn(),
+      },
+    });
+  });
+
+  it('keeps the selected client stable without reloading the list', async () => {
+    const firstClient = createClient(
+      'client-1',
+      'Client One',
+      'client-one',
+      '11111111-1111-1111-1111-111111111111',
+    );
+    const secondClient = createClient(
+      'client-2',
+      'Client Two',
+      'client-two',
+      '22222222-2222-2222-2222-222222222222',
+    );
+    const listResponse: ClientListResponse = {
+      items: [firstClient, secondClient],
+      pagination: {
+        page: 1,
+        pageSize: 50,
+        total: 2,
+      },
+      filters: {
+        search: null,
+      },
+    };
+    const detailsByPath: Record<string, ClientDetailResponse> = {
+      '/api/clients/client-1': createClientDetail(firstClient),
+      '/api/clients/client-2': createClientDetail(secondClient),
+    };
+    const bundlesByPath: Record<string, ClientSubscriptionBundle> = {
+      '/api/subscriptions/client/client-1': createBundle(firstClient),
+      '/api/subscriptions/client/client-2': createBundle(secondClient),
+    };
+
+    mockApiFetch.mockImplementation(async (path: string) => {
+      if (path === '/api/clients?page=1&pageSize=50&search=') {
+        return listResponse;
+      }
+
+      if (path in detailsByPath) {
+        return detailsByPath[path];
+      }
+
+      if (path in bundlesByPath) {
+        return bundlesByPath[path];
+      }
+
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    render(<ClientsPage />);
+
+    await screen.findByText((content) => content.includes(firstClient.uuid));
+
+    const listCalls = () =>
+      mockApiFetch.mock.calls.filter(([path]) =>
+        String(path).startsWith('/api/clients?page=1&pageSize=50&search='),
+      ).length;
+
+    expect(listCalls()).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Client Two/i }));
+
+    await screen.findByText((content) => content.includes(secondClient.uuid));
+
+    await waitFor(() => {
+      expect(listCalls()).toBe(1);
+    });
+  });
+});
