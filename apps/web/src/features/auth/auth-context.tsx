@@ -10,15 +10,26 @@ import {
 } from 'react';
 
 import { ApiError, requestJson, requestResponse } from '../../lib/api';
-import type { AdminUserRecord, AuthSessionPayload } from '../../lib/api-types';
+import type {
+  AuthAdminRecord,
+  AuthLoginResponse,
+  AuthSessionPayload,
+  AuthTwoFactorChallenge,
+  CurrentAdminResponse,
+} from '../../lib/api-types';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+type LoginOptions = {
+  challengeToken?: string;
+  twoFactorCode?: string;
+};
+type LoginResult = { requiresTwoFactor: false } | AuthTwoFactorChallenge;
 
 type AuthContextValue = {
-  admin: AuthSessionPayload['admin'] | null;
+  admin: AuthAdminRecord | null;
   apiFetch: <T>(path: string, init?: RequestInit) => Promise<T>;
   apiFetchResponse: (path: string, init?: RequestInit) => Promise<Response>;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, options?: LoginOptions) => Promise<LoginResult>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   status: AuthStatus;
@@ -34,7 +45,7 @@ function getStoredAccessToken(): string | null {
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>('loading');
-  const [admin, setAdmin] = useState<AuthSessionPayload['admin'] | null>(null);
+  const [admin, setAdmin] = useState<AuthAdminRecord | null>(null);
   const accessTokenRef = useRef<string | null>(
     typeof window === 'undefined' ? null : getStoredAccessToken(),
   );
@@ -66,7 +77,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const loadProfile = useCallback(async (accessToken: string) => {
-    const response = await requestJson<{ admin: AdminUserRecord }>('/api/auth/me', {
+    const response = await requestJson<CurrentAdminResponse>('/api/auth/me', {
       credentials: 'include',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -87,8 +98,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [hydrateWithSession]);
 
   const login = useCallback(
-    async (username: string, password: string) => {
-      const payload = await requestJson<AuthSessionPayload>('/api/auth/login', {
+    async (username: string, password: string, options?: LoginOptions): Promise<LoginResult> => {
+      const payload = await requestJson<AuthLoginResponse>('/api/auth/login', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -97,10 +108,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
         body: JSON.stringify({
           username,
           password,
+          twoFactorCode: options?.twoFactorCode,
+          twoFactorChallengeToken: options?.challengeToken,
         }),
       });
 
+      if ('requiresTwoFactor' in payload && payload.requiresTwoFactor) {
+        return payload;
+      }
+
       hydrateWithSession(payload);
+      return {
+        requiresTwoFactor: false,
+      };
     },
     [hydrateWithSession],
   );

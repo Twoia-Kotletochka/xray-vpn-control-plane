@@ -1,9 +1,18 @@
+export type AuthAdminRecord = {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  twoFactorEnabled: boolean;
+};
+
 export type AdminUserRecord = {
   id: string;
   email: string;
   username: string;
   role: string;
   isActive: boolean;
+  twoFactorEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -11,12 +20,20 @@ export type AdminUserRecord = {
 export type AuthSessionPayload = {
   accessToken: string;
   accessTokenTtl: string;
-  admin: {
-    id: string;
-    email: string;
-    username: string;
-    role: string;
-  };
+  admin: AuthAdminRecord;
+};
+
+export type AuthTwoFactorChallenge = {
+  requiresTwoFactor: true;
+  challengeToken: string;
+  challengeExpiresAt: string;
+  admin: AuthAdminRecord;
+};
+
+export type AuthLoginResponse = AuthSessionPayload | AuthTwoFactorChallenge;
+
+export type CurrentAdminResponse = {
+  admin: AuthAdminRecord;
 };
 
 export type ClientRecord = {
@@ -158,6 +175,24 @@ export type AdminUsersResponse = {
     twoFactorReady: boolean;
     roleModel: string[];
   };
+};
+
+export type TwoFactorStatusResponse = {
+  enabled: boolean;
+};
+
+export type TwoFactorSetupResponse = {
+  enabled: false;
+  setupToken: string;
+  secret: string;
+  issuer: string;
+  accountLabel: string;
+  otpauthUrl: string;
+  expiresAt: string;
+};
+
+export type TwoFactorMutationResponse = {
+  enabled: boolean;
 };
 
 export type SystemStatusResponse = {

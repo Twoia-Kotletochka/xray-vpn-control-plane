@@ -18,6 +18,7 @@ export const envSchema = z.object({
   DATABASE_DIRECT_URL: z.string().min(1).optional(),
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
+  TOTP_ENCRYPTION_SECRET: z.string().min(32),
   INITIAL_ADMIN_EMAIL: z.string().email(),
   INITIAL_ADMIN_USERNAME: z.string().min(3),
   INITIAL_ADMIN_PASSWORD: z.string().min(12),

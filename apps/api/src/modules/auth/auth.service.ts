@@ -10,10 +10,19 @@ import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
 import { parseDurationToMs } from '../../common/utils/parse-duration';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import type { AccessTokenPayload, RefreshTokenPayload } from './auth.types';
+import { decryptTwoFactorSecret } from './two-factor-secret.util';
+import type {
+  AccessTokenPayload,
+  AuthAdminPayload,
+  RefreshTokenPayload,
+  TwoFactorChallengePayload,
+} from './auth.types';
+import { verifyTotpCode } from './totp.util';
 import { LoginAttemptService } from './login-attempt.service';
 
 import type { LoginDto } from './dto/login.dto';
+
+const TWO_FACTOR_CHALLENGE_TTL = '5m';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +46,15 @@ export class AuthService {
       where: {
         OR: [{ username: identifier }, { email: identifier.toLowerCase() }],
       },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        role: true,
+        isActive: true,
+        passwordHash: true,
+        totpSecretEnc: true,
+      },
     });
 
     if (!admin || !(await bcrypt.compare(input.password, admin.passwordHash))) {
@@ -57,6 +75,37 @@ export class AuthService {
       throw new ForbiddenException('Admin account is disabled.');
     }
 
+    if (admin.totpSecretEnc) {
+      if (!input.twoFactorCode) {
+        return this.issueTwoFactorChallenge(admin);
+      }
+
+      if (!input.twoFactorChallengeToken) {
+        this.loginAttemptService.recordFailure(loginKey);
+        throw new UnauthorizedException('Two-factor session is missing. Start login again.');
+      }
+
+      await this.verifyTwoFactorChallenge(input.twoFactorChallengeToken, admin.id);
+
+      const totpSecret = decryptTwoFactorSecret(
+        admin.totpSecretEnc,
+        this.configService.get('TOTP_ENCRYPTION_SECRET', { infer: true }),
+      );
+
+      if (!verifyTotpCode(totpSecret, input.twoFactorCode)) {
+        this.loginAttemptService.recordFailure(loginKey);
+        await this.safeAuditWrite({
+          action: 'LOGIN_FAILED',
+          entityType: 'admin_user',
+          entityId: admin.id,
+          summary: `Failed second-factor verification for ${identifier}.`,
+          ipAddress,
+          userAgent,
+        });
+        throw new UnauthorizedException('Invalid two-factor code.');
+      }
+    }
+
     this.loginAttemptService.clear(loginKey);
 
     await this.prisma.adminSession.deleteMany({
@@ -66,9 +115,7 @@ export class AuthService {
     });
 
     const sessionPayload = await this.issueSession(admin.id, request, response, {
-      email: admin.email,
-      role: admin.role,
-      username: admin.username,
+      ...this.presentAdmin(admin),
     });
 
     await this.safeAuditWrite({
@@ -96,8 +143,21 @@ export class AuthService {
       where: {
         id: payload.sid,
       },
-      include: {
-        adminUser: true,
+      select: {
+        id: true,
+        refreshTokenHash: true,
+        expiresAt: true,
+        revokedAt: true,
+        adminUser: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            role: true,
+            isActive: true,
+            totpSecretEnc: true,
+          },
+        },
       },
     });
 
@@ -125,9 +185,7 @@ export class AuthService {
     }
 
     return this.issueSession(session.adminUser.id, request, response, {
-      email: session.adminUser.email,
-      role: session.adminUser.role,
-      username: session.adminUser.username,
+      ...this.presentAdmin(session.adminUser),
       sessionId: session.id,
     });
   }
@@ -161,9 +219,22 @@ export class AuthService {
     };
   }
 
-  me(admin: AuthenticatedAdmin) {
+  async me(admin: AuthenticatedAdmin) {
+    const currentAdmin = await this.prisma.adminUser.findUnique({
+      where: {
+        id: admin.id,
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        role: true,
+        totpSecretEnc: true,
+      },
+    });
+
     return {
-      admin,
+      admin: currentAdmin ? this.presentAdmin(currentAdmin) : { ...admin, twoFactorEnabled: false },
     };
   }
 
@@ -174,6 +245,7 @@ export class AuthService {
     admin: {
       email: string;
       role: AuthenticatedAdmin['role'];
+      twoFactorEnabled: boolean;
       username: string;
       sessionId?: string;
     },
@@ -242,8 +314,55 @@ export class AuthService {
         email: admin.email,
         username: admin.username,
         role: admin.role,
+        twoFactorEnabled: admin.twoFactorEnabled,
       },
     };
+  }
+
+  private async issueTwoFactorChallenge(admin: {
+    id: string;
+    email: string;
+    username: string;
+    role: AuthenticatedAdmin['role'];
+    totpSecretEnc: string | null;
+  }) {
+    const expiresInMs = parseDurationToMs(TWO_FACTOR_CHALLENGE_TTL);
+    const challengeToken = await this.jwtService.signAsync<TwoFactorChallengePayload>(
+      {
+        sub: admin.id,
+        username: admin.username,
+        type: 'two_factor_challenge',
+      },
+      {
+        secret: this.configService.get('JWT_ACCESS_SECRET', { infer: true }),
+        expiresIn: Math.floor(expiresInMs / 1_000),
+      },
+    );
+
+    return {
+      requiresTwoFactor: true as const,
+      challengeToken,
+      challengeExpiresAt: new Date(Date.now() + expiresInMs).toISOString(),
+      admin: this.presentAdmin(admin),
+    };
+  }
+
+  private async verifyTwoFactorChallenge(token: string, adminUserId: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<TwoFactorChallengePayload>(token, {
+        secret: this.configService.get('JWT_ACCESS_SECRET', { infer: true }),
+      });
+
+      if (payload.type !== 'two_factor_challenge' || payload.sub !== adminUserId) {
+        throw new UnauthorizedException('Two-factor session is invalid. Start login again.');
+      }
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      throw new UnauthorizedException('Two-factor session is invalid. Start login again.');
+    }
   }
 
   private readRefreshToken(request: Request): string | null {
@@ -291,6 +410,22 @@ export class AuthService {
 
   private hashToken(value: string): string {
     return createHash('sha256').update(value).digest('hex');
+  }
+
+  private presentAdmin(admin: {
+    id: string;
+    email: string;
+    username: string;
+    role: AuthenticatedAdmin['role'];
+    totpSecretEnc?: string | null;
+  }): AuthAdminPayload {
+    return {
+      id: admin.id,
+      email: admin.email,
+      username: admin.username,
+      role: admin.role,
+      twoFactorEnabled: Boolean(admin.totpSecretEnc),
+    };
   }
 
   private getIpAddress(request: Request): string | undefined {

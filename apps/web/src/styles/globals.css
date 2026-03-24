@@ -510,6 +510,12 @@ a {
   opacity: 0.72;
 }
 
+.form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .icon-button:disabled {
   cursor: wait;
   opacity: 0.72;
@@ -706,6 +712,30 @@ a {
 .feature-list__card {
   display: grid;
   gap: 10px;
+}
+
+.two-factor-stack,
+.two-factor-grid,
+.two-factor-disable {
+  display: grid;
+  gap: 16px;
+}
+
+.two-factor-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.two-factor-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.two-factor-status span {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-soft);
 }
 
 .feature-list__card code,
@@ -936,6 +966,7 @@ a {
   .metrics-grid,
   .content-grid,
   .split-grid,
+  .two-factor-grid,
   .field-grid,
   .stat-grid {
     grid-template-columns: 1fr 1fr;
@@ -962,6 +993,7 @@ a {
   .metrics-grid,
   .content-grid,
   .split-grid,
+  .two-factor-grid,
   .field-grid,
   .stat-grid {
     grid-template-columns: 1fr;
@@ -969,5 +1001,10 @@ a {
 
   .sidebar__nav {
     grid-template-columns: 1fr;
+  }
+
+  .two-factor-status {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
