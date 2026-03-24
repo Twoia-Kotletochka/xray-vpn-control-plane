@@ -113,16 +113,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }),
       });
 
-      if ('requiresTwoFactor' in payload && payload.requiresTwoFactor) {
-        return payload;
+      if ('accessToken' in payload) {
+        hydrateWithSession(payload);
+        return {
+          requiresTwoFactor: false,
+        };
       }
 
-      const sessionPayload: AuthSessionPayload = payload;
-
-      hydrateWithSession(sessionPayload);
-      return {
-        requiresTwoFactor: false,
-      };
+      return payload;
     },
     [hydrateWithSession],
   );
