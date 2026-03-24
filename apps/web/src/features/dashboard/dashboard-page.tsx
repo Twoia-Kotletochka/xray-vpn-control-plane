@@ -84,7 +84,7 @@ export function DashboardPage() {
     <div className="page">
       <PageHeader
         title="Дашборд"
-        description="Живой обзор клиентской базы, трафика, Xray runtime и общего состояния панели управления."
+        description="Операционная сводка по клиентской базе, трафику, runtime Xray и состоянию сервисов."
         actionLabel="Обновить"
         onAction={() => {
           void apiFetch<DashboardSummary>('/api/dashboard/summary')
@@ -123,12 +123,10 @@ export function DashboardPage() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="Контрольный фокус релиза">
+        <SectionCard title="Операционный контур">
           <ul className="feature-list">
-            <li>Аутентификация администратора уже переведена на реальные refresh-сессии.</li>
-            <li>
-              Клиенты синхронизируются с Xray через control API, без docker.sock в приложении.
-            </li>
+            <li>Администратор работает через refresh-сессии и журнал аудита.</li>
+            <li>Клиенты синхронизируются с Xray через control API без доступа приложения к docker.sock.</li>
             <li>
               Последняя успешная синхронизация Xray:{' '}
               {formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, 'ещё не выполнялась')}

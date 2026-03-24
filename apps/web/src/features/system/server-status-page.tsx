@@ -68,7 +68,7 @@ export function ServerStatusPage() {
     <div className="page">
       <PageHeader
         title="Состояние сервера"
-        description="Текущие сигналы по основным сервисам платформы, live-статус Xray и безопасные ручные операции управления рантаймом."
+        description="Текущие сигналы по основным сервисам платформы, статусу Xray и ручным операциям рантайма."
         actionLabel="Обновить"
         onAction={() => {
           void loadStatus();

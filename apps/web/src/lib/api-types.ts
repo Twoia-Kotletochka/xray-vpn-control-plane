@@ -189,6 +189,7 @@ export type SystemStatusResponse = {
 export type BackupRecord = {
   id: string;
   fileName: string;
+  absolutePath: string;
   checksumSha256: string;
   fileSizeBytes: string;
   status: string;

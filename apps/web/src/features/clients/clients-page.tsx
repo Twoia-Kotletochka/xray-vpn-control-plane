@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { Modal } from '../../components/ui/modal';
 import { PageHeader } from '../../components/ui/page-header';
@@ -463,7 +464,7 @@ export function ClientsPage() {
     <div className="page">
       <PageHeader
         title="Клиенты"
-        description="Реальный реестр клиентов с лимитами, сроками действия, редактированием профиля и готовыми VLESS/REALITY конфигами."
+        description="Реестр клиентов с лимитами, сроками действия, управлением доступом и готовыми конфигами."
         actionLabel={isComposerOpen ? 'Скрыть форму' : 'Новый клиент'}
         onAction={() => setIsComposerOpen((value) => !value)}
       />
@@ -473,7 +474,7 @@ export function ClientsPage() {
 
       <SectionCard
         title="Управление клиентами"
-        subtitle="Поиск, создание, редактирование лимитов, статусов и готовые конфиги без пересоздания UUID."
+        subtitle="Поиск, создание, редактирование лимитов и статусов без перевыпуска клиентского UUID."
       >
         <div className="toolbar">
           <label className="toolbar__search">
@@ -918,25 +919,23 @@ export function ClientsPage() {
                       <code>{subscriptionBundle.config.uri}</code>
                     </div>
 
-                    <div className="guide-grid">
-                      {subscriptionBundle.platformGuides.map((guide) => (
-                        <div key={guide.platform} className="insight-card">
-                          <span>{guide.platform}</span>
-                          <strong>{guide.clientApp}</strong>
-                          <ul className="feature-list">
-                            {guide.steps.map((step) => (
-                              <li key={step}>{step}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-
                     <ul className="feature-list">
                       {subscriptionBundle.instructions.map((item) => (
                         <li key={item}>{item}</li>
                       ))}
                     </ul>
+
+                    <div className="feature-list__card">
+                      <strong>Инструкции по приложениям</strong>
+                      <span>
+                        Рекомендованные клиенты для Windows, macOS, Android и iPhone/iPad
+                        вынесены в раздел{' '}
+                        <Link to="/help">
+                          <strong>Помощь</strong>
+                        </Link>
+                        .
+                      </span>
+                    </div>
                   </div>
                 ) : null}
 

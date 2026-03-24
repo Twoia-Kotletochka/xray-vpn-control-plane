@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Req, Res, StreamableFile } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Req,
+  Res,
+  StreamableFile,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
@@ -38,5 +48,14 @@ export class BackupsController {
     );
 
     return new StreamableFile(download.stream);
+  }
+
+  @Delete(':backupId')
+  remove(
+    @Param('backupId') backupId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() request: Request,
+  ) {
+    return this.backupsService.remove(backupId, admin, request);
   }
 }

@@ -4,7 +4,12 @@ import { createReadStream, existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 
@@ -138,6 +143,53 @@ export class BackupsService {
     return {
       fileName: snapshot.fileName,
       stream: createReadStream(archivePath),
+    };
+  }
+
+  async remove(backupId: string, admin: AuthenticatedAdmin, request: Request) {
+    const snapshot = await this.requireBackup(backupId);
+
+    if (snapshot.status === 'CREATING') {
+      throw new BadRequestException('Backup is still being created.');
+    }
+
+    const archivePath = join(this.backupDir, snapshot.fileName);
+    const existedOnDisk = existsSync(archivePath);
+
+    if (existedOnDisk) {
+      await rm(archivePath, {
+        force: true,
+      });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.backupSnapshot.delete({
+        where: {
+          id: snapshot.id,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorAdminId: admin.id,
+          action: 'BACKUP_DELETED',
+          entityType: 'backup',
+          entityId: snapshot.id,
+          summary: `Backup ${snapshot.fileName} deleted.`,
+          metadata: {
+            existedOnDisk,
+            fileName: snapshot.fileName,
+            status: snapshot.status,
+          },
+          ipAddress: request.ip ?? undefined,
+          userAgent: request.get('user-agent') ?? undefined,
+        },
+      });
+    });
+
+    return {
+      success: true,
+      id: snapshot.id,
     };
   }
 
@@ -337,6 +389,7 @@ export class BackupsService {
     return {
       id: snapshot.id,
       fileName: snapshot.fileName,
+      absolutePath: archivePath,
       checksumSha256: snapshot.checksumSha256,
       fileSizeBytes: snapshot.fileSizeBytes.toString(),
       status: snapshot.status,

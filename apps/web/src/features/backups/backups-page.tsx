@@ -1,6 +1,7 @@
-import { Download, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Copy, Download, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { Modal } from '../../components/ui/modal';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import type { BackupListResponse, BackupRecord } from '../../lib/api-types';
@@ -34,6 +35,10 @@ function downloadBlob(fileName: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
+function quoteShellArg(value: string) {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 export function BackupsPage() {
   const { apiFetch, apiFetchResponse } = useAuth();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
@@ -43,7 +48,10 @@ export function BackupsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<BackupRecord | null>(null);
 
   const loadBackups = useCallback(async () => {
     setIsLoading(true);
@@ -74,6 +82,7 @@ export function BackupsPage() {
   const handleCreateBackup = async () => {
     setIsCreating(true);
     setError(null);
+    setNotice(null);
 
     try {
       await apiFetch('/api/backups', {
@@ -94,6 +103,7 @@ export function BackupsPage() {
   const handleDownload = async (backup: BackupRecord) => {
     setIsDownloadingId(backup.id);
     setError(null);
+    setNotice(null);
 
     try {
       const response = await apiFetchResponse(`/api/backups/${backup.id}/download`);
@@ -110,22 +120,65 @@ export function BackupsPage() {
     }
   };
 
+  const handleDelete = async (backup: BackupRecord) => {
+    if (
+      !window.confirm(
+        `Удалить backup ${backup.fileName}? Архив на диске и запись в панели будут удалены.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsDeletingId(backup.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await apiFetch<{ id: string; success: boolean }>(`/api/backups/${backup.id}`, {
+        method: 'DELETE',
+      });
+
+      setNotice(`Backup ${backup.fileName} удалён.`);
+
+      if (restoreTarget?.id === backup.id) {
+        setRestoreTarget(null);
+      }
+
+      await loadBackups();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : 'Не удалось удалить резервную копию.',
+      );
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
+  const handleCopyRestoreCommand = async (backup: BackupRecord) => {
+    const command = `./infra/scripts/restore.sh --yes-restore ${quoteShellArg(backup.absolutePath)}`;
+    await navigator.clipboard.writeText(command);
+    setNotice(`Команда восстановления для ${backup.fileName} скопирована.`);
+  };
+
   return (
     <div className="page">
       <PageHeader
         title="Резервные копии"
-        description="Снимки PostgreSQL и отрендеренного Xray-конфига доступны прямо из панели. Восстановление остаётся осознанной операцией через host-скрипт, чтобы не ломать control plane изнутри самого приложения."
+        description="Управление архивами PostgreSQL и runtime-конфигом Xray с безопасным recovery workflow."
         actionLabel={isCreating ? 'Создаём backup...' : 'Создать backup'}
         actionDisabled={isCreating}
         onAction={() => void handleCreateBackup()}
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
+      {notice ? <div className="banner banner--success">{notice}</div> : null}
 
       <div className="content-grid">
         <SectionCard
           title="Политика хранения"
-          subtitle="Настройки берутся из боевого .env и соблюдаются автоматически при создании новых архивов."
+          subtitle="Параметры берутся из production-конфига и соблюдаются автоматически при создании новых архивов."
         >
           <div className="stat-grid">
             <div className="stat-card">
@@ -147,10 +200,11 @@ export function BackupsPage() {
               </code>
             </div>
             <div className="feature-list__card">
-              <strong>Почему без кнопки restore</strong>
+              <strong>Restore workflow</strong>
               <span>
-                Восстановление из UI опасно для single-node control plane: приложение не должно само
-                пересобирать собственную базу и runtime, пока на нём держится сессия администратора.
+                Восстановление выполняется с хоста по подтверждённой команде. Панель подсказывает
+                точный порядок действий и конкретный архив, но не запускает destructive recovery
+                из активной админской сессии.
               </span>
             </div>
           </div>
@@ -158,7 +212,7 @@ export function BackupsPage() {
 
         <SectionCard
           title="Операционный контур"
-          subtitle="Архив включает дамп PostgreSQL, Xray config и manifest с датой создания."
+          subtitle="Архив включает дамп PostgreSQL, runtime-конфиг Xray и manifest с датой создания."
         >
           <ul className="feature-list">
             <li>
@@ -177,7 +231,7 @@ export function BackupsPage() {
 
       <SectionCard
         title="История backup"
-        subtitle="Свежие архивы можно скачать из панели и хранить во внешнем cold storage."
+        subtitle="Архив можно скачать, удалить или использовать как основу для host-side восстановления."
       >
         <div className="toolbar">
           <div className="toolbar__actions">
@@ -205,17 +259,37 @@ export function BackupsPage() {
                   <strong>{backup.fileName}</strong>
                   <span>{formatBackupStatus(backup.status)}</span>
                 </div>
-                <button
-                  className="button"
-                  type="button"
-                  onClick={() => void handleDownload(backup)}
-                  disabled={
-                    !backup.exists || backup.status !== 'READY' || isDownloadingId === backup.id
-                  }
-                >
-                  <Download size={16} />
-                  {isDownloadingId === backup.id ? 'Скачиваем...' : 'Скачать'}
-                </button>
+                <div className="backup-card__actions">
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => void handleDownload(backup)}
+                    disabled={
+                      !backup.exists || backup.status !== 'READY' || isDownloadingId === backup.id
+                    }
+                  >
+                    <Download size={16} />
+                    {isDownloadingId === backup.id ? 'Скачиваем...' : 'Скачать'}
+                  </button>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => setRestoreTarget(backup)}
+                    disabled={!backup.exists || backup.status !== 'READY'}
+                  >
+                    <RotateCcw size={16} />
+                    Restore
+                  </button>
+                  <button
+                    className="button button--danger"
+                    type="button"
+                    onClick={() => void handleDelete(backup)}
+                    disabled={isDeletingId === backup.id}
+                  >
+                    <Trash2 size={16} />
+                    {isDeletingId === backup.id ? 'Удаляем...' : 'Удалить'}
+                  </button>
+                </div>
               </div>
 
               <dl className="detail-list">
@@ -248,6 +322,54 @@ export function BackupsPage() {
           ) : null}
         </div>
       </SectionCard>
+
+      <Modal
+        isOpen={restoreTarget !== null}
+        onClose={() => setRestoreTarget(null)}
+        title={restoreTarget ? `Восстановление: ${restoreTarget.fileName}` : 'Восстановление backup'}
+      >
+        {restoreTarget ? (
+          <div className="detail-stack">
+            <div className="banner banner--danger">
+              Recovery нужно запускать только с хоста и только после подтверждения, что текущая
+              база и runtime могут быть перезаписаны.
+            </div>
+
+            <div className="feature-list">
+              <div className="feature-list__card">
+                <strong>Архив</strong>
+                <code>{restoreTarget.absolutePath}</code>
+              </div>
+              <div className="feature-list__card">
+                <strong>Команда</strong>
+                <code>
+                  {`./infra/scripts/restore.sh --yes-restore ${quoteShellArg(restoreTarget.absolutePath)}`}
+                </code>
+              </div>
+            </div>
+
+            <ul className="feature-list">
+              <li>Скачайте свежий архив во внешнее хранилище перед восстановлением.</li>
+              <li>Убедитесь, что окно обслуживания согласовано и активные изменения остановлены.</li>
+              <li>Запускайте restore только на хосте, а не из контейнера приложения.</li>
+            </ul>
+
+            <div className="toolbar__actions wrap-actions">
+              <button
+                className="button"
+                type="button"
+                onClick={() => void handleCopyRestoreCommand(restoreTarget)}
+              >
+                <Copy size={16} />
+                Скопировать команду
+              </button>
+              <button className="button" type="button" onClick={() => setRestoreTarget(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

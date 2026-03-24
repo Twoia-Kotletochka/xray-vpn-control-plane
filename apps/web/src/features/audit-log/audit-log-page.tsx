@@ -39,7 +39,7 @@ export function AuditLogPage() {
     <div className="page">
       <PageHeader
         title="Аудит"
-        description="Сюда попадают ключевые действия администратора и критичные события жизненного цикла клиента."
+        description="Журнал действий администратора и критичных событий по клиентам и платформе."
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}

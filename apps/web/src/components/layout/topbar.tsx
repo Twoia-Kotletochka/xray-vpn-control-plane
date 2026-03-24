@@ -1,27 +1,37 @@
-import { BellDot, Search, ShieldCheck } from 'lucide-react';
+import { Menu, ShieldCheck } from 'lucide-react';
 
 import { useAuth } from '../../features/auth/auth-context';
 import { ui } from '../../i18n';
 
-export function Topbar() {
+type TopbarProps = {
+  onOpenNavigation: () => void;
+};
+
+export function Topbar({ onOpenNavigation }: TopbarProps) {
   const { admin, logout } = useAuth();
 
   return (
     <header className="topbar">
-      <label className="topbar__search">
-        <Search size={16} />
-        <input placeholder={ui.common.globalSearchPlaceholder} />
-      </label>
+      <div className="topbar__identity">
+        <button
+          className="icon-button topbar__menu"
+          type="button"
+          aria-label="Открыть навигацию"
+          onClick={onOpenNavigation}
+        >
+          <Menu size={16} />
+        </button>
+        <div>
+          <span className="topbar__eyebrow">{ui.common.protectedAccess}</span>
+          <strong>{admin?.username ?? 'admin'}</strong>
+        </div>
+      </div>
 
       <div className="topbar__actions">
-        {admin ? <div className="topbar__chip">{admin.username}</div> : null}
         <div className="topbar__chip">
           <ShieldCheck size={16} />
-          <span>{ui.common.strictMode}</span>
+          <span>{ui.common.protectedAccess}</span>
         </div>
-        <button className="icon-button" type="button" aria-label={ui.common.notifications}>
-          <BellDot size={16} />
-        </button>
         <button className="button" type="button" onClick={() => void logout()}>
           Выйти
         </button>

@@ -44,7 +44,7 @@ export function AdminUsersPage() {
     <div className="page">
       <PageHeader
         title="Администраторы"
-        description="Ролевой доступ, активные админы и основа под будущую 2FA уже заведены в модели данных."
+        description="Список администраторов, роли доступа и актуальный статус учётных записей."
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}

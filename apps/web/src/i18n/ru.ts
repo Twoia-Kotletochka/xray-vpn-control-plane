@@ -1,11 +1,10 @@
 export const ru = {
   common: {
     operations: 'операции',
-    strictMode: 'Строгий режим',
-    notifications: 'Уведомления',
+    protectedAccess: 'Защищённый доступ',
+    transportProfile: 'Transport profile',
     globalSearchPlaceholder: 'Поиск по клиентам, тегам и событиям аудита',
-    singleVpsControlPlane: 'панель управления для одного VPS',
-    mvpProfile: 'Профиль MVP',
+    operationsConsole: 'Operations Console',
     notAvailable: 'Н/Д',
   },
   navigation: {
@@ -15,15 +14,14 @@ export const ru = {
     serverStatus: 'Состояние сервера',
     logs: 'Логи',
     backups: 'Резервные копии',
-    settings: 'Настройки',
+    help: 'Помощь',
     adminUsers: 'Администраторы',
     auditLog: 'Аудит',
   },
   auth: {
     eyebrow: 'безопасный вход администратора',
     title: 'Вход в server-vpn',
-    description:
-      'Веб-панель уже готова по интерфейсу. Следующий этап подключает реальную аутентификацию, refresh-сессии и защиту от brute force.',
+    description: 'Авторизуйтесь под администратором, чтобы перейти в панель управления.',
     username: 'Логин',
     usernamePlaceholder: 'admin',
     password: 'Пароль',
@@ -155,6 +153,11 @@ export const ru = {
       'Профиль безопасности панели и времена жизни сессий.',
       'Срок хранения резервных копий и опциональные интеграции уведомлений.',
     ],
+  },
+  help: {
+    title: 'Помощь',
+    description:
+      'Практические инструкции по выдаче клиентов, импорту конфигов, резервным копиям и базовой диагностике.',
   },
   adminUsers: {
     title: 'Администраторы',

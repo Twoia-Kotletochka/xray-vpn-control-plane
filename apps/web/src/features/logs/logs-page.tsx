@@ -1,5 +1,5 @@
 import { RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
@@ -17,6 +17,8 @@ export function LogsPage() {
   const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [content, setContent] = useState<LogContentResponse | null>(null);
   const [lines, setLines] = useState('200');
+  const [lineFilter, setLineFilter] = useState('');
+  const [levelFilter, setLevelFilter] = useState('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,11 +70,45 @@ export function LogsPage() {
     void loadSources();
   }, [loadSources]);
 
+  const filteredLines = useMemo(() => {
+    if (!content) {
+      return [];
+    }
+
+    const query = lineFilter.trim().toLowerCase();
+
+    return content.content
+      .split('\n')
+      .filter((line) => {
+        const normalized = line.toLowerCase();
+        const levelMatches =
+          levelFilter === 'ALL' ||
+          (levelFilter === 'ERROR' &&
+            (normalized.includes('error') ||
+              normalized.includes('exception') ||
+              normalized.includes('fatal'))) ||
+          (levelFilter === 'WARN' &&
+            (normalized.includes('warn') || normalized.includes('warning'))) ||
+          (levelFilter === 'INFO' && normalized.includes('info')) ||
+          (levelFilter === 'DEBUG' && normalized.includes('debug'));
+
+        if (!levelMatches) {
+          return false;
+        }
+
+        if (!query) {
+          return true;
+        }
+
+        return normalized.includes(query);
+      });
+  }, [content, levelFilter, lineFilter]);
+
   return (
     <div className="page">
       <PageHeader
         title="Логи"
-        description="Панель читает только заранее разрешённые файлы: API, Xray и Caddy. Это даёт удобный triage без доступа приложения к journald или системным сокетам."
+        description="Tail разрешённых логов API, Xray и Caddy с базовыми фильтрами для быстрой диагностики."
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
@@ -106,21 +142,43 @@ export function LogsPage() {
 
         <SectionCard
           title="Просмотр"
-          subtitle="Tail по файлу без shell-доступа. Подходит для быстрой диагностики после деплоя или изменений Xray."
+          subtitle="Tail по файлу без shell-доступа. Подходит для быстрой диагностики после деплоя и изменений рантайма."
         >
           <div className="toolbar">
-            <label className="login-form__field">
-              <span>Количество строк</span>
-              <input
-                type="number"
-                min="50"
-                max="2000"
-                value={lines}
-                onChange={(event) => setLines(event.target.value)}
-              />
-            </label>
+            <div className="field-grid">
+              <label className="login-form__field">
+                <span>Количество строк</span>
+                <input
+                  type="number"
+                  min="50"
+                  max="2000"
+                  value={lines}
+                  onChange={(event) => setLines(event.target.value)}
+                />
+              </label>
+              <label className="login-form__field">
+                <span>Уровень</span>
+                <select
+                  value={levelFilter}
+                  onChange={(event) => setLevelFilter(event.target.value)}
+                >
+                  <option value="ALL">Все строки</option>
+                  <option value="ERROR">ERROR / FATAL</option>
+                  <option value="WARN">WARN</option>
+                  <option value="INFO">INFO</option>
+                  <option value="DEBUG">DEBUG</option>
+                </select>
+              </label>
+            </div>
 
             <div className="toolbar__actions">
+              <label className="toolbar__search">
+                <input
+                  placeholder="Фильтр по тексту"
+                  value={lineFilter}
+                  onChange={(event) => setLineFilter(event.target.value)}
+                />
+              </label>
               <button
                 className="button"
                 type="button"
@@ -152,9 +210,17 @@ export function LogsPage() {
                   <dt>Обновлён</dt>
                   <dd>{formatDateTime(content.updatedAt, '—')}</dd>
                 </div>
+                <div>
+                  <dt>Показано строк</dt>
+                  <dd>
+                    {filteredLines.length} / {content.content ? content.content.split('\n').length : 0}
+                  </dd>
+                </div>
               </dl>
 
-              <pre className="mono-output">{content.content || 'Лог пока пуст.'}</pre>
+              <pre className="mono-output">
+                {filteredLines.length > 0 ? filteredLines.join('\n') : 'По текущему фильтру строк нет.'}
+              </pre>
             </div>
           ) : (
             <div className="empty-state">Выберите источник логов, чтобы увидеть tail.</div>

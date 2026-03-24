@@ -42,14 +42,14 @@ export function SubscriptionsPage() {
     <div className="page">
       <PageHeader
         title="Подписки"
-        description="Шаблоны доставки конфигов и подписок для VLESS + REALITY клиентов на desktop и mobile."
+        description="Шаблоны транспортных профилей и способов выдачи конфигов для поддерживаемых клиентов."
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
 
       <SectionCard
         title="Доступные шаблоны"
-        subtitle="Текущий MVP стартует с production-профилем VLESS + REALITY."
+        subtitle="Активные транспортные профили, доступные для выдачи из панели."
       >
         <div className="detail-stack">
           {templates.map((template) => (

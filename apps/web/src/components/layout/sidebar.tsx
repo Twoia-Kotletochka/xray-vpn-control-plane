@@ -1,20 +1,35 @@
-import { Shield } from 'lucide-react';
+import { Shield, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 import { navigationItems } from '../../app/navigation';
 import { ui } from '../../i18n';
 
-export function Sidebar() {
+type SidebarProps = {
+  isOpen: boolean;
+  onClose: () => void;
+};
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
-    <aside className="sidebar">
-      <div className="sidebar__brand">
-        <div className="sidebar__logo">
-          <Shield size={18} />
+    <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
+      <div className="sidebar__header">
+        <div className="sidebar__brand">
+          <div className="sidebar__logo">
+            <Shield size={18} />
+          </div>
+          <div>
+            <p className="sidebar__eyebrow">{ui.common.operationsConsole}</p>
+            <h1>server-vpn</h1>
+          </div>
         </div>
-        <div>
-          <p className="sidebar__eyebrow">{ui.common.singleVpsControlPlane}</p>
-          <h1>server-vpn</h1>
-        </div>
+        <button
+          className="icon-button sidebar__close"
+          type="button"
+          aria-label="Закрыть навигацию"
+          onClick={onClose}
+        >
+          <X size={16} />
+        </button>
       </div>
 
       <nav className="sidebar__nav">
@@ -28,6 +43,7 @@ export function Sidebar() {
               className={({ isActive }) =>
                 isActive ? 'sidebar__link sidebar__link--active' : 'sidebar__link'
               }
+              onClick={onClose}
             >
               <Icon size={16} />
               <span>{item.label}</span>
@@ -37,7 +53,7 @@ export function Sidebar() {
       </nav>
 
       <div className="sidebar__footer">
-        <p>{ui.common.mvpProfile}</p>
+        <p>{ui.common.transportProfile}</p>
         <strong>VLESS + REALITY</strong>
       </div>
     </aside>

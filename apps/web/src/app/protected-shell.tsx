@@ -13,7 +13,7 @@ export function ProtectedShell() {
         <section className="login-panel">
           <p className="page-header__eyebrow">{ui.common.operations}</p>
           <h1>server-vpn</h1>
-          <p>Проверяем сессию администратора и поднимаем рабочее окружение панели.</p>
+          <p>Проверяем активную сессию администратора.</p>
         </section>
       </main>
     );

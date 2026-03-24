@@ -63,7 +63,7 @@ export function LoginPage() {
           </label>
           {error ? <div className="banner banner--danger">{error}</div> : null}
           <button className="button button--primary" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Выполняем вход...' : ui.auth.submit}
+            {isSubmitting ? 'Входим...' : ui.auth.submit}
           </button>
         </form>
       </section>
