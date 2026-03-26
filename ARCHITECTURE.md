@@ -17,7 +17,7 @@
   - Xray gRPC API bound internally for stats and user lifecycle operations
 - `api` container
   - NestJS REST API on internal Docker network
-  - Source of truth for admins, clients, limits, audit logs, and rendered Xray state
+  - Source of truth for admins, clients, roles, limits, audit logs, backups, and rendered Xray state
 - `postgres` container
   - Durable relational store with Prisma migrations
 - `caddy` container
@@ -133,7 +133,7 @@ This split avoids unnecessary restarts for common client CRUD actions while keep
   - admin identity
   - password hash
   - role
-  - 2FA seed placeholder
+  - encrypted 2FA secret and recovery state
 - `admin_sessions`
   - refresh token hash
   - device/browser metadata
@@ -163,7 +163,8 @@ This split avoids unnecessary restarts for common client CRUD actions while keep
 - HTTP-only secure cookies in production
 - brute-force throttling on auth endpoints
 - audit trail for auth success/failure and privileged actions
-- schema support reserved for future TOTP-based 2FA
+- optional TOTP-based 2FA
+- role split between `SUPER_ADMIN` and `OPERATOR`
 
 ### Panel Exposure
 
@@ -186,12 +187,15 @@ This split avoids unnecessary restarts for common client CRUD actions while keep
 - Postgres data volume separated from runtime containers
 - Generated Xray config kept on its own volume/path for easier backup and diffing
 - Backup and restore scripts operate on DB and rendered state together
+- Automatic local backups run every 5 days with a 14-day retention window
 
 ## Known Constraints
 
 - A public CA-signed HTTPS certificate for the panel is not possible without a domain.
 - For the MVP, panel TLS is still enabled, but production-grade public trust requires a domain or externally provided certificate.
 - Port `443` is intentionally reserved for Xray. The panel remains on `8443` to avoid transport compromises.
+- Restore UI is not complete yet; restore currently remains a host-side operator action.
+- Logs UX and analytics are still lighter than the rest of the control plane.
 
 ## External References
 
@@ -201,4 +205,3 @@ These decisions align with the official Xray documentation:
 - VLESS inbound with `flow: xtls-rprx-vision`: <https://xtls.github.io/en/config/inbounds/vless.html>
 - Xray API `HandlerService` and `StatsService`: <https://xtls.github.io/en/config/api.html>
 - Per-user traffic stats keyed by `email`: <https://xtls.github.io/en/config/stats.html>
-

@@ -27,10 +27,10 @@ Supported approaches for local or production use:
 - hashed refresh sessions
 - rate limiting and brute-force protection
 - audit logs for privileged actions
+- optional TOTP 2FA
 - host firewall and Fail2ban
 - least-privilege containers where practical
 
 ## Vulnerability Reporting
 
 If this system is ever exposed to external users, report suspected vulnerabilities privately to the operator instead of opening a public issue with exploit details.
-

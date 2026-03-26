@@ -1,46 +1,26 @@
 # Roadmap
 
-## Phase 1: Discovery and Bootstrap
+## Completed Foundation
 
-- [x] Define MVP architecture
-- [x] Choose stack and deployment model
-- [x] Create monorepo skeleton
-- [x] Add initial Docker Compose and infra folders
-- [x] Add architecture and operator docs
+- [x] Single-node architecture for `api`, `postgres`, `xray`, and `caddy`
+- [x] Prisma schema, migrations, seed flow, and persistent PostgreSQL storage
+- [x] Admin authentication with access/refresh tokens and audit logging
+- [x] Client lifecycle CRUD, traffic resets, expiry handling, and import/export
+- [x] Live Xray sync, stats snapshots, quota enforcement, and public subscriptions
+- [x] React admin panel with dashboard, clients, logs, backups, help, and `RU/EN` switching
+- [x] TOTP 2FA and a basic role split between `SUPER_ADMIN` and `OPERATOR`
+- [x] Scheduled local backups with automatic retention cleanup
 
-## Phase 2: Backend Core
+## In Progress Toward a Stronger Public Release
 
-- [ ] Prisma migrations and seed flow
-- [ ] Admin auth with access/refresh flow
-- [ ] Client CRUD with expiry and traffic policy model
-- [ ] Audit log persistence
-- [ ] Xray config rendering service
-- [ ] Xray API client for user add/remove/stats
-- [ ] Subscription and QR generation
+- [ ] Safer UI restore flow on top of the existing host-side restore script
+- [ ] Richer analytics and historical usage views
+- [ ] Better logs UX with filtering and deeper operator workflows
+- [ ] Simpler panel-domain onboarding and public TLS automation
 
-## Phase 3: Frontend Admin Panel
+## Next Expansion Options
 
-- [ ] Login flow
-- [ ] Dashboard widgets and charts
-- [ ] Clients table with filters and bulk actions
-- [ ] Client detail page with quick actions
-- [ ] Config/QR modal and onboarding instructions
-- [ ] Server status and logs pages
-
-## Phase 4: Production Hardening
-
-- [ ] Backup and restore end-to-end
-- [ ] Host bootstrap automation
-- [ ] Fail2ban filters tuned for panel auth noise
-- [ ] Caddy production TLS modes
-- [ ] Log rotation and retention
-- [ ] Secure admin IP allowlisting
-
-## Phase 5: Extended Compatibility
-
-- [ ] Optional additional transport profile for legacy clients
-- [ ] Multi-admin roles and 2FA
-- [ ] Background jobs for usage rollups and cleanup
-- [ ] Import/export workflows
-- [ ] Observability improvements and alert hooks
-
+- [ ] Additional transport profiles for compatibility-focused deployments
+- [ ] Offsite backup shipping and disaster recovery workflows
+- [ ] Alerting and webhook integrations
+- [ ] Multi-node orchestration

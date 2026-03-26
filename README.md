@@ -1,75 +1,70 @@
-# server-vpn
+# xray-vpn-control-plane
 
-Self-hosted VPN control plane for Xray-core on a single VPS: VLESS + REALITY, client lifecycle, subscriptions, backups, and a polished admin panel.
+Self-hosted Xray control plane for a single VPS or a small private deployment. It combines `Xray-core`, a NestJS API, a React admin panel, backups, audit logs, and bilingual operator UX in one repository.
 
-Self-hosted панель управления для VPN на Xray-core для одного VPS: VLESS + REALITY, управление клиентами, подписки, резервные копии и удобная админ-панель.
+Self-hosted панель управления Xray для одного VPS или небольшого приватного развёртывания. Репозиторий объединяет `Xray-core`, NestJS API, React-админку, резервные копии, аудит и двуязычный интерфейс оператора.
 
-## Status
+## English
 
-This repository now contains the first connected MVP slice for the control plane:
+### What It Includes
 
-- NestJS backend with real admin auth, refresh sessions, audit logging, client CRUD, expiry handling, traffic reset, and subscription generation.
-- NestJS backend with live Xray control-plane sync, internal gRPC stats snapshots, quota blocking, and public subscription feed generation.
-- Vite + React admin panel with Russian localization, authenticated routes, live dashboard, editable client cards, QR modal, import/export flow, backups view, and live log tail for API/Xray/Caddy.
-- Docker Compose topology for `api`, `postgres`, `xray`, and `caddy`, split into isolated backend/control networks.
-- Operational docs, idempotent bootstrap/deploy/backup/restore scripts, and file-based runtime logging.
-- Security-first secret handling via `.env.example` and ignored local files.
+- `Xray-core` data plane with `VLESS + REALITY + XTLS Vision` as the default transport profile
+- `NestJS + Prisma + PostgreSQL` control plane for admins, clients, roles, limits, audit logs, and backup metadata
+- `React + Vite` admin panel with `RU/EN` switching, dashboard, client lifecycle, system status, logs, and backups
+- `Docker Compose` deployment for `api`, `postgres`, `xray`, and `caddy`
+- Scheduled local backups, host-side restore flow, import/export, public subscriptions, and TOTP 2FA for admin access
 
-## Why This Shape
+### Quick Start
 
-- `VLESS + REALITY + XTLS Vision` is the default transport profile for the first release.
-- Port `443` is reserved for Xray to maximize client compatibility.
-- The admin panel is served on `8443` behind Caddy in the MVP, because no panel domain was provided yet.
-- Firewall and Fail2ban stay on the host, where they are more reliable than containerized equivalents.
-- Subscription URLs stay publicly reachable for clients, while the admin panel remains protected behind panel auth and application auth.
+1. Copy [`.env.example`](./.env.example) to `.env`.
+2. Replace every placeholder secret and generate REALITY keys with `xray x25519`.
+3. Review [DEPLOY.md](./DEPLOY.md) and run `docker compose up -d --build`.
+4. Open the panel on `https://YOUR_HOST:8443`, or attach a DNS name later for a public CA-signed certificate.
 
-## Repository Layout
+### Documentation
 
-```text
-.
-|-- apps/
-|   |-- api/         # NestJS API, Prisma schema, Xray integration layer
-|   `-- web/         # React admin panel
-|-- infra/
-|   |-- caddy/       # Reverse proxy config
-|   |-- docker/      # Dockerfiles
-|   |-- fail2ban/    # Host-level jails and filters
-|   |-- scripts/     # Bootstrap, deploy, backup, restore
-|   `-- xray/        # Xray templates and runtime notes
-|-- docs/            # Operator and user-facing docs
-|-- ARCHITECTURE.md
-|-- ROADMAP.md
-|-- DEPLOY.md
-|-- SECURITY.md
-`-- docker-compose.yml
-```
+| Topic | English | Russian |
+| --- | --- | --- |
+| Architecture | [ARCHITECTURE.md](./ARCHITECTURE.md) | [docs/ru/ARCHITECTURE.md](./docs/ru/ARCHITECTURE.md) |
+| Deployment | [DEPLOY.md](./DEPLOY.md) | [docs/ru/DEPLOY.md](./docs/ru/DEPLOY.md) |
+| Security | [SECURITY.md](./SECURITY.md) | [docs/ru/SECURITY.md](./docs/ru/SECURITY.md) |
+| Roadmap | [ROADMAP.md](./ROADMAP.md) | [docs/ru/ROADMAP.md](./docs/ru/ROADMAP.md) |
+| Admin Guide | [docs/ADMIN_GUIDE.md](./docs/ADMIN_GUIDE.md) | [docs/ru/ADMIN_GUIDE.md](./docs/ru/ADMIN_GUIDE.md) |
+| User Guide | [docs/USER_GUIDE.md](./docs/USER_GUIDE.md) | [docs/ru/USER_GUIDE.md](./docs/ru/USER_GUIDE.md) |
+| Troubleshooting | [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | [docs/ru/TROUBLESHOOTING.md](./docs/ru/TROUBLESHOOTING.md) |
 
-## Local Bootstrap
+### Scope and Current State
 
-1. Copy `.env.example` to `.env`.
-2. Replace every placeholder secret in `.env`.
-3. Install dependencies with `npm install`.
-4. Start local app development with `npm run dev`.
+- Built for operators who want a single-node Xray control plane without Kubernetes or external SaaS dependencies
+- Production-oriented, but still evolving toward a more complete public release
+- Current gaps are focused on richer analytics, logs UX, panel-domain automation, and a safer UI restore flow
 
-## Docker Bootstrap
+## Русский
 
-1. Fill in `.env` with production values.
-2. Review `infra/caddy/Caddyfile` and `infra/scripts/bootstrap-server.sh`.
-3. Run `docker compose up -d --build`.
+### Что Уже Есть
 
-## Documents
+- data plane на `Xray-core` с профилем `VLESS + REALITY + XTLS Vision` по умолчанию
+- control plane на `NestJS + Prisma + PostgreSQL` для админов, клиентов, ролей, лимитов, аудита и метаданных резервных копий
+- админ-панель на `React + Vite` с переключением `RU/EN`, дашбордом, управлением клиентами, статусом сервера, логами и резервными копиями
+- развёртывание через `Docker Compose` для `api`, `postgres`, `xray` и `caddy`
+- плановые локальные бэкапы, host-side restore, import/export, публичные подписки и `TOTP 2FA` для админского доступа
 
-- [Architecture](./ARCHITECTURE.md)
-- [Roadmap](./ROADMAP.md)
-- [Deploy](./DEPLOY.md)
-- [Security](./SECURITY.md)
-- [Admin Guide](./docs/ADMIN_GUIDE.md)
-- [User Guide](./docs/USER_GUIDE.md)
-- [Troubleshooting](./docs/TROUBLESHOOTING.md)
+### Быстрый Старт
+
+1. Скопируй [`.env.example`](./.env.example) в `.env`.
+2. Замени все плейсхолдеры на реальные секреты и сгенерируй ключи REALITY командой `xray x25519`.
+3. Проверь [DEPLOY.md](./DEPLOY.md) и запусти `docker compose up -d --build`.
+4. Открой панель по адресу `https://ВАШ_ХОСТ:8443`, а домен и публичный сертификат можно подключить позже.
+
+### Для Чего Этот Репозиторий
+
+- для операторов, которым нужен single-node control plane для Xray без Kubernetes и внешних SaaS-зависимостей
+- для быстрого развёртывания на своём VPS с понятной структурой и прозрачными скриптами
+- для дальнейшей публикации стабильных релизов в отдельный публичный репозиторий без внутренних эксплуатационных артефактов
 
 ## Security Notes
 
 - Never commit `.env` with real values.
-- Never commit Xray REALITY private keys or live client links.
-- Keep the panel behind firewall allowlists whenever possible.
-- Treat the generated subscription URLs as credentials.
+- Never commit REALITY private keys or live subscription URLs.
+- Treat generated client links and subscription feeds as credentials.
+- Keep the admin panel behind firewall allowlists whenever possible.

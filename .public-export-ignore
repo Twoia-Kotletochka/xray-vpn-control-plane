@@ -1,0 +1,14 @@
+.git/
+.tmp/
+.DS_Store
+docs/HANDOFF_*.md
+infra/runtime/
+infra/backup/output/
+infra/xray/generated/
+node_modules/
+apps/api/node_modules/
+apps/api/dist/
+apps/web/node_modules/
+apps/web/dist/
+coverage/
+secrets/
