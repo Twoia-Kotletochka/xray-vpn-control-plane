@@ -1,38 +1,43 @@
 <svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1280" height="640" rx="40" fill="#0A1118"/>
-  <rect x="40" y="40" width="1200" height="560" rx="28" fill="url(#paint0_linear)"/>
-  <rect x="84" y="88" width="420" height="464" rx="24" fill="#0D1722" fill-opacity="0.88" stroke="#38506A"/>
-  <rect x="548" y="88" width="648" height="464" rx="24" fill="#08111A" fill-opacity="0.68" stroke="#38506A"/>
+  <rect width="1280" height="640" rx="40" fill="#081018"/>
+  <rect x="36" y="36" width="1208" height="568" rx="28" fill="url(#bg)"/>
 
-  <text x="116" y="156" fill="#94A9BD" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">SELF-HOSTED XRAY VPN CONTROL PLANE</text>
-  <text x="116" y="232" fill="#F5F8FB" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700">xray-vpn-control-plane</text>
-  <text x="116" y="286" fill="#BFD0DF" font-family="Arial, Helvetica, sans-serif" font-size="28">VLESS + REALITY, admin panel, subscriptions,</text>
-  <text x="116" y="324" fill="#BFD0DF" font-family="Arial, Helvetica, sans-serif" font-size="28">backups, logs, audit trail, and RU/EN docs.</text>
+  <rect x="76" y="88" width="622" height="464" rx="28" fill="#0B1621" fill-opacity="0.82" stroke="#2C4A66"/>
+  <rect x="728" y="88" width="476" height="136" rx="24" fill="#0B1621" fill-opacity="0.78" stroke="#2C4A66"/>
+  <rect x="728" y="252" width="476" height="136" rx="24" fill="#0B1621" fill-opacity="0.78" stroke="#2C4A66"/>
+  <rect x="728" y="416" width="476" height="136" rx="24" fill="#0B1621" fill-opacity="0.78" stroke="#2C4A66"/>
 
-  <rect x="116" y="372" width="156" height="46" rx="23" fill="#122536"/>
-  <text x="146" y="402" fill="#D9E6F1" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">NestJS</text>
-  <rect x="286" y="372" width="166" height="46" rx="23" fill="#122536"/>
-  <text x="318" y="402" fill="#D9E6F1" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">React</text>
+  <text x="112" y="154" fill="#8AA7C2" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">SELF-HOSTED XRAY VPN CONTROL PLANE</text>
+  <text x="112" y="238" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700">xray-vpn-</text>
+  <text x="112" y="308" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700">control-plane</text>
 
-  <rect x="580" y="122" width="580" height="84" rx="18" fill="#0E1B27"/>
-  <text x="612" y="156" fill="#8EC8FF" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">CONTROL PLANE</text>
-  <text x="612" y="188" fill="#F5F8FB" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Admins, clients, limits, backups, audit logs</text>
+  <text x="112" y="372" fill="#D2DFEA" font-family="Arial, Helvetica, sans-serif" font-size="28">Single VPS deployment for Xray-core</text>
+  <text x="112" y="412" fill="#D2DFEA" font-family="Arial, Helvetica, sans-serif" font-size="28">VLESS + REALITY, admin panel, subscriptions</text>
+  <text x="112" y="452" fill="#D2DFEA" font-family="Arial, Helvetica, sans-serif" font-size="28">backups, logs, audit trail, and RU/EN docs</text>
 
-  <rect x="580" y="234" width="580" height="84" rx="18" fill="#0E1B27"/>
-  <text x="612" y="268" fill="#8EC8FF" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">DATA PLANE</text>
-  <text x="612" y="300" fill="#F5F8FB" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Xray-core, VLESS + REALITY, live sync</text>
+  <rect x="112" y="486" width="142" height="44" rx="22" fill="#13314D"/>
+  <text x="148" y="515" fill="#EEF5FB" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">NestJS</text>
+  <rect x="272" y="486" width="132" height="44" rx="22" fill="#13314D"/>
+  <text x="309" y="515" fill="#EEF5FB" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">React</text>
+  <rect x="422" y="486" width="172" height="44" rx="22" fill="#13314D"/>
+  <text x="451" y="515" fill="#EEF5FB" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">PostgreSQL</text>
 
-  <rect x="580" y="346" width="580" height="84" rx="18" fill="#0E1B27"/>
-  <text x="612" y="380" fill="#8EC8FF" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">OPERATOR UX</text>
-  <text x="612" y="412" fill="#F5F8FB" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Dashboard, logs, subscriptions, RU/EN UI</text>
+  <text x="764" y="136" fill="#84C7FF" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">CONTROL PLANE</text>
+  <text x="764" y="180" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">Admins, clients, roles,</text>
+  <text x="764" y="218" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">limits, backups, audit</text>
 
-  <rect x="580" y="458" width="580" height="62" rx="18" fill="#12304B"/>
-  <text x="612" y="498" fill="#F5F8FB" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Single VPS. Simple deploy. Real operator workflow.</text>
+  <text x="764" y="300" fill="#84C7FF" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">DATA PLANE</text>
+  <text x="764" y="344" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">Xray-core, live sync,</text>
+  <text x="764" y="382" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">traffic stats, subscriptions</text>
+
+  <text x="764" y="464" fill="#84C7FF" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">OPERATOR UX</text>
+  <text x="764" y="508" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">Dashboard, logs, backups,</text>
+  <text x="764" y="546" fill="#F3F7FB" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">help, and RU/EN panel</text>
 
   <defs>
-    <linearGradient id="paint0_linear" x1="58" y1="58" x2="1224" y2="582" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0D1925"/>
-      <stop offset="1" stop-color="#122F48"/>
+    <linearGradient id="bg" x1="56" y1="48" x2="1218" y2="592" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D1824"/>
+      <stop offset="1" stop-color="#123453"/>
     </linearGradient>
   </defs>
 </svg>
