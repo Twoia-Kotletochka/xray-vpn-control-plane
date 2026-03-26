@@ -1,0 +1,26 @@
+name: Docs improvement
+description: Suggest a README, guide, onboarding, or translation improvement.
+title: "[Docs]: "
+labels:
+  - documentation
+  - good first issue
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Summary / Кратко
+      placeholder: Add screenshots for the dashboard and clients page
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: What is missing or unclear? / Что не хватает или непонятно?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement / Предлагаемое улучшение
+    validations:
+      required: true

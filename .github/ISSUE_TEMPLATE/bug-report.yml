@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a bug in the panel, API, deployment flow, or runtime behavior.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+        Спасибо за bug report.
+  - type: input
+    id: summary
+    attributes:
+      label: Summary / Кратко
+      description: What is broken?
+      placeholder: The panel keeps showing a browser auth prompt after login
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / Область
+      options:
+        - Web panel
+        - API
+        - Xray integration
+        - Backups / restore
+        - Deployment / Docker
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Шаги воспроизведения
+      placeholder: |
+        1. Open the panel
+        2. Sign in
+        3. Navigate to ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / Ожидаемое поведение
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / Фактическое поведение
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / Окружение
+      description: Browser, OS, VPS distro, Docker version, or client app if relevant.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Logs or extra notes / Логи и дополнительные детали

@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest a product, UX, infra, or compatibility improvement.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for roadmap ideas and feature requests.
+        Используй эту форму для идей и feature requests.
+  - type: input
+    id: summary
+    attributes:
+      label: Proposal / Предложение
+      placeholder: Add a safer UI flow for backup restore
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Проблема
+      description: What operator or user problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution / Предлагаемое решение
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / Альтернативы
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Expected impact / Ожидаемый эффект
+      options:
+        - Small
+        - Medium
+        - Large
+    validations:
+      required: true
