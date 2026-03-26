@@ -101,7 +101,11 @@ describe('BackupsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
 
     await screen.findByText(/Preflight пройден/i);
-    expect(screen.getByText(/--dry-run --yes-restore/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        "./infra/scripts/restore.sh --dry-run --yes-restore '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz'",
+      ),
+    ).toBeTruthy();
     expect(screen.getByText(/Schema version/i)).toBeTruthy();
   });
 });

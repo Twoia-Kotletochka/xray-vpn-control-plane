@@ -7,10 +7,13 @@ import { Topbar } from './topbar';
 export function AppShell() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const pathname = location.pathname;
 
   useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [location.pathname]);
+    if (pathname.length > 0) {
+      setIsSidebarOpen(false);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;

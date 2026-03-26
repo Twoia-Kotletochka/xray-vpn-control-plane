@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
@@ -129,7 +130,11 @@ describe('ClientsPage', () => {
       throw new Error(`Unexpected path: ${path}`);
     });
 
-    render(<ClientsPage />);
+    render(
+      <MemoryRouter>
+        <ClientsPage />
+      </MemoryRouter>,
+    );
 
     await screen.findByText((content) => content.includes(firstClient.uuid));
 
