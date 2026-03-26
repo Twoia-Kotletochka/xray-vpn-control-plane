@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AdminUsersResponse, TwoFactorStatusResponse } from '../../lib/api-types';
 import { AdminUsersPage } from './admin-users-page';
@@ -25,6 +25,10 @@ vi.mock('../auth/auth-context', () => ({
 }));
 
 describe('AdminUsersPage', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     mockApiFetch.mockReset();
     mockRefreshSession.mockReset();
