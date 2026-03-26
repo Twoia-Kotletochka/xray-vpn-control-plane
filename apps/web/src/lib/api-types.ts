@@ -239,7 +239,38 @@ export type BackupListResponse = {
   policy: {
     backupDir: string;
     retentionDays: number;
+    restoreDryRunCommand: string;
     restoreCommand: string;
+  };
+};
+
+export type BackupRestorePlanResponse = {
+  backup: BackupRecord;
+  commands: {
+    dryRun: string;
+    restore: string;
+  };
+  preflight: {
+    canRestore: boolean;
+    checksum: {
+      actualSha256: string;
+      expectedSha256: string;
+      matches: boolean;
+    };
+    files: {
+      manifest: boolean;
+      postgresDump: boolean;
+      xrayConfig: boolean;
+    };
+    manifest: {
+      backupId: string | null;
+      createdAt: string | null;
+      postgresDump: string | null;
+      schemaVersion: number | null;
+      valid: boolean;
+      xrayConfig: string | null;
+    };
+    warnings: string[];
   };
 };
 

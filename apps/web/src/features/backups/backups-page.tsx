@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Modal } from '../../components/ui/modal';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
-import type { BackupListResponse, BackupRecord } from '../../lib/api-types';
+import type {
+  BackupListResponse,
+  BackupRecord,
+  BackupRestorePlanResponse,
+} from '../../lib/api-types';
 import { formatBytes, formatDateTime } from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
 
@@ -35,23 +39,22 @@ function downloadBlob(fileName: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
-function quoteShellArg(value: string) {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
 export function BackupsPage() {
   const { apiFetch, apiFetchResponse } = useAuth();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [backupDir, setBackupDir] = useState('');
   const [retentionDays, setRetentionDays] = useState(0);
+  const [restoreDryRunCommand, setRestoreDryRunCommand] = useState('');
   const [restoreCommand, setRestoreCommand] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isDownloadingId, setIsDownloadingId] = useState<string | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  const [isRestorePlanLoading, setIsRestorePlanLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<BackupRecord | null>(null);
+  const [restorePlan, setRestorePlan] = useState<BackupRestorePlanResponse | null>(null);
 
   const loadBackups = useCallback(async () => {
     setIsLoading(true);
@@ -63,6 +66,7 @@ export function BackupsPage() {
       setBackups(response.items);
       setBackupDir(response.policy.backupDir);
       setRetentionDays(response.policy.retentionDays);
+      setRestoreDryRunCommand(response.policy.restoreDryRunCommand);
       setRestoreCommand(response.policy.restoreCommand);
     } catch (loadError) {
       setError(
@@ -78,6 +82,49 @@ export function BackupsPage() {
   useEffect(() => {
     void loadBackups();
   }, [loadBackups]);
+
+  useEffect(() => {
+    if (!restoreTarget) {
+      setRestorePlan(null);
+      setIsRestorePlanLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadRestorePlan = async () => {
+      setIsRestorePlanLoading(true);
+
+      try {
+        const response = await apiFetch<BackupRestorePlanResponse>(
+          `/api/backups/${restoreTarget.id}/restore-plan`,
+        );
+
+        if (!isCancelled) {
+          setRestorePlan(response);
+        }
+      } catch (loadError) {
+        if (!isCancelled) {
+          setRestorePlan(null);
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Не удалось подготовить restore plan.',
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsRestorePlanLoading(false);
+        }
+      }
+    };
+
+    void loadRestorePlan();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [apiFetch, restoreTarget]);
 
   const handleCreateBackup = async () => {
     setIsCreating(true);
@@ -156,10 +203,13 @@ export function BackupsPage() {
     }
   };
 
-  const handleCopyRestoreCommand = async (backup: BackupRecord) => {
-    const command = `./infra/scripts/restore.sh --yes-restore ${quoteShellArg(backup.absolutePath)}`;
+  const handleCopyRestoreCommand = async (
+    command: string,
+    backup: BackupRecord,
+    label: string,
+  ) => {
     await navigator.clipboard.writeText(command);
-    setNotice(`Команда восстановления для ${backup.fileName} скопирована.`);
+    setNotice(`${label} для ${backup.fileName} скопирована.`);
   };
 
   return (
@@ -193,7 +243,14 @@ export function BackupsPage() {
 
           <div className="feature-list">
             <div className="feature-list__card">
-              <strong>Как восстанавливать</strong>
+              <strong>Dry-run перед restore</strong>
+              <code>
+                {restoreDryRunCommand ||
+                  './infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz'}
+              </code>
+            </div>
+            <div className="feature-list__card">
+              <strong>Команда восстановления</strong>
               <code>
                 {restoreCommand ||
                   './infra/scripts/restore.sh --yes-restore /absolute/path/to/archive.tar.gz'}
@@ -274,7 +331,11 @@ export function BackupsPage() {
                   <button
                     className="button"
                     type="button"
-                    onClick={() => setRestoreTarget(backup)}
+                    onClick={() => {
+                      setError(null);
+                      setNotice(null);
+                      setRestoreTarget(backup);
+                    }}
                     disabled={!backup.exists || backup.status !== 'READY'}
                   >
                     <RotateCcw size={16} />
@@ -335,38 +396,120 @@ export function BackupsPage() {
               база и runtime могут быть перезаписаны.
             </div>
 
-            <div className="feature-list">
-              <div className="feature-list__card">
-                <strong>Архив</strong>
-                <code>{restoreTarget.absolutePath}</code>
-              </div>
-              <div className="feature-list__card">
-                <strong>Команда</strong>
-                <code>
-                  {`./infra/scripts/restore.sh --yes-restore ${quoteShellArg(restoreTarget.absolutePath)}`}
-                </code>
-              </div>
-            </div>
+            {isRestorePlanLoading ? (
+              <div className="empty-state">Проверяем архив и собираем restore plan...</div>
+            ) : null}
 
-            <ul className="feature-list">
-              <li>Скачайте свежий архив во внешнее хранилище перед восстановлением.</li>
-              <li>Убедитесь, что окно обслуживания согласовано и активные изменения остановлены.</li>
-              <li>Запускайте restore только на хосте, а не из контейнера приложения.</li>
-            </ul>
+            {!isRestorePlanLoading && restorePlan ? (
+              <>
+                <div
+                  className={`banner ${
+                    restorePlan.preflight.canRestore ? 'banner--success' : 'banner--danger'
+                  }`}
+                >
+                  {restorePlan.preflight.canRestore
+                    ? 'Preflight пройден. Сначала выполните dry-run, затем подтверждённый restore в окно обслуживания.'
+                    : 'Preflight нашёл блокирующие проблемы. Запускать restore в таком состоянии нельзя.'}
+                </div>
 
-            <div className="toolbar__actions wrap-actions">
-              <button
-                className="button"
-                type="button"
-                onClick={() => void handleCopyRestoreCommand(restoreTarget)}
-              >
-                <Copy size={16} />
-                Скопировать команду
-              </button>
-              <button className="button" type="button" onClick={() => setRestoreTarget(null)}>
-                Закрыть
-              </button>
-            </div>
+                <div className="feature-list">
+                  <div className="feature-list__card">
+                    <strong>Архив</strong>
+                    <code>{restorePlan.backup.absolutePath}</code>
+                  </div>
+                  <div className="feature-list__card">
+                    <strong>Dry-run</strong>
+                    <code>{restorePlan.commands.dryRun}</code>
+                  </div>
+                  <div className="feature-list__card">
+                    <strong>Команда restore</strong>
+                    <code>{restorePlan.commands.restore}</code>
+                  </div>
+                </div>
+
+                <dl className="detail-list">
+                  <div>
+                    <dt>Checksum</dt>
+                    <dd>{restorePlan.preflight.checksum.matches ? 'Совпадает' : 'Не совпадает'}</dd>
+                  </div>
+                  <div>
+                    <dt>Manifest</dt>
+                    <dd>{restorePlan.preflight.files.manifest ? 'Найден' : 'Отсутствует'}</dd>
+                  </div>
+                  <div>
+                    <dt>Postgres dump</dt>
+                    <dd>{restorePlan.preflight.files.postgresDump ? 'Найден' : 'Отсутствует'}</dd>
+                  </div>
+                  <div>
+                    <dt>Xray config</dt>
+                    <dd>
+                      {restorePlan.preflight.files.xrayConfig
+                        ? 'Найден'
+                        : 'Нет в архиве, будет сохранён текущий config.json'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Backup ID</dt>
+                    <dd className="detail-list__mono">
+                      {restorePlan.preflight.manifest.backupId ?? '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Schema version</dt>
+                    <dd>{restorePlan.preflight.manifest.schemaVersion ?? '—'}</dd>
+                  </div>
+                </dl>
+
+                {restorePlan.preflight.warnings.length > 0 ? (
+                  <ul className="feature-list">
+                    {restorePlan.preflight.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <ul className="feature-list">
+                  <li>Сначала выполните dry-run на хосте и убедитесь, что все проверки зелёные.</li>
+                  <li>Сделайте свежий внешний backup перед реальным restore.</li>
+                  <li>Запускайте destructive restore только в окно обслуживания.</li>
+                  <li>Запускайте restore только на хосте, а не из контейнера приложения.</li>
+                </ul>
+
+                <div className="toolbar__actions wrap-actions">
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() =>
+                      void handleCopyRestoreCommand(
+                        restorePlan.commands.dryRun,
+                        restoreTarget,
+                        'Dry-run команда',
+                      )
+                    }
+                  >
+                    <Copy size={16} />
+                    Скопировать dry-run
+                  </button>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() =>
+                      void handleCopyRestoreCommand(
+                        restorePlan.commands.restore,
+                        restoreTarget,
+                        'Restore команда',
+                      )
+                    }
+                  >
+                    <Copy size={16} />
+                    Скопировать restore
+                  </button>
+                  <button className="button" type="button" onClick={() => setRestoreTarget(null)}>
+                    Закрыть
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         ) : null}
       </Modal>

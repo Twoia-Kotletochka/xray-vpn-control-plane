@@ -50,6 +50,11 @@ export class BackupsController {
     return new StreamableFile(download.stream);
   }
 
+  @Get(':backupId/restore-plan')
+  getRestorePlan(@Param('backupId') backupId: string) {
+    return this.backupsService.getRestorePlan(backupId);
+  }
+
   @Delete(':backupId')
   remove(
     @Param('backupId') backupId: string,

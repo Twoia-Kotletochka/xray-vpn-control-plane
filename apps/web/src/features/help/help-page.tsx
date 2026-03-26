@@ -78,7 +78,13 @@ export function HelpPage() {
               <span>Перед обновлениями, массовым импортом клиентов, изменениями транспорта и ручными recovery-операциями.</span>
             </div>
             <div className="feature-list__card">
-              <strong>Как восстанавливать</strong>
+              <strong>Сначала dry-run</strong>
+              <code>
+                ./infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz
+              </code>
+            </div>
+            <div className="feature-list__card">
+              <strong>Потом подтверждённый restore</strong>
               <code>./infra/scripts/restore.sh --yes-restore /absolute/path/to/archive.tar.gz</code>
             </div>
             <div className="feature-list__card">

@@ -17,6 +17,13 @@ import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.i
 import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import {
+  type BackupArchiveManifest,
+  buildBackupRestorePreflight,
+  findArchiveEntry,
+  parseArchiveEntries,
+  parseBackupManifest,
+} from './backup-restore.util';
 import type { CreateBackupDto } from './dto/create-backup.dto';
 
 const execFileAsync = promisify(execFile);
@@ -64,8 +71,52 @@ export class BackupsService {
       policy: {
         backupDir: this.backupDir,
         retentionDays: this.backupRetentionDays,
+        restoreDryRunCommand:
+          './infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz',
         restoreCommand: './infra/scripts/restore.sh --yes-restore /absolute/path/to/archive.tar.gz',
       },
+    };
+  }
+
+  async getRestorePlan(backupId: string) {
+    const snapshot = await this.requireBackup(backupId);
+    const archivePath = join(this.backupDir, snapshot.fileName);
+
+    if (!existsSync(archivePath)) {
+      throw new NotFoundException('Backup archive is not available.');
+    }
+
+    const archiveEntries = await this.listArchiveEntries(archivePath);
+    const manifestEntry = findArchiveEntry(archiveEntries, 'manifest.json');
+    let manifest: BackupArchiveManifest | null = null;
+    let manifestError: string | null = null;
+
+    if (manifestEntry) {
+      try {
+        const manifestRaw = await this.readArchiveEntry(archivePath, manifestEntry);
+        manifest = parseBackupManifest(manifestRaw);
+      } catch (error) {
+        manifestError =
+          error instanceof Error ? error.message : 'Backup manifest could not be parsed.';
+      }
+    }
+
+    const actualChecksumSha256 = await this.calculateSha256(archivePath);
+    const preflight = buildBackupRestorePreflight({
+      actualChecksumSha256,
+      archiveEntries,
+      expectedChecksumSha256: snapshot.checksumSha256,
+      manifest,
+      manifestError,
+    });
+
+    return {
+      backup: this.serializeBackup(snapshot),
+      commands: {
+        dryRun: `./infra/scripts/restore.sh --dry-run --yes-restore ${this.quoteShellArg(archivePath)}`,
+        restore: `./infra/scripts/restore.sh --yes-restore ${this.quoteShellArg(archivePath)}`,
+      },
+      preflight,
     };
   }
 
@@ -305,6 +356,22 @@ export class BackupsService {
     return hash.digest('hex');
   }
 
+  private async listArchiveEntries(archivePath: string) {
+    const { stdout } = await execFileAsync('tar', ['-tzf', archivePath], {
+      encoding: 'utf8',
+    });
+
+    return parseArchiveEntries(String(stdout));
+  }
+
+  private async readArchiveEntry(archivePath: string, entryName: string) {
+    const { stdout } = await execFileAsync('tar', ['-xOzf', archivePath, entryName], {
+      encoding: 'utf8',
+    });
+
+    return String(stdout);
+  }
+
   private async pruneExpiredBackups() {
     const cutoff = new Date(Date.now() - this.backupRetentionDays * 86_400_000);
     const staleSnapshots = await this.prisma.backupSnapshot.findMany({
@@ -406,5 +473,9 @@ export class BackupsService {
 
   private get backupRetentionDays() {
     return this.configService.get('BACKUP_RETENTION_DAYS', { infer: true });
+  }
+
+  private quoteShellArg(value: string) {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
   }
 }
