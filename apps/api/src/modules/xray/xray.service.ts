@@ -3,13 +3,19 @@ import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { type Client, ClientStatus, TransportProfile } from '@prisma/client';
+import { AuditAction, type Client, ClientStatus, TransportProfile } from '@prisma/client';
 import protobuf from 'protobufjs';
 
 import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
 import { resolveEffectiveClientStatus } from '../clients/client-presenter';
 import { buildTrafficDeltaMap, startOfUtcDay } from './xray.helpers';
+import {
+  buildUserOnlineStatName,
+  countOnlineIpEntries,
+  describeClientLimitBreaches,
+  evaluateClientLimitBreaches,
+} from './xray-limit-enforcement.util';
 
 @Injectable()
 export class XrayService implements OnModuleInit, OnModuleDestroy {
@@ -289,6 +295,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
       const capturedAt = new Date();
       const bucketDate = startOfUtcDay(capturedAt);
       const onlineUsers = Array.from(new Set(onlineUsersResponse.users ?? []));
+      const onlineIpCountByEmailTag = await this.loadOnlineIpCountMap(onlineUsers);
       const deltas = buildTrafficDeltaMap(queryResponse.stat ?? []);
       const emailTags = Array.from(new Set([...deltas.keys(), ...onlineUsers]));
 
@@ -300,8 +307,12 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
             },
           },
           select: {
+            deviceLimit: true,
+            displayName: true,
             emailTag: true,
             id: true,
+            ipLimit: true,
+            status: true,
           },
         });
 
@@ -312,7 +323,9 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
               outgoingBytes: 0n,
               totalBytes: 0n,
             };
-            const activeConnections = onlineUsers.includes(client.emailTag) ? 1 : 0;
+            const activeConnections =
+              onlineIpCountByEmailTag.get(client.emailTag) ??
+              (onlineUsers.includes(client.emailTag) ? 1 : 0);
 
             if (delta.totalBytes === 0n && activeConnections === 0) {
               continue;
@@ -360,6 +373,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
         });
 
         await this.enforceTrafficQuotas(emailTags);
+        await this.enforceClientAccessLimits(clients, onlineIpCountByEmailTag);
       }
 
       this.lastStatsSnapshotAt = capturedAt;
@@ -433,6 +447,64 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
         });
         await this.removeUser(client.emailTag);
       }
+    }
+  }
+
+  private async enforceClientAccessLimits(
+    clients: Array<{
+      deviceLimit: number | null;
+      displayName: string;
+      emailTag: string;
+      id: string;
+      ipLimit: number | null;
+      status: ClientStatus;
+    }>,
+    onlineIpCountByEmailTag: Map<string, number>,
+  ) {
+    for (const client of clients) {
+      const actualOnlineIps = onlineIpCountByEmailTag.get(client.emailTag) ?? 0;
+      const breaches = evaluateClientLimitBreaches({
+        actualOnlineIps,
+        deviceLimit: client.deviceLimit,
+        ipLimit: client.ipLimit,
+      });
+
+      if (breaches.length === 0) {
+        continue;
+      }
+
+      if (client.status === ClientStatus.ACTIVE) {
+        const blockSummary = `Client ${client.displayName} auto-blocked after ${actualOnlineIps} concurrent online endpoints exceeded ${describeClientLimitBreaches(
+          breaches,
+        )}.`;
+        const updateResult = await this.prisma.client.updateMany({
+          where: {
+            id: client.id,
+            status: ClientStatus.ACTIVE,
+          },
+          data: {
+            status: ClientStatus.BLOCKED,
+          },
+        });
+
+        if (updateResult.count > 0) {
+          await this.prisma.auditLog.create({
+            data: {
+              action: AuditAction.CLIENT_UPDATED,
+              entityType: 'client',
+              entityId: client.id,
+              summary: blockSummary,
+              metadata: {
+                actualOnlineIps,
+                autoBlockedBy: 'runtime-limit-enforcement',
+                breaches,
+              },
+            },
+          });
+        }
+      }
+
+      await this.removeUser(client.emailTag);
     }
   }
 
@@ -516,6 +588,59 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
 
       throw error;
     }
+  }
+
+  private async loadOnlineIpCountMap(emailTags: string[]) {
+    if (emailTags.length === 0) {
+      return new Map<string, number>();
+    }
+
+    const responses = await Promise.allSettled(
+      emailTags.map(async (emailTag) => {
+        const statName = buildUserOnlineStatName(emailTag);
+
+        try {
+          const response = await this.callStatsService<{
+            ips?: Record<string, bigint | number | string>;
+          }>('GetStatsOnlineIpList', {
+            name: statName,
+            reset: false,
+          });
+
+          return [emailTag, Math.max(1, countOnlineIpEntries(response.ips))] as const;
+        } catch {
+          const fallbackResponse = await this.callStatsService<{
+            stat?: {
+              value?: number | string;
+            };
+          }>('GetStatsOnline', {
+            name: statName,
+            reset: false,
+          });
+          const fallbackValue = Number(fallbackResponse.stat?.value ?? 1);
+
+          return [emailTag, Number.isFinite(fallbackValue) && fallbackValue > 0 ? fallbackValue : 1] as const;
+        }
+      }),
+    );
+    const counts = new Map<string, number>();
+
+    responses.forEach((response, index) => {
+      const emailTag = emailTags[index];
+
+      if (!emailTag) {
+        return;
+      }
+
+      if (response.status === 'fulfilled') {
+        counts.set(response.value[0], response.value[1]);
+        return;
+      }
+
+      counts.set(emailTag, 1);
+    });
+
+    return counts;
   }
 
   private getGrpcBundle() {
