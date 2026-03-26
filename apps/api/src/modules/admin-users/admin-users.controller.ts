@@ -3,11 +3,11 @@ import type { Request } from 'express';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
+import { AdminUsersService } from './admin-users.service';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { DisableTwoFactorDto } from './dto/disable-two-factor.dto';
 import { EnableTwoFactorDto } from './dto/enable-two-factor.dto';
 import { StartTwoFactorSetupDto } from './dto/start-two-factor-setup.dto';
-import { AdminUsersService } from './admin-users.service';
 
 @Controller('admin-users')
 export class AdminUsersController {

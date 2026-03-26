@@ -16,12 +16,9 @@ import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
 import { parseDurationToMs } from '../../common/utils/parse-duration';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import {
-  decryptTwoFactorSecret,
-  encryptTwoFactorSecret,
-} from '../auth/two-factor-secret.util';
 import type { TwoFactorSetupPayload } from '../auth/auth.types';
 import { buildTotpOtpAuthUrl, generateTotpSecret, verifyTotpCode } from '../auth/totp.util';
+import { decryptTwoFactorSecret, encryptTwoFactorSecret } from '../auth/two-factor-secret.util';
 import type { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import type { DisableTwoFactorDto } from './dto/disable-two-factor.dto';
 import type { EnableTwoFactorDto } from './dto/enable-two-factor.dto';
@@ -265,11 +262,7 @@ export class AdminUsersService {
     };
   }
 
-  async enableTwoFactor(
-    admin: AuthenticatedAdmin,
-    input: EnableTwoFactorDto,
-    request: Request,
-  ) {
+  async enableTwoFactor(admin: AuthenticatedAdmin, input: EnableTwoFactorDto, request: Request) {
     const currentAdmin = await this.requireAdmin(admin.id);
 
     if (currentAdmin.totpSecretEnc) {
@@ -312,11 +305,7 @@ export class AdminUsersService {
     };
   }
 
-  async disableTwoFactor(
-    admin: AuthenticatedAdmin,
-    input: DisableTwoFactorDto,
-    request: Request,
-  ) {
+  async disableTwoFactor(admin: AuthenticatedAdmin, input: DisableTwoFactorDto, request: Request) {
     const currentAdmin = await this.requireAdmin(admin.id);
 
     if (!currentAdmin.totpSecretEnc) {

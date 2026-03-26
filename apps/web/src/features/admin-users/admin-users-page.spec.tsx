@@ -39,7 +39,10 @@ describe('AdminUsersPage', () => {
       role: 'SUPER_ADMIN',
       twoFactorEnabled: false,
     };
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
   });
 
   it('shows operator management controls for super admins', async () => {

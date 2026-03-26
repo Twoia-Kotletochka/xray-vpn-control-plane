@@ -123,18 +123,19 @@ export function AdminUsersPage() {
     setNotice(null);
 
     try {
-      const payload = await apiFetch<TwoFactorSetupResponse>('/api/admin-users/me/two-factor/setup', {
-        method: 'POST',
-        body: JSON.stringify({
-          password: setupPassword,
-        }),
-      });
+      const payload = await apiFetch<TwoFactorSetupResponse>(
+        '/api/admin-users/me/two-factor/setup',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            password: setupPassword,
+          }),
+        },
+      );
 
       setSetupSession(payload);
       setSetupCode('');
-      setNotice(
-        'Сканируйте QR-код в приложении-аутентификаторе и подтвердите шестизначным кодом.',
-      );
+      setNotice('Сканируйте QR-код в приложении-аутентификаторе и подтвердите шестизначным кодом.');
     } catch (submissionError) {
       setError(
         submissionError instanceof Error
@@ -297,9 +298,7 @@ export function AdminUsersPage() {
                 </span>
               </div>
               <StatusPill
-                tone={
-                  twoFactorStatus?.enabled ? 'success' : setupSession ? 'warning' : 'muted'
-                }
+                tone={twoFactorStatus?.enabled ? 'success' : setupSession ? 'warning' : 'muted'}
               >
                 {twoFactorStatus?.enabled
                   ? '2FA включена'
@@ -519,7 +518,9 @@ export function AdminUsersPage() {
                 <tr key={item.id}>
                   <td>
                     <div className="table-main">
-                      <strong>{item.isCurrentAdmin ? `${item.username} (вы)` : item.username}</strong>
+                      <strong>
+                        {item.isCurrentAdmin ? `${item.username} (вы)` : item.username}
+                      </strong>
                       <span>{item.email}</span>
                     </div>
                   </td>

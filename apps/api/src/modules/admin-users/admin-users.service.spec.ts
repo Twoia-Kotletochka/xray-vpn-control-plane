@@ -1,5 +1,5 @@
-import { AdminRole } from '@prisma/client';
 import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { AdminRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -235,14 +235,10 @@ describe('AdminUsersService', () => {
       id: 'operator-1',
     });
 
-    const result = await service.remove(
-      superAdmin,
-      'operator-1',
-      {
-        get: vi.fn().mockReturnValue('vitest'),
-        ip: '127.0.0.1',
-      } as never,
-    );
+    const result = await service.remove(superAdmin, 'operator-1', {
+      get: vi.fn().mockReturnValue('vitest'),
+      ip: '127.0.0.1',
+    } as never);
 
     expect(prisma.adminUser.delete).toHaveBeenCalledWith({
       where: {
