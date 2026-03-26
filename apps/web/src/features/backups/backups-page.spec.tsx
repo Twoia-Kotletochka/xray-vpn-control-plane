@@ -28,21 +28,20 @@ describe('BackupsPage', () => {
   });
 
   it('loads a restore plan before showing the restore commands', async () => {
+    const backupRecord = {
+      id: 'backup-1',
+      fileName: 'server-vpn-20260324-184000Z.tar.gz',
+      absolutePath: '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz',
+      checksumSha256: 'abc',
+      fileSizeBytes: '1024',
+      status: 'READY',
+      createdAt: '2026-03-24T18:40:00.000Z',
+      restoredAt: null,
+      notes: null,
+      exists: true,
+    } satisfies BackupListResponse['items'][number];
     const listResponse: BackupListResponse = {
-      items: [
-        {
-          id: 'backup-1',
-          fileName: 'server-vpn-20260324-184000Z.tar.gz',
-          absolutePath: '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz',
-          checksumSha256: 'abc',
-          fileSizeBytes: '1024',
-          status: 'READY',
-          createdAt: '2026-03-24T18:40:00.000Z',
-          restoredAt: null,
-          notes: null,
-          exists: true,
-        },
-      ],
+      items: [backupRecord],
       policy: {
         backupDir: '/var/backups/server-vpn',
         retentionDays: 14,
@@ -52,7 +51,7 @@ describe('BackupsPage', () => {
       },
     };
     const restorePlan: BackupRestorePlanResponse = {
-      backup: listResponse.items[0],
+      backup: backupRecord,
       commands: {
         dryRun:
           "./infra/scripts/restore.sh --dry-run --yes-restore '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz'",
