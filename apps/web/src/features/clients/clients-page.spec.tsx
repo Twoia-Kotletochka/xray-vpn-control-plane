@@ -71,6 +71,10 @@ function createBundle(client: ClientRecord): ClientSubscriptionBundle {
   };
 }
 
+function selectedClientStatusText(client: ClientRecord) {
+  return `Активен • ${client.uuid}`;
+}
+
 describe('ClientsPage', () => {
   beforeEach(() => {
     mockApiFetch.mockReset();
@@ -136,7 +140,7 @@ describe('ClientsPage', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText((content) => content.includes(firstClient.uuid));
+    await screen.findByText(selectedClientStatusText(firstClient));
 
     const listCalls = () =>
       mockApiFetch.mock.calls.filter(([path]) =>
@@ -147,7 +151,7 @@ describe('ClientsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Client Two/i }));
 
-    await screen.findByText((content) => content.includes(secondClient.uuid));
+    await screen.findByText(selectedClientStatusText(secondClient));
 
     await waitFor(() => {
       expect(listCalls()).toBe(1);
