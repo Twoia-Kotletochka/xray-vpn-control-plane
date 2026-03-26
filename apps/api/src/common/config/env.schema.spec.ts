@@ -8,6 +8,7 @@ describe('validateEnv', () => {
       DATABASE_URL: 'postgresql://user:pass@localhost:5432/db?schema=public',
       JWT_ACCESS_SECRET: '12345678901234567890123456789012',
       JWT_REFRESH_SECRET: 'abcdefghijklmnopqrstuvwxyz123456',
+      TOTP_ENCRYPTION_SECRET: 'totp-encryption-secret-1234567890',
       INITIAL_ADMIN_EMAIL: 'admin@example.com',
       INITIAL_ADMIN_USERNAME: 'admin',
       INITIAL_ADMIN_PASSWORD: 'super-secure-password',
