@@ -44,6 +44,19 @@
     reverse_proxy api:3000
   }
 
+  handle /favicon.ico {
+    root * /srv/web
+    rewrite * /favicon.svg
+    file_server
+  }
+
+  @public_panel_assets path /favicon.svg /apple-touch-icon.png /site.webmanifest /manifest.webmanifest /robots.txt
+
+  handle @public_panel_assets {
+    root * /srv/web
+    file_server
+  }
+
   route {
     basic_auth {
       {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
