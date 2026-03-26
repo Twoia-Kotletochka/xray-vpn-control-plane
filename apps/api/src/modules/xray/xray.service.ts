@@ -9,13 +9,13 @@ import protobuf from 'protobufjs';
 import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
 import { resolveEffectiveClientStatus } from '../clients/client-presenter';
-import { buildTrafficDeltaMap, startOfUtcDay } from './xray.helpers';
 import {
   buildUserOnlineStatName,
   countOnlineIpEntries,
   describeClientLimitBreaches,
   evaluateClientLimitBreaches,
 } from './xray-limit-enforcement.util';
+import { buildTrafficDeltaMap, startOfUtcDay } from './xray.helpers';
 
 @Injectable()
 export class XrayService implements OnModuleInit, OnModuleDestroy {
@@ -619,7 +619,10 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
           });
           const fallbackValue = Number(fallbackResponse.stat?.value ?? 1);
 
-          return [emailTag, Number.isFinite(fallbackValue) && fallbackValue > 0 ? fallbackValue : 1] as const;
+          return [
+            emailTag,
+            Number.isFinite(fallbackValue) && fallbackValue > 0 ? fallbackValue : 1,
+          ] as const;
         }
       }),
     );

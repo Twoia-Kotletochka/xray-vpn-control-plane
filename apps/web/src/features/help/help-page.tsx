@@ -76,7 +76,10 @@ export function HelpPage() {
           <div className="feature-list">
             <div className="feature-list__card">
               <strong>Когда делать backup</strong>
-              <span>Перед обновлениями, массовым импортом клиентов, изменениями транспорта и ручными recovery-операциями.</span>
+              <span>
+                Перед обновлениями, массовым импортом клиентов, изменениями транспорта и ручными
+                recovery-операциями.
+              </span>
             </div>
             <div className="feature-list__card">
               <strong>Сначала dry-run</strong>
