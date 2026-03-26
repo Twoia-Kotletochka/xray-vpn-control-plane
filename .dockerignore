@@ -1,0 +1,17 @@
+.git
+.github
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+*.tsbuildinfo
+**/*.tsbuildinfo
+.env
+.env.local
+secrets
+infra/backup/output
+infra/xray/generated
+.tmp
+npm-debug.log*

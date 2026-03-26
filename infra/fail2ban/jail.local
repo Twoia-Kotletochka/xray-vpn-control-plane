@@ -1,0 +1,18 @@
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 6
+
+[sshd]
+enabled = true
+
+; The panel jail will be enabled after auth failure logs are emitted in a stable structured format.
+; [server-vpn-panel-auth]
+; enabled = true
+; port = 8443
+; filter = server-vpn-panel-auth
+; logpath = /var/log/server-vpn/panel-auth.log
+; maxretry = 6
+; findtime = 10m
+; bantime = 1h
+

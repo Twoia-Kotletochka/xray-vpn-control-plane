@@ -1,0 +1,36 @@
+{
+  "name": "@server-vpn/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React admin panel for the server-vpn control plane.",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "lint": "biome check src index.html vite.config.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.1.0",
+    "@fontsource/space-grotesk": "^5.1.0",
+    "lucide-react": "^0.483.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^6.30.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@types/node": "^22.13.10",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "vitest": "^3.0.8"
+  }
+}

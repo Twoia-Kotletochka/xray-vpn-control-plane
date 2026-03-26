@@ -1,0 +1,72 @@
+import { z } from 'zod';
+
+const nodeEnvSchema = z.enum(['development', 'test', 'production']);
+const envBooleanSchema = z.union([z.boolean(), z.string()]).transform((value, context) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: 'Expected a boolean string (true or false).',
+  });
+
+  return z.NEVER;
+});
+
+export const envSchema = z.object({
+  NODE_ENV: nodeEnvSchema.default('development'),
+  API_PORT: z.coerce.number().int().positive().default(3000),
+  API_LOG_LEVEL: z.string().default('info'),
+  API_CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  SESSION_COOKIE_NAME: z.string().default('svpn_admin'),
+  ACCESS_TOKEN_TTL: z.string().default('15m'),
+  REFRESH_TOKEN_TTL: z.string().default('30d'),
+  BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(14).default(12),
+  LOGIN_RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
+  LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  API_LOG_FILE: z.string().default('/var/log/server-vpn/api.log'),
+  DATABASE_URL: z.string().min(1),
+  DATABASE_DIRECT_URL: z.string().min(1).optional(),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  TOTP_ENCRYPTION_SECRET: z.string().min(32),
+  INITIAL_ADMIN_EMAIL: z.string().email(),
+  INITIAL_ADMIN_USERNAME: z.string().min(3),
+  INITIAL_ADMIN_PASSWORD: z.string().min(12),
+  PANEL_PUBLIC_URL: z.string().url(),
+  XRAY_VLESS_PORT: z.coerce.number().int().positive().default(443),
+  XRAY_INBOUND_TAG: z.string().default('vless-reality-main'),
+  XRAY_API_TARGET: z.string().default('xray:10085'),
+  XRAY_REALITY_PUBLIC_KEY: z.string().min(1),
+  XRAY_SHORT_IDS: z.string().min(1),
+  XRAY_DEFAULT_SNI: z.string().min(1),
+  XRAY_DEFAULT_SPIDER_X: z.string().default('/'),
+  XRAY_SUBSCRIPTION_BASE_URL: z.string().url(),
+  XRAY_ACCESS_LOG_FILE: z.string().default('/var/log/server-vpn/xray-access.log'),
+  XRAY_ERROR_LOG_FILE: z.string().default('/var/log/server-vpn/xray-error.log'),
+  XRAY_USAGE_SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  XRAY_CONTROL_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  CADDY_ACCESS_LOG_FILE: z.string().default('/var/log/server-vpn/caddy-access.log'),
+  BACKUP_DIR: z.string().default('/var/backups/server-vpn'),
+  BACKUP_AUTO_CREATE_ENABLED: envBooleanSchema.default(true),
+  BACKUP_AUTO_CREATE_INTERVAL_DAYS: z.coerce.number().int().positive().default(5),
+  BACKUP_AUTO_MAINTENANCE_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
+  BACKUP_RETENTION_DAYS: z.coerce.number().int().positive().default(14),
+});
+
+export type AppEnv = z.infer<typeof envSchema>;
+
+export function validateEnv(config: Record<string, unknown>): AppEnv {
+  return envSchema.parse(config);
+}

@@ -1,0 +1,113 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/runtime/logs:/var/log/server-vpn
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./infra/backup/output:/var/backups/server-vpn
+      - ./infra/runtime/logs:/var/log/server-vpn
+      - ./infra/xray/generated:/var/lib/server-vpn/xray:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/healthz >/dev/null || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+      - control
+
+  xray:
+    image: ${XRAY_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ['run', '-config', '/etc/xray/config.json']
+    depends_on:
+      api:
+        condition: service_started
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./infra/xray/generated/config.json:/etc/xray/config.json:ro
+      - ./infra/runtime/logs:/var/log/server-vpn
+    ports:
+      - '${XRAY_VLESS_PORT}:${XRAY_VLESS_PORT}/tcp'
+    healthcheck:
+      test: ['CMD', '/usr/local/bin/xray', 'run', '-test', '-config', '/etc/xray/config.json']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - control
+
+  caddy:
+    build:
+      context: .
+      dockerfile: infra/docker/panel.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '${PANEL_HTTPS_PORT}:8443/tcp'
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /data
+      - /config
+    volumes:
+      - ./infra/runtime/logs:/var/log/server-vpn
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://api:3000/healthz >/dev/null || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+  control:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -1,0 +1,62 @@
+{
+  "log": {
+    "access": "__XRAY_ACCESS_LOG_FILE__",
+    "error": "__XRAY_ERROR_LOG_FILE__",
+    "loglevel": "warning"
+  },
+  "api": {
+    "tag": "api",
+    "listen": "__XRAY_API_LISTEN__",
+    "services": ["HandlerService", "LoggerService", "StatsService"]
+  },
+  "stats": {},
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true,
+        "statsUserOnline": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true
+    }
+  },
+  "inbounds": [
+    {
+      "listen": "__XRAY_VLESS_LISTEN__",
+      "port": __XRAY_VLESS_PORT__,
+      "protocol": "vless",
+      "tag": "__XRAY_INBOUND_TAG__",
+      "settings": {
+        "clients": [],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "dest": "__XRAY_REALITY_DEST__",
+          "serverNames": __XRAY_SERVER_NAMES_JSON__,
+          "privateKey": "__XRAY_REALITY_PRIVATE_KEY__",
+          "shortIds": __XRAY_SHORT_IDS_JSON__
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "blocked"
+    }
+  ]
+}

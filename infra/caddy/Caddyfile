@@ -1,0 +1,71 @@
+{
+  admin off
+  auto_https disable_redirects
+  default_sni {$PANEL_HOST}
+  skip_install_trust
+}
+
+{$PANEL_HOST}:8443 {
+  tls internal
+  encode zstd gzip
+  log {
+    output file {$CADDY_ACCESS_LOG_FILE} {
+      roll_keep 14
+      roll_keep_for 336h
+      roll_size 25MiB
+    }
+    format json
+  }
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    Permissions-Policy "camera=(), geolocation=(), microphone=()"
+    Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+  }
+
+  @public_subscription path_regexp public_subscription ^/api/subscriptions/[A-Za-z0-9_-]+$
+
+  handle @public_subscription {
+    reverse_proxy api:3000
+  }
+
+  handle /api/* {
+    reverse_proxy api:3000
+  }
+
+  handle /healthz {
+    reverse_proxy api:3000
+  }
+
+  handle /readyz {
+    reverse_proxy api:3000
+  }
+
+  handle /favicon.ico {
+    root * /srv/web
+    rewrite * /favicon.svg
+    file_server
+  }
+
+  @public_panel_assets path /favicon.svg /apple-touch-icon.png /site.webmanifest /manifest.webmanifest /robots.txt
+
+  handle @public_panel_assets {
+    root * /srv/web
+    file_server
+  }
+
+  route {
+    basic_auth {
+      {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
+    }
+
+    handle {
+      root * /srv/web
+      try_files {path} /index.html
+      file_server
+    }
+  }
+}

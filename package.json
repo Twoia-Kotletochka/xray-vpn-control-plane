@@ -1,0 +1,29 @@
+{
+  "name": "server-vpn",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted VLESS/Xray VPN control panel for a single VPS.",
+  "workspaces": ["apps/*"],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=11.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
+    "test": "npm run test -w apps/api && npm run test -w apps/web",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "db:generate": "npm run prisma:generate -w apps/api",
+    "db:migrate": "npm run prisma:migrate -w apps/api"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "concurrently": "^9.1.2"
+  }
+}
