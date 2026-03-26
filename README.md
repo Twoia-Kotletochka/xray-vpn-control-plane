@@ -1,6 +1,8 @@
 # server-vpn
 
-Self-hosted VPN control plane for a single VPS, built around Xray-core and VLESS with a modern admin panel.
+Self-hosted VPN control plane for Xray-core on a single VPS: VLESS + REALITY, client lifecycle, subscriptions, backups, and a polished admin panel.
+
+Self-hosted панель управления для VPN на Xray-core для одного VPS: VLESS + REALITY, управление клиентами, подписки, резервные копии и удобная админ-панель.
 
 ## Status
 
