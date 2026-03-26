@@ -119,6 +119,23 @@ async function downloadText(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
+function translateSubscriptionInstruction(instruction: string, locale: 'ru' | 'en') {
+  if (locale === 'ru') {
+    return instruction;
+  }
+
+  const translations: Record<string, string> = {
+    'Импортируйте subscription URL в совместимый VLESS/Xray клиент.':
+      'Import the subscription URL into a compatible VLESS/Xray client.',
+    'Если клиент не поддерживает подписки, используйте VLESS-ссылку напрямую или QR-код.':
+      'If the client does not support subscriptions, use the VLESS link directly or the QR code.',
+    'После продления и изменения лимитов ссылка обычно остаётся прежней, достаточно обновить подписку.':
+      'After extending access or changing limits, the link usually stays the same and only the subscription refresh is needed.',
+  };
+
+  return translations[instruction] ?? instruction;
+}
+
 export function ClientsPage() {
   const { apiFetch } = useAuth();
   const { locale, ui } = useI18n();
@@ -1024,7 +1041,7 @@ export function ClientsPage() {
 
                     <ul className="feature-list">
                       {subscriptionBundle.instructions.map((item) => (
-                        <li key={item}>{item}</li>
+                        <li key={item}>{translateSubscriptionInstruction(item, locale)}</li>
                       ))}
                     </ul>
 
@@ -1109,7 +1126,7 @@ export function ClientsPage() {
 
             <ul className="feature-list">
               {subscriptionBundle.instructions.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item}>{translateSubscriptionInstruction(item, locale)}</li>
               ))}
             </ul>
           </div>
