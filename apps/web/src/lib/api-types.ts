@@ -120,6 +120,8 @@ export type DashboardSummary = {
   totals: {
     clients: number;
     active: number;
+    available: number;
+    onlineNow: number;
     expired: number;
     disabled: number;
     blocked: number;

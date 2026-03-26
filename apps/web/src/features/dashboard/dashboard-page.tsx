@@ -44,9 +44,14 @@ export function DashboardPage() {
 
   const metrics = [
     {
-      label: 'Активные клиенты',
-      value: String(summary?.totals.active ?? 0),
-      hint: 'текущее количество доступных клиентов',
+      label: 'Онлайн сейчас',
+      value: String(summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0),
+      hint: 'реальные live-подключения по данным Xray runtime',
+    },
+    {
+      label: 'Доступные клиенты',
+      value: String(summary?.totals.available ?? summary?.totals.active ?? 0),
+      hint: 'клиенты со статусом ACTIVE, готовые к подключению',
     },
     {
       label: 'Истекшие клиенты',
@@ -84,7 +89,7 @@ export function DashboardPage() {
     <div className="page">
       <PageHeader
         title="Дашборд"
-        description="Операционная сводка по клиентской базе, трафику, runtime Xray и состоянию сервисов."
+        description="Операционная сводка по доступным клиентам, live-подключениям, трафику, runtime Xray и состоянию сервисов."
         actionLabel="Обновить"
         onAction={() => {
           void apiFetch<DashboardSummary>('/api/dashboard/summary')
@@ -111,9 +116,10 @@ export function DashboardPage() {
       <div className="content-grid">
         <SectionCard title="Текущая сводка">
           <ul className="feature-list">
+            <li>Доступных клиентов: {summary?.totals.available ?? summary?.totals.active ?? 0}</li>
             <li>Отключенных клиентов: {summary?.totals.disabled ?? 0}</li>
             <li>Заблокированных клиентов: {summary?.totals.blocked ?? 0}</li>
-            <li>Онлайн пользователей в Xray: {summary?.runtime.onlineUsers ?? 0}</li>
+            <li>Клиентов онлайн сейчас: {summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0}</li>
             <li>Статус Xray control API: {summary?.runtime.xrayStatus ?? 'unknown'}</li>
             <li>
               Последний snapshot трафика:{' '}

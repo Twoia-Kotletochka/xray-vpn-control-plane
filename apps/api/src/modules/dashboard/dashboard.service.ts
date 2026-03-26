@@ -34,7 +34,7 @@ export class DashboardService {
       },
     });
 
-    const [clients, active, expired, disabled, blocked, usage, host, runtime] = await Promise.all([
+    const [clients, available, expired, disabled, blocked, usage, host, runtime] = await Promise.all([
       this.prisma.client.count(),
       this.prisma.client.count({
         where: {
@@ -68,7 +68,9 @@ export class DashboardService {
     return {
       totals: {
         clients,
-        active,
+        active: available,
+        available,
+        onlineNow: runtime.onlineUsers,
         expired,
         disabled,
         blocked,
@@ -82,7 +84,7 @@ export class DashboardService {
         xrayStatus: runtime.status,
       },
       message:
-        'Сводка читает трафик из PostgreSQL, а live-активность и синхронизация пользователей подтягиваются из Xray control API.',
+        'Дашборд разделяет доступных клиентов по статусу и реальные live-подключения из Xray runtime, чтобы онлайн не смешивался с просто активными профилями.',
     };
   }
 }
