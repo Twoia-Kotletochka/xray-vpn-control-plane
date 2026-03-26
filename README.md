@@ -10,6 +10,12 @@ Self-hosted Xray VPN control plane for a single VPS: `VLESS + REALITY`, admin pa
 
 Self-hosted панель управления Xray VPN для одного VPS: `VLESS + REALITY`, админ-панель, подписки, резервные копии, аудит и развёртывание без лишней инфраструктурной сложности.
 
+![xray-vpn-control-plane admin panel screenshot](./docs/assets/panel-overview.png)
+
+Authenticated panel preview: Help page with the full navigation shell and operator guidance.
+
+Пример авторизованной панели: страница Help с полным shell-интерфейсом и операторскими подсказками.
+
 ## English
 
 ### What It Is
