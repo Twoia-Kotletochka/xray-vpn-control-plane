@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
+import { useI18n } from '../../i18n';
 import type {
   LogContentResponse,
   LogSourceListResponse,
@@ -13,6 +14,7 @@ import { useAuth } from '../auth/auth-context';
 
 export function LogsPage() {
   const { apiFetch } = useAuth();
+  const { locale, ui } = useI18n();
   const [sources, setSources] = useState<LogSourceRecord[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [content, setContent] = useState<LogContentResponse | null>(null);
@@ -22,6 +24,62 @@ export function LogsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const text =
+    locale === 'en'
+      ? {
+          loadLog: 'Failed to load the log.',
+          loadSources: 'Failed to load the log source list.',
+          description:
+            'Tail approved API, Xray, and Caddy logs with basic filters for fast diagnostics.',
+          sourcesTitle: 'Sources',
+          sourcesSubtitle: 'Pick a stream and the number of recent lines to tail.',
+          fileMissing: 'File has not been created yet',
+          sourcesEmpty: 'No log sources are defined yet.',
+          viewerTitle: 'Viewer',
+          viewerSubtitle:
+            'Tail a file without shell access. Useful for quick checks after deploys and runtime changes.',
+          lines: 'Lines',
+          level: 'Level',
+          allLines: 'All lines',
+          textFilter: 'Text filter',
+          refreshing: 'Refreshing...',
+          refreshTail: 'Refresh tail',
+          source: 'Source',
+          file: 'File',
+          size: 'Size',
+          updated: 'Updated',
+          shownLines: 'Shown lines',
+          noLines: 'No lines match the current filter.',
+          emptyViewer: 'Choose a log source to view the tail.',
+          notAvailable: '—',
+        }
+      : {
+          loadLog: 'Не удалось загрузить лог.',
+          loadSources: 'Не удалось загрузить список логов.',
+          description:
+            'Tail разрешённых логов API, Xray и Caddy с базовыми фильтрами для быстрой диагностики.',
+          sourcesTitle: 'Источники',
+          sourcesSubtitle: 'Выберите нужный поток и количество последних строк для tail-просмотра.',
+          fileMissing: 'Файл пока не создан',
+          sourcesEmpty: 'Источники логов пока не определены.',
+          viewerTitle: 'Просмотр',
+          viewerSubtitle:
+            'Tail по файлу без shell-доступа. Подходит для быстрой диагностики после деплоя и изменений рантайма.',
+          lines: 'Количество строк',
+          level: 'Уровень',
+          allLines: 'Все строки',
+          textFilter: 'Фильтр по тексту',
+          refreshing: 'Обновляем...',
+          refreshTail: 'Обновить tail',
+          source: 'Источник',
+          file: 'Файл',
+          size: 'Размер',
+          updated: 'Обновлён',
+          shownLines: 'Показано строк',
+          noLines: 'По текущему фильтру строк нет.',
+          emptyViewer: 'Выберите источник логов, чтобы увидеть tail.',
+          notAvailable: '—',
+        };
 
   const loadSource = useCallback(
     async (sourceId: string, linesValue: string) => {
@@ -34,12 +92,12 @@ export function LogsPage() {
         );
         setContent(response);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить лог.');
+        setError(loadError instanceof Error ? loadError.message : text.loadLog);
       } finally {
         setIsRefreshing(false);
       }
     },
-    [apiFetch],
+    [apiFetch, text.loadLog],
   );
 
   const loadSources = useCallback(async () => {
@@ -58,13 +116,11 @@ export function LogsPage() {
         await loadSource(nextSelected, lines);
       }
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'Не удалось загрузить список логов.',
-      );
+      setError(loadError instanceof Error ? loadError.message : text.loadSources);
     } finally {
       setIsLoading(false);
     }
-  }, [apiFetch, lines, loadSource]);
+  }, [apiFetch, lines, loadSource, text.loadSources]);
 
   useEffect(() => {
     void loadSources();
@@ -107,16 +163,16 @@ export function LogsPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Логи"
-        description="Tail разрешённых логов API, Xray и Caddy с базовыми фильтрами для быстрой диагностики."
+        title={ui.logs.title}
+        description={text.description}
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
 
       <div className="split-grid">
         <SectionCard
-          title="Источники"
-          subtitle="Выберите нужный поток и количество последних строк для tail-просмотра."
+          title={text.sourcesTitle}
+          subtitle={text.sourcesSubtitle}
         >
           <div className="logs-source-list">
             {sources.map((source) => (
@@ -130,24 +186,21 @@ export function LogsPage() {
                 }}
               >
                 <strong>{source.label}</strong>
-                <span>{source.available ? source.path : 'Файл пока не создан'}</span>
+                <span>{source.available ? source.path : text.fileMissing}</span>
               </button>
             ))}
 
             {!isLoading && sources.length === 0 ? (
-              <div className="empty-state">Источники логов пока не определены.</div>
+              <div className="empty-state">{text.sourcesEmpty}</div>
             ) : null}
           </div>
         </SectionCard>
 
-        <SectionCard
-          title="Просмотр"
-          subtitle="Tail по файлу без shell-доступа. Подходит для быстрой диагностики после деплоя и изменений рантайма."
-        >
+        <SectionCard title={text.viewerTitle} subtitle={text.viewerSubtitle}>
           <div className="toolbar">
             <div className="field-grid">
               <label className="login-form__field">
-                <span>Количество строк</span>
+                <span>{text.lines}</span>
                 <input
                   type="number"
                   min="50"
@@ -157,12 +210,12 @@ export function LogsPage() {
                 />
               </label>
               <label className="login-form__field">
-                <span>Уровень</span>
+                <span>{text.level}</span>
                 <select
                   value={levelFilter}
                   onChange={(event) => setLevelFilter(event.target.value)}
                 >
-                  <option value="ALL">Все строки</option>
+                  <option value="ALL">{text.allLines}</option>
                   <option value="ERROR">ERROR / FATAL</option>
                   <option value="WARN">WARN</option>
                   <option value="INFO">INFO</option>
@@ -174,7 +227,7 @@ export function LogsPage() {
             <div className="toolbar__actions">
               <label className="toolbar__search">
                 <input
-                  placeholder="Фильтр по тексту"
+                  placeholder={text.textFilter}
                   value={lineFilter}
                   onChange={(event) => setLineFilter(event.target.value)}
                 />
@@ -186,7 +239,7 @@ export function LogsPage() {
                 disabled={!selectedSourceId || isRefreshing}
               >
                 <RefreshCw size={16} />
-                {isRefreshing ? 'Обновляем...' : 'Обновить tail'}
+                {isRefreshing ? text.refreshing : text.refreshTail}
               </button>
             </div>
           </div>
@@ -195,35 +248,33 @@ export function LogsPage() {
             <div className="detail-stack">
               <dl className="detail-list">
                 <div>
-                  <dt>Источник</dt>
+                  <dt>{text.source}</dt>
                   <dd>{content.label}</dd>
                 </div>
                 <div>
-                  <dt>Файл</dt>
+                  <dt>{text.file}</dt>
                   <dd className="detail-list__mono">{content.path}</dd>
                 </div>
                 <div>
-                  <dt>Размер</dt>
-                  <dd>{content.sizeBytes ? formatBytes(content.sizeBytes) : '—'}</dd>
+                  <dt>{text.size}</dt>
+                  <dd>{content.sizeBytes ? formatBytes(content.sizeBytes, locale) : text.notAvailable}</dd>
                 </div>
                 <div>
-                  <dt>Обновлён</dt>
-                  <dd>{formatDateTime(content.updatedAt, '—')}</dd>
+                  <dt>{text.updated}</dt>
+                  <dd>{formatDateTime(content.updatedAt, text.notAvailable, locale)}</dd>
                 </div>
                 <div>
-                  <dt>Показано строк</dt>
+                  <dt>{text.shownLines}</dt>
                   <dd>
                     {filteredLines.length} / {content.content ? content.content.split('\n').length : 0}
                   </dd>
                 </div>
               </dl>
 
-              <pre className="mono-output">
-                {filteredLines.length > 0 ? filteredLines.join('\n') : 'По текущему фильтру строк нет.'}
-              </pre>
+              <pre className="mono-output">{filteredLines.length > 0 ? filteredLines.join('\n') : text.noLines}</pre>
             </div>
           ) : (
-            <div className="empty-state">Выберите источник логов, чтобы увидеть tail.</div>
+            <div className="empty-state">{text.emptyViewer}</div>
           )}
         </SectionCard>
       </div>

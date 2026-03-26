@@ -1,5 +1,7 @@
 import type { KeyboardEvent, PropsWithChildren } from 'react';
 
+import { useI18n } from '../../i18n';
+
 type ModalProps = PropsWithChildren<{
   isOpen: boolean;
   onClose: () => void;
@@ -7,6 +9,8 @@ type ModalProps = PropsWithChildren<{
 }>;
 
 export function Modal({ children, isOpen, onClose, title }: ModalProps) {
+  const { ui } = useI18n();
+
   if (!isOpen) {
     return null;
   }
@@ -36,7 +40,12 @@ export function Modal({ children, isOpen, onClose, title }: ModalProps) {
           <div>
             <strong>{title}</strong>
           </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Закрыть">
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onClose}
+            aria-label={ui.common.closeDialog}
+          >
             ×
           </button>
         </div>

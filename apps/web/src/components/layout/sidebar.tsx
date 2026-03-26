@@ -1,8 +1,8 @@
 import { Shield, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
-import { navigationItems } from '../../app/navigation';
-import { ui } from '../../i18n';
+import { useNavigationItems } from '../../app/navigation';
+import { useI18n } from '../../i18n';
 
 type SidebarProps = {
   isOpen: boolean;
@@ -10,6 +10,9 @@ type SidebarProps = {
 };
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const navigationItems = useNavigationItems();
+  const { ui } = useI18n();
+
   return (
     <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
       <div className="sidebar__header">
@@ -25,7 +28,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <button
           className="icon-button sidebar__close"
           type="button"
-          aria-label="Закрыть навигацию"
+          aria-label={ui.common.closeNavigation}
           onClick={onClose}
         >
           <X size={16} />

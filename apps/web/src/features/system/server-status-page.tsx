@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
+import { useI18n } from '../../i18n';
 import type { SystemStatusResponse } from '../../lib/api-types';
 import { formatDateTime } from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
@@ -25,9 +26,48 @@ function formatPercent(value: number | null) {
 
 export function ServerStatusPage() {
   const { apiFetch } = useAuth();
+  const { locale, ui } = useI18n();
   const [response, setResponse] = useState<SystemStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const text =
+    locale === 'en'
+      ? {
+          loadError: 'Failed to load system status.',
+          syncError: 'Failed to run the manual runtime action.',
+          description:
+            'Current signals for core platform services, Xray status, and manual runtime actions.',
+          servicesTitle: 'Services',
+          runtimeTitle: 'Runtime and manual actions',
+          collecting: 'Collecting service health...',
+          xrayUsers: 'Xray online users',
+          lastSync: 'Last runtime sync',
+          lastSnapshot: 'Last traffic snapshot',
+          notYet: 'not performed yet',
+          uptime: 'Xray uptime',
+          seconds: 's',
+          snapshotAction: 'Capture traffic snapshot',
+          syncAction: 'Sync Xray',
+          latencyMs: 'ms',
+        }
+      : {
+          loadError: 'Не удалось загрузить статус системы.',
+          syncError: 'Не удалось выполнить ручную синхронизацию.',
+          description:
+            'Текущие сигналы по основным сервисам платформы, статусу Xray и ручным операциям рантайма.',
+          servicesTitle: 'Сервисы',
+          runtimeTitle: 'Runtime и ручные действия',
+          collecting: 'Собираем состояние сервисов...',
+          xrayUsers: 'Онлайн пользователей Xray',
+          lastSync: 'Последний sync runtime',
+          lastSnapshot: 'Последний snapshot трафика',
+          notYet: 'ещё не выполнялся',
+          uptime: 'Uptime Xray',
+          seconds: 'с',
+          snapshotAction: 'Снять snapshot трафика',
+          syncAction: 'Синхронизировать Xray',
+          latencyMs: 'мс',
+        };
 
   const loadStatus = useCallback(async () => {
     try {
@@ -35,11 +75,9 @@ export function ServerStatusPage() {
       setResponse(nextResponse);
       setError(null);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : 'Не удалось загрузить статус системы.',
-      );
+      setError(loadError instanceof Error ? loadError.message : text.loadError);
     }
-  }, [apiFetch]);
+  }, [apiFetch, text.loadError]);
 
   useEffect(() => {
     void loadStatus();
@@ -57,7 +95,7 @@ export function ServerStatusPage() {
       setError(
         syncError instanceof Error
           ? syncError.message
-          : 'Не удалось выполнить ручную синхронизацию.',
+          : text.syncError,
       );
     } finally {
       setIsSubmitting(false);
@@ -67,9 +105,9 @@ export function ServerStatusPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Состояние сервера"
-        description="Текущие сигналы по основным сервисам платформы, статусу Xray и ручным операциям рантайма."
-        actionLabel="Обновить"
+        title={ui.serverStatus.title}
+        description={text.description}
+        actionLabel={ui.common.refresh}
         onAction={() => {
           void loadStatus();
         }}
@@ -78,7 +116,7 @@ export function ServerStatusPage() {
       {error ? <div className="banner banner--danger">{error}</div> : null}
 
       <div className="content-grid">
-        <SectionCard title="Сервисы">
+        <SectionCard title={text.servicesTitle}>
           <div className="status-list">
             {response?.services.map((service) => (
               <div key={service.name} className="status-row">
@@ -89,7 +127,7 @@ export function ServerStatusPage() {
                   </span>
                 </div>
                 <div className="status-row__meta">
-                  <span>{service.latencyMs} мс</span>
+                  <span>{service.latencyMs} {text.latencyMs}</span>
                   <StatusPill tone={serviceTone(service.status)}>{service.status}</StatusPill>
                 </div>
               </div>
@@ -97,24 +135,24 @@ export function ServerStatusPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Runtime и ручные действия">
+        <SectionCard title={text.runtimeTitle}>
           <ul className="feature-list">
-            <li>{response?.message ?? 'Собираем состояние сервисов...'}</li>
+            <li>{response?.message ?? text.collecting}</li>
             <li>CPU: {formatPercent(response?.host.cpuPercent ?? null)}</li>
             <li>RAM: {formatPercent(response?.host.ramPercent ?? null)}</li>
             <li>Disk: {formatPercent(response?.host.diskPercent ?? null)}</li>
-            <li>Онлайн пользователей Xray: {response?.runtime.onlineUsers ?? 0}</li>
+            <li>{text.xrayUsers}: {response?.runtime.onlineUsers ?? 0}</li>
             <li>
-              Последний sync runtime:{' '}
-              {formatDateTime(response?.runtime.lastConfigSyncAt ?? null, 'ещё не выполнялся')}
+              {text.lastSync}:{' '}
+              {formatDateTime(response?.runtime.lastConfigSyncAt ?? null, text.notYet, locale)}
             </li>
             <li>
-              Последний snapshot трафика:{' '}
-              {formatDateTime(response?.runtime.lastStatsSnapshotAt ?? null, 'ещё не выполнялся')}
+              {text.lastSnapshot}:{' '}
+              {formatDateTime(response?.runtime.lastStatsSnapshotAt ?? null, text.notYet, locale)}
             </li>
             <li>
-              Uptime Xray:{' '}
-              {response?.runtime.uptimeSeconds ? `${response.runtime.uptimeSeconds} с` : '—'}
+              {text.uptime}:{' '}
+              {response?.runtime.uptimeSeconds ? `${response.runtime.uptimeSeconds} ${text.seconds}` : '—'}
             </li>
           </ul>
 
@@ -125,7 +163,7 @@ export function ServerStatusPage() {
               type="button"
               onClick={() => void handleManualSync('/api/xray/snapshot')}
             >
-              Снять snapshot трафика
+              {text.snapshotAction}
             </button>
             <button
               className="button button--primary"
@@ -133,7 +171,7 @@ export function ServerStatusPage() {
               type="button"
               onClick={() => void handleManualSync('/api/xray/sync')}
             >
-              Синхронизировать Xray
+              {text.syncAction}
             </button>
           </div>
         </SectionCard>

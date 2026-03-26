@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
-import { ui } from '../../i18n';
+import { LanguageSwitch } from '../../components/ui/language-switch';
+import { useI18n } from '../../i18n';
 import { ApiError } from '../../lib/api';
 import type { AuthTwoFactorChallenge } from '../../lib/api-types';
 import { useAuth } from './auth-context';
@@ -9,6 +10,7 @@ import { useAuth } from './auth-context';
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, status } = useAuth();
+  const { ui } = useI18n();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
@@ -59,7 +61,7 @@ export function LoginPage() {
       setError(
         submissionError instanceof ApiError
           ? submissionError.message
-          : 'Не удалось выполнить вход. Проверьте логин и пароль.',
+          : ui.auth.loginFailed,
       );
     } finally {
       setIsSubmitting(false);
@@ -69,10 +71,13 @@ export function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-panel">
-        <div>
-          <p className="page-header__eyebrow">{ui.auth.eyebrow}</p>
-          <h1>{ui.auth.title}</h1>
-          <p>{ui.auth.description}</p>
+        <div className="login-panel__header">
+          <div>
+            <p className="page-header__eyebrow">{ui.auth.eyebrow}</p>
+            <h1>{ui.auth.title}</h1>
+            <p>{ui.auth.description}</p>
+          </div>
+          <LanguageSwitch />
         </div>
 
         <form className="login-form" onSubmit={(event) => void handleSubmit(event)}>
@@ -96,19 +101,16 @@ export function LoginPage() {
           </label>
           {twoFactorChallenge ? (
             <>
-              <div className="banner">
-                Пароль подтверждён. Введите шестизначный код из приложения-аутентификатора,
-                чтобы завершить вход.
-              </div>
+              <div className="banner">{ui.auth.twoFactorBanner}</div>
               <label>
-                <span>Код подтверждения</span>
+                <span>{ui.auth.twoFactorCode}</span>
                 <input
                   autoComplete="one-time-code"
                   inputMode="numeric"
                   maxLength={6}
                   pattern="[0-9]{6}"
                   required
-                  placeholder="123456"
+                  placeholder={ui.auth.twoFactorPlaceholder}
                   value={twoFactorCode}
                   onChange={(event) =>
                     setTwoFactorCode(event.target.value.replace(/\D+/g, '').slice(0, 6))
@@ -126,15 +128,15 @@ export function LoginPage() {
             >
               {isSubmitting
                 ? twoFactorChallenge
-                  ? 'Проверяем код...'
-                  : 'Входим...'
+                  ? ui.auth.verifyingCode
+                  : ui.auth.signingIn
                 : twoFactorChallenge
-                  ? 'Подтвердить вход'
+                  ? ui.auth.verifyCode
                   : ui.auth.submit}
             </button>
             {twoFactorChallenge ? (
               <button className="button" type="button" onClick={resetChallenge}>
-                Изменить логин или пароль
+                {ui.auth.changeCredentials}
               </button>
             ) : null}
           </div>

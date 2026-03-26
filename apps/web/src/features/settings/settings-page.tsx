@@ -1,8 +1,10 @@
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
-import { ui } from '../../i18n';
+import { useI18n } from '../../i18n';
 
 export function SettingsPage() {
+  const { ui } = useI18n();
+
   return (
     <div className="page">
       <PageHeader title={ui.settings.title} description={ui.settings.description} />

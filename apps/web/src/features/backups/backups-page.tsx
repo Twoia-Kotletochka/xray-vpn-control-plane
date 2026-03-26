@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Modal } from '../../components/ui/modal';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
+import { useI18n } from '../../i18n';
 import type {
   BackupListResponse,
   BackupRecord,
@@ -12,18 +13,18 @@ import type {
 import { formatBytes, formatDateTime } from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
 
-function formatBackupStatus(status: string) {
+function formatBackupStatus(status: string, locale: 'ru' | 'en') {
   switch (status) {
     case 'READY':
-      return 'Готов';
+      return locale === 'en' ? 'Ready' : 'Готов';
     case 'CREATING':
-      return 'Создаётся';
+      return locale === 'en' ? 'Creating' : 'Создаётся';
     case 'FAILED':
-      return 'Ошибка';
+      return locale === 'en' ? 'Failed' : 'Ошибка';
     case 'PRUNED':
-      return 'Удалён по retention';
+      return locale === 'en' ? 'Pruned by retention' : 'Удалён по retention';
     case 'RESTORED':
-      return 'Восстановлен';
+      return locale === 'en' ? 'Restored' : 'Восстановлен';
     default:
       return status;
   }
@@ -41,6 +42,7 @@ function downloadBlob(fileName: string, blob: Blob) {
 
 export function BackupsPage() {
   const { apiFetch, apiFetchResponse } = useAuth();
+  const { locale, ui } = useI18n();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [backupDir, setBackupDir] = useState('');
   const [autoCreateEnabled, setAutoCreateEnabled] = useState(false);
@@ -57,6 +59,168 @@ export function BackupsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<BackupRecord | null>(null);
   const [restorePlan, setRestorePlan] = useState<BackupRestorePlanResponse | null>(null);
+  const text =
+    locale === 'en'
+      ? {
+          loadError: 'Failed to load backups.',
+          restorePlanError: 'Failed to prepare the restore plan.',
+          createError: 'Failed to create the backup.',
+          downloadError: 'Failed to download the backup.',
+          deleteConfirm: (fileName: string) =>
+            `Delete backup ${fileName}? The archive on disk and the panel record will both be removed.`,
+          deleteNotice: (fileName: string) => `Backup ${fileName} was deleted.`,
+          deleteError: 'Failed to delete the backup.',
+          copyNotice: (label: string, fileName: string) => `${label} for ${fileName} was copied.`,
+          description:
+            'Manage PostgreSQL archives and the Xray runtime config with a safe recovery workflow.',
+          createAction: 'Create backup',
+          creatingAction: 'Creating backup...',
+          policyTitle: 'Retention policy',
+          policySubtitle:
+            'These parameters come from the production config and are enforced automatically when new archives are created.',
+          archiveDirectory: 'Archive directory',
+          autoBackup: 'Auto-backup',
+          everyDays: (days: number) => `Every ${days} days`,
+          disabled: 'Disabled',
+          retention: 'Retention',
+          daysShort: (days: number) => `${days} days`,
+          dryRunBeforeRestore: 'Dry-run before restore',
+          restoreCommand: 'Restore command',
+          restoreWorkflow: 'Restore workflow',
+          restoreWorkflowText:
+            'Restore is executed from the host with an explicit command. The panel shows the exact flow and archive, but does not run destructive recovery from an active admin session.',
+          operationsTitle: 'Operations contour',
+          operationsSubtitle:
+            'Each archive includes a PostgreSQL dump, the Xray runtime config, and a manifest with the creation date.',
+          operationsItems: [
+            'Archives are created inside the API container via pg_dump, without giving the app access to docker.sock.',
+            'Only the rendered runtime config goes into Xray, with no private secrets stored in git.',
+            'Old archives are marked as PRUNED and removed automatically by the retention policy.',
+          ],
+          historyTitle: 'Backup history',
+          historySubtitle:
+            'An archive can be downloaded, deleted, or used as the basis for host-side restore.',
+          refreshList: 'Refresh list',
+          archivesCount: 'Archives',
+          downloading: 'Downloading...',
+          download: 'Download',
+          deleting: 'Deleting...',
+          delete: 'Delete',
+          created: 'Created',
+          size: 'Size',
+          fileOnDisk: 'File on disk',
+          available: 'Available',
+          unavailable: 'Unavailable',
+          empty: 'No archives yet. Create the first backup before updates or migrations.',
+          restoreTitle: (fileName: string) => `Restore: ${fileName}`,
+          restoreFallbackTitle: 'Backup restore',
+          restoreDanger:
+            'Recovery must only be run from the host and only after confirming that the current database and runtime may be overwritten.',
+          restoreLoading: 'Checking the archive and building the restore plan...',
+          preflightSuccess:
+            'Preflight passed. Run the dry-run first, then execute the confirmed restore in a maintenance window.',
+          preflightFailed:
+            'Preflight found blocking issues. Restore must not be started in this state.',
+          archive: 'Archive',
+          dryRun: 'Dry-run',
+          checksumMatch: 'Matches',
+          checksumMismatch: 'Mismatch',
+          found: 'Found',
+          missing: 'Missing',
+          keepCurrentXrayConfig: 'Not in the archive. The current config.json will be preserved.',
+          runbook: [
+            'Run the dry-run on the host first and make sure every check is green.',
+            'Create a fresh external backup before the real restore.',
+            'Run destructive restore only during a maintenance window.',
+            'Run restore on the host, not inside the application container.',
+          ],
+          copyDryRun: 'Copy dry-run',
+          copyRestore: 'Copy restore',
+          close: 'Close',
+          dryRunLabel: 'Dry-run command',
+          restoreLabel: 'Restore command',
+          notSet: 'Not set',
+        }
+      : {
+          loadError: 'Не удалось загрузить список резервных копий.',
+          restorePlanError: 'Не удалось подготовить restore plan.',
+          createError: 'Не удалось создать резервную копию.',
+          downloadError: 'Не удалось скачать резервную копию.',
+          deleteConfirm: (fileName: string) =>
+            `Удалить backup ${fileName}? Архив на диске и запись в панели будут удалены.`,
+          deleteNotice: (fileName: string) => `Backup ${fileName} удалён.`,
+          deleteError: 'Не удалось удалить резервную копию.',
+          copyNotice: (label: string, fileName: string) => `${label} для ${fileName} скопирована.`,
+          description:
+            'Управление архивами PostgreSQL и runtime-конфигом Xray с безопасным recovery workflow.',
+          createAction: 'Создать backup',
+          creatingAction: 'Создаём backup...',
+          policyTitle: 'Политика хранения',
+          policySubtitle:
+            'Параметры берутся из production-конфига и соблюдаются автоматически при создании новых архивов.',
+          archiveDirectory: 'Каталог архивов',
+          autoBackup: 'Автобэкап',
+          everyDays: (days: number) => `Каждые ${days} дн.`,
+          disabled: 'Выключен',
+          retention: 'Retention',
+          daysShort: (days: number) => `${days} дн.`,
+          dryRunBeforeRestore: 'Dry-run перед restore',
+          restoreCommand: 'Команда восстановления',
+          restoreWorkflow: 'Restore workflow',
+          restoreWorkflowText:
+            'Восстановление выполняется с хоста по подтверждённой команде. Панель подсказывает точный порядок действий и конкретный архив, но не запускает destructive recovery из активной админской сессии.',
+          operationsTitle: 'Операционный контур',
+          operationsSubtitle:
+            'Архив включает дамп PostgreSQL, runtime-конфиг Xray и manifest с датой создания.',
+          operationsItems: [
+            'Архивы создаются внутри контейнера API через `pg_dump`, без доступа приложения к `docker.sock`.',
+            'В Xray попадает только отрендеренный runtime config, без приватных секретов в git.',
+            'Старые архивы автоматически помечаются как `PRUNED` и удаляются по retention policy.',
+          ],
+          historyTitle: 'История backup',
+          historySubtitle:
+            'Архив можно скачать, удалить или использовать как основу для host-side восстановления.',
+          refreshList: 'Обновить список',
+          archivesCount: 'Архивы',
+          downloading: 'Скачиваем...',
+          download: 'Скачать',
+          deleting: 'Удаляем...',
+          delete: 'Удалить',
+          created: 'Создан',
+          size: 'Размер',
+          fileOnDisk: 'Файл на диске',
+          available: 'Доступен',
+          unavailable: 'Недоступен',
+          empty: 'Архивов пока нет. Создайте первый backup перед обновлениями или миграциями.',
+          restoreTitle: (fileName: string) => `Восстановление: ${fileName}`,
+          restoreFallbackTitle: 'Восстановление backup',
+          restoreDanger:
+            'Recovery нужно запускать только с хоста и только после подтверждения, что текущая база и runtime могут быть перезаписаны.',
+          restoreLoading: 'Проверяем архив и собираем restore plan...',
+          preflightSuccess:
+            'Preflight пройден. Сначала выполните dry-run, затем подтверждённый restore в окно обслуживания.',
+          preflightFailed:
+            'Preflight нашёл блокирующие проблемы. Запускать restore в таком состоянии нельзя.',
+          archive: 'Архив',
+          dryRun: 'Dry-run',
+          checksumMatch: 'Совпадает',
+          checksumMismatch: 'Не совпадает',
+          found: 'Найден',
+          missing: 'Отсутствует',
+          keepCurrentXrayConfig: 'Нет в архиве, будет сохранён текущий config.json',
+          runbook: [
+            'Сначала выполните dry-run на хосте и убедитесь, что все проверки зелёные.',
+            'Сделайте свежий внешний backup перед реальным restore.',
+            'Запускайте destructive restore только в окно обслуживания.',
+            'Запускайте restore только на хосте, а не из контейнера приложения.',
+          ],
+          copyDryRun: 'Скопировать dry-run',
+          copyRestore: 'Скопировать restore',
+          close: 'Закрыть',
+          dryRunLabel: 'Dry-run команда',
+          restoreLabel: 'Restore команда',
+          notSet: 'Не задано',
+        };
 
   const loadBackups = useCallback(async () => {
     setIsLoading(true);
@@ -73,15 +237,11 @@ export function BackupsPage() {
       setRestoreDryRunCommand(response.policy.restoreDryRunCommand);
       setRestoreCommand(response.policy.restoreCommand);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'Не удалось загрузить список резервных копий.',
-      );
+      setError(loadError instanceof Error ? loadError.message : text.loadError);
     } finally {
       setIsLoading(false);
     }
-  }, [apiFetch]);
+  }, [apiFetch, text.loadError]);
 
   useEffect(() => {
     void loadBackups();
@@ -110,11 +270,7 @@ export function BackupsPage() {
       } catch (loadError) {
         if (!isCancelled) {
           setRestorePlan(null);
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : 'Не удалось подготовить restore plan.',
-          );
+          setError(loadError instanceof Error ? loadError.message : text.restorePlanError);
         }
       } finally {
         if (!isCancelled) {
@@ -128,7 +284,7 @@ export function BackupsPage() {
     return () => {
       isCancelled = true;
     };
-  }, [apiFetch, restoreTarget]);
+  }, [apiFetch, restoreTarget, text.restorePlanError]);
 
   const handleCreateBackup = async () => {
     setIsCreating(true);
@@ -143,9 +299,7 @@ export function BackupsPage() {
 
       await loadBackups();
     } catch (createError) {
-      setError(
-        createError instanceof Error ? createError.message : 'Не удалось создать резервную копию.',
-      );
+      setError(createError instanceof Error ? createError.message : text.createError);
     } finally {
       setIsCreating(false);
     }
@@ -161,22 +315,14 @@ export function BackupsPage() {
       const blob = await response.blob();
       downloadBlob(backup.fileName, blob);
     } catch (downloadError) {
-      setError(
-        downloadError instanceof Error
-          ? downloadError.message
-          : 'Не удалось скачать резервную копию.',
-      );
+      setError(downloadError instanceof Error ? downloadError.message : text.downloadError);
     } finally {
       setIsDownloadingId(null);
     }
   };
 
   const handleDelete = async (backup: BackupRecord) => {
-    if (
-      !window.confirm(
-        `Удалить backup ${backup.fileName}? Архив на диске и запись в панели будут удалены.`,
-      )
-    ) {
+    if (!window.confirm(text.deleteConfirm(backup.fileName))) {
       return;
     }
 
@@ -189,7 +335,7 @@ export function BackupsPage() {
         method: 'DELETE',
       });
 
-      setNotice(`Backup ${backup.fileName} удалён.`);
+      setNotice(text.deleteNotice(backup.fileName));
 
       if (restoreTarget?.id === backup.id) {
         setRestoreTarget(null);
@@ -197,11 +343,7 @@ export function BackupsPage() {
 
       await loadBackups();
     } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : 'Не удалось удалить резервную копию.',
-      );
+      setError(deleteError instanceof Error ? deleteError.message : text.deleteError);
     } finally {
       setIsDeletingId(null);
     }
@@ -213,15 +355,15 @@ export function BackupsPage() {
     label: string,
   ) => {
     await navigator.clipboard.writeText(command);
-    setNotice(`${label} для ${backup.fileName} скопирована.`);
+    setNotice(text.copyNotice(label, backup.fileName));
   };
 
   return (
     <div className="page">
       <PageHeader
-        title="Резервные копии"
-        description="Управление архивами PostgreSQL и runtime-конфигом Xray с безопасным recovery workflow."
-        actionLabel={isCreating ? 'Создаём backup...' : 'Создать backup'}
+        title={ui.backups.title}
+        description={text.description}
+        actionLabel={isCreating ? text.creatingAction : text.createAction}
         actionDisabled={isCreating}
         onAction={() => void handleCreateBackup()}
       />
@@ -230,78 +372,58 @@ export function BackupsPage() {
       {notice ? <div className="banner banner--success">{notice}</div> : null}
 
       <div className="content-grid">
-        <SectionCard
-          title="Политика хранения"
-          subtitle="Параметры берутся из production-конфига и соблюдаются автоматически при создании новых архивов."
-        >
+        <SectionCard title={text.policyTitle} subtitle={text.policySubtitle}>
           <div className="stat-grid">
             <div className="stat-card">
-              <span>Каталог архивов</span>
+              <span>{text.archiveDirectory}</span>
               <strong>{backupDir || '—'}</strong>
             </div>
             <div className="stat-card">
-              <span>Автобэкап</span>
+              <span>{text.autoBackup}</span>
               <strong>
                 {autoCreateEnabled && autoCreateIntervalDays > 0
-                  ? `Каждые ${autoCreateIntervalDays} дн.`
-                  : 'Выключен'}
+                  ? text.everyDays(autoCreateIntervalDays)
+                  : text.disabled}
               </strong>
             </div>
             <div className="stat-card">
-              <span>Retention</span>
-              <strong>{retentionDays > 0 ? `${retentionDays} дн.` : '—'}</strong>
+              <span>{text.retention}</span>
+              <strong>{retentionDays > 0 ? text.daysShort(retentionDays) : '—'}</strong>
             </div>
           </div>
 
           <div className="feature-list">
             <div className="feature-list__card">
-              <strong>Dry-run перед restore</strong>
+              <strong>{text.dryRunBeforeRestore}</strong>
               <code>
                 {restoreDryRunCommand ||
                   './infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz'}
               </code>
             </div>
             <div className="feature-list__card">
-              <strong>Команда восстановления</strong>
+              <strong>{text.restoreCommand}</strong>
               <code>
                 {restoreCommand ||
                   './infra/scripts/restore.sh --yes-restore /absolute/path/to/archive.tar.gz'}
               </code>
             </div>
             <div className="feature-list__card">
-              <strong>Restore workflow</strong>
-              <span>
-                Восстановление выполняется с хоста по подтверждённой команде. Панель подсказывает
-                точный порядок действий и конкретный архив, но не запускает destructive recovery
-                из активной админской сессии.
-              </span>
+              <strong>{text.restoreWorkflow}</strong>
+              <span>{text.restoreWorkflowText}</span>
             </div>
           </div>
         </SectionCard>
 
-        <SectionCard
-          title="Операционный контур"
-          subtitle="Архив включает дамп PostgreSQL, runtime-конфиг Xray и manifest с датой создания."
-        >
+        <SectionCard title={text.operationsTitle} subtitle={text.operationsSubtitle}>
           <ul className="feature-list">
-            <li>
-              Архивы создаются внутри контейнера API через `pg_dump`, без доступа приложения к
-              `docker.sock`.
-            </li>
-            <li>
-              В Xray попадает только отрендеренный runtime config, без приватных секретов в git.
-            </li>
-            <li>
-              Старые архивы автоматически помечаются как `PRUNED` и удаляются по retention policy.
-            </li>
+            {text.operationsItems.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
         </SectionCard>
       </div>
 
-      <SectionCard
-        title="История backup"
-        subtitle="Архив можно скачать, удалить или использовать как основу для host-side восстановления."
-      >
+      <SectionCard title={text.historyTitle} subtitle={text.historySubtitle}>
         <div className="toolbar">
           <div className="toolbar__actions">
             <button
@@ -311,12 +433,12 @@ export function BackupsPage() {
               disabled={isLoading}
             >
               <RefreshCw size={16} />
-              Обновить список
+              {text.refreshList}
             </button>
           </div>
           <div className="topbar__chip">
             <ShieldCheck size={16} />
-            Архивы: {backups.length}
+            {text.archivesCount}: {backups.length}
           </div>
         </div>
 
@@ -326,7 +448,7 @@ export function BackupsPage() {
               <div className="backup-card__header">
                 <div>
                   <strong>{backup.fileName}</strong>
-                  <span>{formatBackupStatus(backup.status)}</span>
+                  <span>{formatBackupStatus(backup.status, locale)}</span>
                 </div>
                 <div className="backup-card__actions">
                   <button
@@ -338,7 +460,7 @@ export function BackupsPage() {
                     }
                   >
                     <Download size={16} />
-                    {isDownloadingId === backup.id ? 'Скачиваем...' : 'Скачать'}
+                    {isDownloadingId === backup.id ? text.downloading : text.download}
                   </button>
                   <button
                     className="button"
@@ -360,27 +482,27 @@ export function BackupsPage() {
                     disabled={isDeletingId === backup.id}
                   >
                     <Trash2 size={16} />
-                    {isDeletingId === backup.id ? 'Удаляем...' : 'Удалить'}
+                    {isDeletingId === backup.id ? text.deleting : text.delete}
                   </button>
                 </div>
               </div>
 
               <dl className="detail-list">
                 <div>
-                  <dt>Создан</dt>
-                  <dd>{formatDateTime(backup.createdAt)}</dd>
+                  <dt>{text.created}</dt>
+                  <dd>{formatDateTime(backup.createdAt, text.notSet, locale)}</dd>
                 </div>
                 <div>
-                  <dt>Размер</dt>
-                  <dd>{formatBytes(Number(backup.fileSizeBytes))}</dd>
+                  <dt>{text.size}</dt>
+                  <dd>{formatBytes(Number(backup.fileSizeBytes), locale)}</dd>
                 </div>
                 <div>
                   <dt>SHA-256</dt>
                   <dd className="detail-list__mono">{backup.checksumSha256}</dd>
                 </div>
                 <div>
-                  <dt>Файл на диске</dt>
-                  <dd>{backup.exists ? 'Доступен' : 'Недоступен'}</dd>
+                  <dt>{text.fileOnDisk}</dt>
+                  <dd>{backup.exists ? text.available : text.unavailable}</dd>
                 </div>
               </dl>
 
@@ -389,9 +511,7 @@ export function BackupsPage() {
           ))}
 
           {!isLoading && backups.length === 0 ? (
-            <div className="empty-state">
-              Архивов пока нет. Создайте первый backup перед обновлениями или миграциями.
-            </div>
+            <div className="empty-state">{text.empty}</div>
           ) : null}
         </div>
       </SectionCard>
@@ -399,17 +519,18 @@ export function BackupsPage() {
       <Modal
         isOpen={restoreTarget !== null}
         onClose={() => setRestoreTarget(null)}
-        title={restoreTarget ? `Восстановление: ${restoreTarget.fileName}` : 'Восстановление backup'}
+        title={
+          restoreTarget
+            ? text.restoreTitle(restoreTarget.fileName)
+            : text.restoreFallbackTitle
+        }
       >
         {restoreTarget ? (
           <div className="detail-stack">
-            <div className="banner banner--danger">
-              Recovery нужно запускать только с хоста и только после подтверждения, что текущая
-              база и runtime могут быть перезаписаны.
-            </div>
+            <div className="banner banner--danger">{text.restoreDanger}</div>
 
             {isRestorePlanLoading ? (
-              <div className="empty-state">Проверяем архив и собираем restore plan...</div>
+              <div className="empty-state">{text.restoreLoading}</div>
             ) : null}
 
             {!isRestorePlanLoading && restorePlan ? (
@@ -420,21 +541,21 @@ export function BackupsPage() {
                   }`}
                 >
                   {restorePlan.preflight.canRestore
-                    ? 'Preflight пройден. Сначала выполните dry-run, затем подтверждённый restore в окно обслуживания.'
-                    : 'Preflight нашёл блокирующие проблемы. Запускать restore в таком состоянии нельзя.'}
+                    ? text.preflightSuccess
+                    : text.preflightFailed}
                 </div>
 
                 <div className="feature-list">
                   <div className="feature-list__card">
-                    <strong>Архив</strong>
+                    <strong>{text.archive}</strong>
                     <code>{restorePlan.backup.absolutePath}</code>
                   </div>
                   <div className="feature-list__card">
-                    <strong>Dry-run</strong>
+                    <strong>{text.dryRun}</strong>
                     <code>{restorePlan.commands.dryRun}</code>
                   </div>
                   <div className="feature-list__card">
-                    <strong>Команда restore</strong>
+                    <strong>{text.restoreCommand}</strong>
                     <code>{restorePlan.commands.restore}</code>
                   </div>
                 </div>
@@ -442,22 +563,26 @@ export function BackupsPage() {
                 <dl className="detail-list">
                   <div>
                     <dt>Checksum</dt>
-                    <dd>{restorePlan.preflight.checksum.matches ? 'Совпадает' : 'Не совпадает'}</dd>
+                    <dd>
+                      {restorePlan.preflight.checksum.matches
+                        ? text.checksumMatch
+                        : text.checksumMismatch}
+                    </dd>
                   </div>
                   <div>
                     <dt>Manifest</dt>
-                    <dd>{restorePlan.preflight.files.manifest ? 'Найден' : 'Отсутствует'}</dd>
+                    <dd>{restorePlan.preflight.files.manifest ? text.found : text.missing}</dd>
                   </div>
                   <div>
                     <dt>Postgres dump</dt>
-                    <dd>{restorePlan.preflight.files.postgresDump ? 'Найден' : 'Отсутствует'}</dd>
+                    <dd>{restorePlan.preflight.files.postgresDump ? text.found : text.missing}</dd>
                   </div>
                   <div>
                     <dt>Xray config</dt>
                     <dd>
                       {restorePlan.preflight.files.xrayConfig
-                        ? 'Найден'
-                        : 'Нет в архиве, будет сохранён текущий config.json'}
+                        ? text.found
+                        : text.keepCurrentXrayConfig}
                     </dd>
                   </div>
                   <div>
@@ -481,10 +606,9 @@ export function BackupsPage() {
                 ) : null}
 
                 <ul className="feature-list">
-                  <li>Сначала выполните dry-run на хосте и убедитесь, что все проверки зелёные.</li>
-                  <li>Сделайте свежий внешний backup перед реальным restore.</li>
-                  <li>Запускайте destructive restore только в окно обслуживания.</li>
-                  <li>Запускайте restore только на хосте, а не из контейнера приложения.</li>
+                  {text.runbook.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
                 </ul>
 
                 <div className="toolbar__actions wrap-actions">
@@ -495,12 +619,12 @@ export function BackupsPage() {
                       void handleCopyRestoreCommand(
                         restorePlan.commands.dryRun,
                         restoreTarget,
-                        'Dry-run команда',
+                        text.dryRunLabel,
                       )
                     }
                   >
                     <Copy size={16} />
-                    Скопировать dry-run
+                    {text.copyDryRun}
                   </button>
                   <button
                     className="button"
@@ -509,15 +633,15 @@ export function BackupsPage() {
                       void handleCopyRestoreCommand(
                         restorePlan.commands.restore,
                         restoreTarget,
-                        'Restore команда',
+                        text.restoreLabel,
                       )
                     }
                   >
                     <Copy size={16} />
-                    Скопировать restore
+                    {text.copyRestore}
                   </button>
                   <button className="button" type="button" onClick={() => setRestoreTarget(null)}>
-                    Закрыть
+                    {text.close}
                   </button>
                 </div>
               </>

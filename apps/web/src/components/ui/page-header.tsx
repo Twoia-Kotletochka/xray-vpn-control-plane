@@ -1,4 +1,4 @@
-import { ui } from '../../i18n';
+import { useI18n } from '../../i18n';
 
 type PageHeaderProps = {
   title: string;
@@ -15,6 +15,8 @@ export function PageHeader({
   actionDisabled,
   onAction,
 }: PageHeaderProps) {
+  const { ui } = useI18n();
+
   return (
     <div className="page-header">
       <div>

@@ -16,6 +16,7 @@ import { Modal } from '../../components/ui/modal';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
+import { useI18n } from '../../i18n';
 import type {
   ClientDetailResponse,
   ClientExportBundle,
@@ -120,6 +121,7 @@ async function downloadText(filename: string, content: string) {
 
 export function ClientsPage() {
   const { apiFetch } = useAuth();
+  const { locale, ui } = useI18n();
   const importFileRef = useRef<HTMLInputElement | null>(null);
   const selectedClientIdRef = useRef<string | null>(null);
   const listRequestIdRef = useRef(0);
@@ -146,6 +148,115 @@ export function ClientsPage() {
   const [formState, setFormState] = useState<CreateClientFormState>(initialCreateFormState);
   const [editFormState, setEditFormState] = useState<EditClientFormState>(emptyEditFormState);
   const deferredSearch = useDeferredValue(search);
+  const isEnglish = locale === 'en';
+  const text = {
+    loadError: isEnglish ? 'Failed to load clients.' : 'Не удалось загрузить клиентов.',
+    createError: isEnglish ? 'Failed to create the client.' : 'Не удалось создать клиента.',
+    updateError: isEnglish ? 'Failed to update the client.' : 'Не удалось обновить клиента.',
+    deleteConfirm: isEnglish
+      ? 'Delete the client without recovery?'
+      : 'Удалить клиента без возможности восстановления?',
+    exportNotice: (count: number) =>
+      isEnglish ? `Exported clients: ${count}.` : `Экспортировано клиентов: ${count}.`,
+    exportError: isEnglish ? 'Failed to export clients.' : 'Не удалось выгрузить клиентов.',
+    importReadError: isEnglish
+      ? 'Failed to read the import file.'
+      : 'Не удалось прочитать файл импорта.',
+    importDone: (created: number, updated: number, skipped: number) =>
+      isEnglish
+        ? `Import completed: created ${created}, updated ${updated}, skipped ${skipped}.`
+        : `Импорт завершён: создано ${created}, обновлено ${updated}, пропущено ${skipped}.`,
+    importError: isEnglish
+      ? 'Failed to import clients.'
+      : 'Не удалось импортировать клиентов.',
+    description: isEnglish
+      ? 'Client registry with quotas, expirations, access management, and ready-to-use configs.'
+      : 'Реестр клиентов с лимитами, сроками действия, управлением доступом и готовыми конфигами.',
+    hideForm: isEnglish ? 'Hide form' : 'Скрыть форму',
+    newClient: isEnglish ? 'New client' : 'Новый клиент',
+    managementTitle: isEnglish ? 'Client management' : 'Управление клиентами',
+    managementSubtitle: isEnglish
+      ? 'Search, create, and edit quotas or statuses without reissuing the client UUID.'
+      : 'Поиск, создание, редактирование лимитов и статусов без перевыпуска клиентского UUID.',
+    searchPlaceholder: isEnglish
+      ? 'Search by name, UUID, tag, or note'
+      : 'Поиск по имени, UUID, тегу или заметке',
+    reset: isEnglish ? 'Reset' : 'Сбросить',
+    exporting: isEnglish ? 'Exporting...' : 'Экспортируем...',
+    export: isEnglish ? 'Export' : 'Экспорт',
+    import: isEnglish ? 'Import' : 'Импорт',
+    closeForm: isEnglish ? 'Close form' : 'Закрыть форму',
+    addClient: isEnglish ? 'Add client' : 'Добавить клиента',
+    clientName: isEnglish ? 'Client name' : 'Имя клиента',
+    durationDays: isEnglish ? 'Duration, days' : 'Срок, дней',
+    trafficLimitGb: isEnglish ? 'Traffic limit, GB' : 'Лимит трафика, ГБ',
+    tagsComma: isEnglish ? 'Comma-separated tags' : 'Теги через запятую',
+    note: isEnglish ? 'Note' : 'Заметка',
+    unlimitedTraffic: isEnglish ? 'Unlimited traffic' : 'Безлимитный трафик',
+    creatingClient: isEnglish ? 'Creating client...' : 'Создаём клиента...',
+    createClient: isEnglish ? 'Create client' : 'Создать клиента',
+    client: isEnglish ? 'Client' : 'Клиент',
+    status: isEnglish ? 'Status' : 'Статус',
+    traffic: isEnglish ? 'Traffic' : 'Трафик',
+    expiry: isEnglish ? 'Expiry' : 'Срок',
+    actions: isEnglish ? 'Actions' : 'Действия',
+    noClients: isEnglish ? 'No clients match the current filter yet.' : 'По текущему фильтру клиентов пока нет.',
+    clientCard: isEnglish ? 'Client card' : 'Карточка клиента',
+    selectClient: isEnglish
+      ? 'Choose a client from the table to view details and config.'
+      : 'Выберите клиента из таблицы, чтобы увидеть детали и конфиг.',
+    used: isEnglish ? 'Used' : 'Использовано',
+    remaining: isEnglish ? 'Remaining' : 'Остаток',
+    noLimit: isEnglish ? 'No limit' : 'Без лимита',
+    connections: isEnglish ? 'Connections' : 'Подключения',
+    extend30: isEnglish ? 'Extend by 30 days' : 'Продлить на 30 дней',
+    resetTraffic: isEnglish ? 'Reset traffic' : 'Сбросить трафик',
+    enable: isEnglish ? 'Enable' : 'Включить',
+    disable: isEnglish ? 'Disable' : 'Отключить',
+    showQr: isEnglish ? 'Show QR' : 'Показать QR',
+    delete: isEnglish ? 'Delete' : 'Удалить',
+    expiryDate: isEnglish ? 'Expiry date' : 'Дата окончания',
+    deviceLimit: isEnglish ? 'Device limit' : 'Лимит устройств',
+    saving: isEnglish ? 'Saving...' : 'Сохраняем...',
+    saveChanges: isEnglish ? 'Save changes' : 'Сохранить изменения',
+    copy: isEnglish ? 'Copy' : 'Скопировать',
+    download: isEnglish ? 'Download' : 'Скачать',
+    vlessLink: isEnglish ? 'VLESS link' : 'VLESS ссылка',
+    appGuides: isEnglish ? 'Client app guides' : 'Инструкции по приложениям',
+    appGuidesText: isEnglish
+      ? 'Recommended clients for Windows, macOS, Android, and iPhone/iPad are available in the'
+      : 'Рекомендованные клиенты для Windows, macOS, Android и iPhone/iPad вынесены в раздел',
+    help: isEnglish ? 'Help' : 'Помощь',
+    usageHistory: isEnglish ? 'Usage history' : 'История потребления',
+    usageHistorySubtitle: isEnglish ? 'Last 30 daily buckets' : 'Последние 30 daily buckets',
+    historyEmpty: isEnglish ? 'Traffic history is empty so far.' : 'История трафика пока пустая.',
+    selectClientEmpty: isEnglish
+      ? 'Select a client to see details and config.'
+      : 'Выберите клиента, чтобы увидеть подробности и конфиг.',
+    connectionTitle: (name: string) => (isEnglish ? `Connection: ${name}` : `Подключение: ${name}`),
+    qrConfig: isEnglish ? 'QR config' : 'QR конфиг',
+    qrAlt: isEnglish ? 'Client QR config' : 'QR конфиг клиента',
+    generatingQr: isEnglish ? 'Generating QR...' : 'Генерируем QR...',
+    copySubscriptionUrl: isEnglish ? 'Copy subscription URL' : 'Скопировать subscription URL',
+    copyVlessLink: isEnglish ? 'Copy VLESS link' : 'Скопировать VLESS ссылку',
+    clientConfigNotLoaded: isEnglish
+      ? 'Client config has not been loaded yet.'
+      : 'Конфиг клиента ещё не загружен.',
+    importClients: isEnglish ? 'Import clients' : 'Импорт клиентов',
+    importHint: isEnglish
+      ? 'Paste exported JSON or upload a file. Enable overwrite only if you want to replace existing clients by UUID or email tag.'
+      : 'Вставьте экспортированный JSON или загрузите файл. Флаг overwrite включайте только если хотите перезаписывать существующих клиентов по UUID или email tag.',
+    overwriteExisting: isEnglish
+      ? 'Overwrite existing matching clients'
+      : 'Перезаписывать существующих клиентов при совпадении',
+    importing: isEnglish ? 'Importing...' : 'Импортируем...',
+    runImport: isEnglish ? 'Run import' : 'Запустить импорт',
+    cancel: isEnglish ? 'Cancel' : 'Отмена',
+    noExpiry: isEnglish ? 'No expiry' : 'Без срока',
+    notAvailable: isEnglish ? '—' : '—',
+    qrConfigAria: isEnglish ? 'Show QR and config' : 'Показать QR и конфиг',
+    toggleClientAria: isEnglish ? 'Disable or enable client' : 'Отключить или включить клиента',
+  };
 
   const clearSelectedClient = useCallback(() => {
     detailRequestIdRef.current += 1;
@@ -212,14 +323,14 @@ export function ClientsPage() {
           return;
         }
 
-        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить клиентов.');
+        setError(loadError instanceof Error ? loadError.message : text.loadError);
       } finally {
         if (requestId === listRequestIdRef.current) {
           setIsLoading(false);
         }
       }
     },
-    [apiFetch, clearSelectedClient, loadClientDetails],
+    [apiFetch, clearSelectedClient, loadClientDetails, text.loadError],
   );
 
   useEffect(() => {
@@ -286,9 +397,7 @@ export function ClientsPage() {
       setIsComposerOpen(false);
       await loadClients('', created.id);
     } catch (submissionError) {
-      setError(
-        submissionError instanceof Error ? submissionError.message : 'Не удалось создать клиента.',
-      );
+      setError(submissionError instanceof Error ? submissionError.message : text.createError);
     } finally {
       setIsSubmitting(false);
     }
@@ -328,7 +437,7 @@ export function ClientsPage() {
 
       await loadClients(search, selectedClient.id);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Не удалось обновить клиента.');
+      setError(saveError instanceof Error ? saveError.message : text.updateError);
     } finally {
       setIsSavingClient(false);
     }
@@ -367,7 +476,7 @@ export function ClientsPage() {
   };
 
   const handleDeleteClient = async (clientId: string) => {
-    if (!window.confirm('Удалить клиента без возможности восстановления?')) {
+    if (!window.confirm(text.deleteConfirm)) {
       return;
     }
 
@@ -392,11 +501,9 @@ export function ClientsPage() {
       const stamp = new Date().toISOString().slice(0, 10);
 
       await downloadText(`server-vpn-clients-${stamp}.json`, JSON.stringify(payload, null, 2));
-      setNotice(`Экспортировано клиентов: ${payload.items.length}.`);
+      setNotice(text.exportNotice(payload.items.length));
     } catch (exportError) {
-      setError(
-        exportError instanceof Error ? exportError.message : 'Не удалось выгрузить клиентов.',
-      );
+      setError(exportError instanceof Error ? exportError.message : text.exportError);
     } finally {
       setIsExporting(false);
     }
@@ -416,7 +523,7 @@ export function ClientsPage() {
       setIsImportOpen(true);
       setError(null);
     } catch {
-      setError('Не удалось прочитать файл импорта.');
+      setError(text.importReadError);
     } finally {
       event.target.value = '';
     }
@@ -436,17 +543,13 @@ export function ClientsPage() {
         }),
       });
 
-      setNotice(
-        `Импорт завершён: создано ${result.created}, обновлено ${result.updated}, пропущено ${result.skipped}.`,
-      );
+      setNotice(text.importDone(result.created, result.updated, result.skipped));
       setIsImportOpen(false);
       setImportPayload('');
       setOverwriteExisting(false);
       await loadClients(search);
     } catch (importError) {
-      setError(
-        importError instanceof Error ? importError.message : 'Не удалось импортировать клиентов.',
-      );
+      setError(importError instanceof Error ? importError.message : text.importError);
     } finally {
       setIsImporting(false);
     }
@@ -463,9 +566,9 @@ export function ClientsPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Клиенты"
-        description="Реестр клиентов с лимитами, сроками действия, управлением доступом и готовыми конфигами."
-        actionLabel={isComposerOpen ? 'Скрыть форму' : 'Новый клиент'}
+        title={ui.clients.title}
+        description={text.description}
+        actionLabel={isComposerOpen ? text.hideForm : text.newClient}
         onAction={() => setIsComposerOpen((value) => !value)}
       />
 
@@ -473,14 +576,14 @@ export function ClientsPage() {
       {notice ? <div className="banner banner--success">{notice}</div> : null}
 
       <SectionCard
-        title="Управление клиентами"
-        subtitle="Поиск, создание, редактирование лимитов и статусов без перевыпуска клиентского UUID."
+        title={text.managementTitle}
+        subtitle={text.managementSubtitle}
       >
         <div className="toolbar">
           <label className="toolbar__search">
             <Search size={16} />
             <input
-              placeholder="Поиск по имени, UUID, тегу или заметке"
+              placeholder={text.searchPlaceholder}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -489,7 +592,7 @@ export function ClientsPage() {
           <div className="toolbar__actions">
             <button className="button" type="button" onClick={() => setSearch('')}>
               <RotateCcw size={16} />
-              Сбросить
+              {text.reset}
             </button>
             <button
               className="button"
@@ -498,11 +601,11 @@ export function ClientsPage() {
               disabled={isExporting}
             >
               <Download size={16} />
-              {isExporting ? 'Экспортируем...' : 'Экспорт'}
+              {isExporting ? text.exporting : text.export}
             </button>
             <button className="button" type="button" onClick={() => importFileRef.current?.click()}>
               <FileUp size={16} />
-              Импорт
+              {text.import}
             </button>
             <button
               className="button button--primary"
@@ -510,7 +613,7 @@ export function ClientsPage() {
               onClick={() => setIsComposerOpen((value) => !value)}
             >
               <Plus size={16} />
-              {isComposerOpen ? 'Закрыть форму' : 'Добавить клиента'}
+              {isComposerOpen ? text.closeForm : text.addClient}
             </button>
           </div>
           <input
@@ -526,7 +629,7 @@ export function ClientsPage() {
           <form className="inline-form" onSubmit={(event) => void handleCreateClient(event)}>
             <div className="field-grid">
               <label className="login-form__field">
-                <span>Имя клиента</span>
+                <span>{text.clientName}</span>
                 <input
                   value={formState.displayName}
                   onChange={(event) =>
@@ -536,7 +639,7 @@ export function ClientsPage() {
                 />
               </label>
               <label className="login-form__field">
-                <span>Срок, дней</span>
+                <span>{text.durationDays}</span>
                 <input
                   type="number"
                   min="1"
@@ -547,7 +650,7 @@ export function ClientsPage() {
                 />
               </label>
               <label className="login-form__field">
-                <span>Лимит трафика, ГБ</span>
+                <span>{text.trafficLimitGb}</span>
                 <input
                   type="number"
                   min="1"
@@ -559,7 +662,7 @@ export function ClientsPage() {
                 />
               </label>
               <label className="login-form__field">
-                <span>Теги через запятую</span>
+                <span>{text.tagsComma}</span>
                 <input
                   value={formState.tags}
                   onChange={(event) =>
@@ -570,7 +673,7 @@ export function ClientsPage() {
             </div>
 
             <label className="login-form__field">
-              <span>Заметка</span>
+              <span>{text.note}</span>
               <input
                 value={formState.note}
                 onChange={(event) =>
@@ -590,12 +693,12 @@ export function ClientsPage() {
                   }))
                 }
               />
-              <span>Безлимитный трафик</span>
+              <span>{text.unlimitedTraffic}</span>
             </label>
 
             <div className="toolbar__actions">
               <button className="button button--primary" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Создаём клиента...' : 'Создать клиента'}
+                {isSubmitting ? text.creatingClient : text.createClient}
               </button>
             </div>
           </form>
@@ -606,11 +709,11 @@ export function ClientsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Клиент</th>
-                  <th>Статус</th>
-                  <th>Трафик</th>
-                  <th>Срок</th>
-                  <th>Действия</th>
+                  <th>{text.client}</th>
+                  <th>{text.status}</th>
+                  <th>{text.traffic}</th>
+                  <th>{text.expiry}</th>
+                  <th>{text.actions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -630,17 +733,17 @@ export function ClientsPage() {
                     </td>
                     <td>
                       <StatusPill tone={statusTone(client.status)}>
-                        {formatClientStatus(client.status)}
+                        {formatClientStatus(client.status, locale)}
                       </StatusPill>
                     </td>
-                    <td>{formatBytes(Number(client.trafficUsedBytes))}</td>
-                    <td>{formatDateTime(client.expiresAt, 'Без срока')}</td>
+                    <td>{formatBytes(Number(client.trafficUsedBytes), locale)}</td>
+                    <td>{formatDateTime(client.expiresAt, text.noExpiry, locale)}</td>
                     <td>
                       <div className="table-actions">
                         <button
                           className="icon-button"
                           type="button"
-                          aria-label="Показать QR и конфиг"
+                          aria-label={text.qrConfigAria}
                           onClick={async () => {
                             await loadClientDetails(client.id);
                             setIsQrOpen(true);
@@ -651,7 +754,7 @@ export function ClientsPage() {
                         <button
                           className="icon-button"
                           type="button"
-                          aria-label="Отключить или включить клиента"
+                          aria-label={text.toggleClientAria}
                           onClick={() => void handleToggleClient(client)}
                         >
                           <MoreHorizontal size={16} />
@@ -663,7 +766,7 @@ export function ClientsPage() {
                 {!isLoading && clients.length === 0 ? (
                   <tr>
                     <td colSpan={5}>
-                      <div className="empty-state">По текущему фильтру клиентов пока нет.</div>
+                      <div className="empty-state">{text.noClients}</div>
                     </td>
                   </tr>
                 ) : null}
@@ -672,30 +775,30 @@ export function ClientsPage() {
           </div>
 
           <SectionCard
-            title={selectedClient ? selectedClient.displayName : 'Карточка клиента'}
+            title={selectedClient ? selectedClient.displayName : text.clientCard}
             subtitle={
               selectedClient
-                ? `${formatClientStatus(selectedClient.status)} • ${selectedClient.uuid}`
-                : 'Выберите клиента из таблицы, чтобы увидеть детали и конфиг.'
+                ? `${formatClientStatus(selectedClient.status, locale)} • ${selectedClient.uuid}`
+                : text.selectClient
             }
           >
             {selectedClient ? (
               <div className="detail-stack">
                 <div className="stat-grid">
                   <div className="stat-card">
-                    <span>Использовано</span>
-                    <strong>{formatBytes(Number(selectedClient.trafficUsedBytes))}</strong>
+                    <span>{text.used}</span>
+                    <strong>{formatBytes(Number(selectedClient.trafficUsedBytes), locale)}</strong>
                   </div>
                   <div className="stat-card">
-                    <span>Остаток</span>
+                    <span>{text.remaining}</span>
                     <strong>
                       {selectedClient.remainingTrafficBytes
-                        ? formatBytes(Number(selectedClient.remainingTrafficBytes))
-                        : 'Без лимита'}
+                        ? formatBytes(Number(selectedClient.remainingTrafficBytes), locale)
+                        : text.noLimit}
                     </strong>
                   </div>
                   <div className="stat-card">
-                    <span>Подключения</span>
+                    <span>{text.connections}</span>
                     <strong>{selectedClient.activeConnections}</strong>
                   </div>
                 </div>
@@ -706,38 +809,38 @@ export function ClientsPage() {
                     type="button"
                     onClick={() => void handleExtendClient(selectedClient.id)}
                   >
-                    Продлить на 30 дней
+                    {text.extend30}
                   </button>
                   <button
                     className="button"
                     type="button"
                     onClick={() => void handleResetTraffic(selectedClient.id)}
                   >
-                    Сбросить трафик
+                    {text.resetTraffic}
                   </button>
                   <button
                     className="button"
                     type="button"
                     onClick={() => void handleToggleClient(selectedClient)}
                   >
-                    {selectedClient.status === 'DISABLED' ? 'Включить' : 'Отключить'}
+                    {selectedClient.status === 'DISABLED' ? text.enable : text.disable}
                   </button>
                   <button className="button" type="button" onClick={() => setIsQrOpen(true)}>
-                    Показать QR
+                    {text.showQr}
                   </button>
                   <button
                     className="button button--danger"
                     type="button"
                     onClick={() => void handleDeleteClient(selectedClient.id)}
                   >
-                    Удалить
+                    {text.delete}
                   </button>
                 </div>
 
                 <form className="inline-form" onSubmit={(event) => void handleSaveClient(event)}>
                   <div className="field-grid">
                     <label className="login-form__field">
-                      <span>Имя клиента</span>
+                      <span>{text.clientName}</span>
                       <input
                         value={editFormState.displayName}
                         onChange={(event) =>
@@ -749,7 +852,7 @@ export function ClientsPage() {
                       />
                     </label>
                     <label className="login-form__field">
-                      <span>Статус</span>
+                      <span>{text.status}</span>
                       <select
                         value={editFormState.status}
                         onChange={(event) =>
@@ -759,14 +862,14 @@ export function ClientsPage() {
                           }))
                         }
                       >
-                        <option value="ACTIVE">Активен</option>
-                        <option value="DISABLED">Отключен</option>
-                        <option value="BLOCKED">Заблокирован</option>
-                        <option value="EXPIRED">Истек</option>
+                        <option value="ACTIVE">{formatClientStatus('ACTIVE', locale)}</option>
+                        <option value="DISABLED">{formatClientStatus('DISABLED', locale)}</option>
+                        <option value="BLOCKED">{formatClientStatus('BLOCKED', locale)}</option>
+                        <option value="EXPIRED">{formatClientStatus('EXPIRED', locale)}</option>
                       </select>
                     </label>
                     <label className="login-form__field">
-                      <span>Дата окончания</span>
+                      <span>{text.expiryDate}</span>
                       <input
                         type="datetime-local"
                         value={editFormState.expiresAt}
@@ -779,7 +882,7 @@ export function ClientsPage() {
                       />
                     </label>
                     <label className="login-form__field">
-                      <span>Лимит трафика, ГБ</span>
+                      <span>{text.trafficLimitGb}</span>
                       <input
                         type="number"
                         min="1"
@@ -794,7 +897,7 @@ export function ClientsPage() {
                       />
                     </label>
                     <label className="login-form__field">
-                      <span>Лимит устройств</span>
+                      <span>{text.deviceLimit}</span>
                       <input
                         type="number"
                         min="1"
@@ -824,7 +927,7 @@ export function ClientsPage() {
                   </div>
 
                   <label className="login-form__field">
-                    <span>Теги через запятую</span>
+                    <span>{text.tagsComma}</span>
                     <input
                       value={editFormState.tags}
                       onChange={(event) =>
@@ -837,7 +940,7 @@ export function ClientsPage() {
                   </label>
 
                   <label className="login-form__field">
-                    <span>Заметка</span>
+                    <span>{text.note}</span>
                     <input
                       value={editFormState.note}
                       onChange={(event) =>
@@ -860,7 +963,7 @@ export function ClientsPage() {
                         }))
                       }
                     />
-                    <span>Безлимитный трафик</span>
+                    <span>{text.unlimitedTraffic}</span>
                   </label>
 
                   <div className="toolbar__actions">
@@ -870,7 +973,7 @@ export function ClientsPage() {
                       disabled={isSavingClient}
                     >
                       <Save size={16} />
-                      {isSavingClient ? 'Сохраняем...' : 'Сохранить изменения'}
+                      {isSavingClient ? text.saving : text.saveChanges}
                     </button>
                   </div>
                 </form>
@@ -886,7 +989,7 @@ export function ClientsPage() {
                             type="button"
                             onClick={() => void copyText(subscriptionBundle.config.subscriptionUrl)}
                           >
-                            Скопировать
+                            {text.copy}
                           </button>
                           <button
                             className="button"
@@ -898,7 +1001,7 @@ export function ClientsPage() {
                               )
                             }
                           >
-                            Скачать
+                            {text.download}
                           </button>
                         </div>
                       </div>
@@ -907,13 +1010,13 @@ export function ClientsPage() {
 
                     <div className="mono-card">
                       <div className="mono-card__header">
-                        <strong>VLESS ссылка</strong>
+                        <strong>{text.vlessLink}</strong>
                         <button
                           className="button"
                           type="button"
                           onClick={() => void copyText(subscriptionBundle.config.uri)}
                         >
-                          Скопировать
+                          {text.copy}
                         </button>
                       </div>
                       <code>{subscriptionBundle.config.uri}</code>
@@ -926,12 +1029,11 @@ export function ClientsPage() {
                     </ul>
 
                     <div className="feature-list__card">
-                      <strong>Инструкции по приложениям</strong>
+                      <strong>{text.appGuides}</strong>
                       <span>
-                        Рекомендованные клиенты для Windows, macOS, Android и iPhone/iPad
-                        вынесены в раздел{' '}
+                        {text.appGuidesText}{' '}
                         <Link to="/help">
-                          <strong>Помощь</strong>
+                          <strong>{text.help}</strong>
                         </Link>
                         .
                       </span>
@@ -939,7 +1041,7 @@ export function ClientsPage() {
                   </div>
                 ) : null}
 
-                <SectionCard title="История потребления" subtitle="Последние 30 daily buckets">
+                <SectionCard title={text.usageHistory} subtitle={text.usageHistorySubtitle}>
                   <div className="history-list">
                     {usageHistory.length > 0 ? (
                       usageHistory.map((bucket) => {
@@ -951,8 +1053,8 @@ export function ClientsPage() {
                         return (
                           <div key={bucket.date} className="history-row">
                             <div className="history-row__meta">
-                              <strong>{formatDateTime(bucket.date, '—')}</strong>
-                              <span>{formatBytes(Number(bucket.totalBytes))}</span>
+                              <strong>{formatDateTime(bucket.date, text.notAvailable, locale)}</strong>
+                              <span>{formatBytes(Number(bucket.totalBytes), locale)}</span>
                             </div>
                             <div className="history-row__bar">
                               <span style={{ width }} />
@@ -961,15 +1063,13 @@ export function ClientsPage() {
                         );
                       })
                     ) : (
-                      <div className="empty-state">История трафика пока пустая.</div>
+                      <div className="empty-state">{text.historyEmpty}</div>
                     )}
                   </div>
                 </SectionCard>
               </div>
             ) : (
-              <div className="empty-state">
-                Выберите клиента, чтобы увидеть подробности и конфиг.
-              </div>
+              <div className="empty-state">{text.selectClientEmpty}</div>
             )}
           </SectionCard>
         </div>
@@ -978,15 +1078,15 @@ export function ClientsPage() {
       <Modal
         isOpen={isQrOpen}
         onClose={() => setIsQrOpen(false)}
-        title={selectedClient ? `Подключение: ${selectedClient.displayName}` : 'QR конфиг'}
+        title={selectedClient ? text.connectionTitle(selectedClient.displayName) : text.qrConfig}
       >
         {subscriptionBundle ? (
           <div className="detail-stack">
             <div className="qr-shell">
               {qrImageUrl ? (
-                <img alt="QR конфиг клиента" src={qrImageUrl} />
+                <img alt={text.qrAlt} src={qrImageUrl} />
               ) : (
-                <div>Генерируем QR...</div>
+                <div>{text.generatingQr}</div>
               )}
             </div>
 
@@ -996,14 +1096,14 @@ export function ClientsPage() {
                 type="button"
                 onClick={() => void copyText(subscriptionBundle.config.subscriptionUrl)}
               >
-                Скопировать subscription URL
+                {text.copySubscriptionUrl}
               </button>
               <button
                 className="button"
                 type="button"
                 onClick={() => void copyText(subscriptionBundle.config.uri)}
               >
-                Скопировать VLESS ссылку
+                {text.copyVlessLink}
               </button>
             </div>
 
@@ -1014,16 +1114,13 @@ export function ClientsPage() {
             </ul>
           </div>
         ) : (
-          <div className="empty-state">Конфиг клиента ещё не загружен.</div>
+          <div className="empty-state">{text.clientConfigNotLoaded}</div>
         )}
       </Modal>
 
-      <Modal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} title="Импорт клиентов">
+      <Modal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} title={text.importClients}>
         <div className="detail-stack">
-          <p>
-            Вставьте экспортированный JSON или загрузите файл. Флаг overwrite включайте только если
-            хотите перезаписывать существующих клиентов по UUID или email tag.
-          </p>
+          <p>{text.importHint}</p>
 
           <label className="login-form__field">
             <span>JSON payload</span>
@@ -1042,7 +1139,7 @@ export function ClientsPage() {
               checked={overwriteExisting}
               onChange={(event) => setOverwriteExisting(event.target.checked)}
             />
-            <span>Перезаписывать существующих клиентов при совпадении</span>
+            <span>{text.overwriteExisting}</span>
           </label>
 
           <div className="toolbar__actions wrap-actions">
@@ -1052,10 +1149,10 @@ export function ClientsPage() {
               onClick={() => void handleImportClients()}
               disabled={isImporting || importPayload.trim().length === 0}
             >
-              {isImporting ? 'Импортируем...' : 'Запустить импорт'}
+              {isImporting ? text.importing : text.runImport}
             </button>
             <button className="button" type="button" onClick={() => setIsImportOpen(false)}>
-              Отмена
+              {text.cancel}
             </button>
           </div>
         </div>

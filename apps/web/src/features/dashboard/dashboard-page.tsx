@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { MetricCard } from '../../components/ui/metric-card';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
+import { useI18n } from '../../i18n';
 import type { DashboardSummary } from '../../lib/api-types';
 import { formatBytes, formatDateTime } from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
@@ -13,8 +14,73 @@ function formatPercent(value: number | null) {
 
 export function DashboardPage() {
   const { apiFetch } = useAuth();
+  const { locale, ui } = useI18n();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const text =
+    locale === 'en'
+      ? {
+          loadError: 'Failed to load the dashboard.',
+          onlineNow: 'Online now',
+          onlineHint: 'live connections reported by the Xray runtime',
+          availableClients: 'Available clients',
+          availableHint: 'clients with ACTIVE status and ready to connect',
+          expiredClients: 'Expired clients',
+          expiredHint: 'updated automatically from the expiry date',
+          totalTraffic: 'Total traffic',
+          totalTrafficHint: 'aggregated from daily usage buckets',
+          totalClients: 'Total clients',
+          totalClientsHint: 'active, expired, disabled, and blocked clients',
+          cpuHint: 'approximate current environment load',
+          ramHint: 'runtime memory usage',
+          diskHint: 'available container filesystem capacity',
+          summaryTitle: 'Current summary',
+          availableSummary: 'Available clients',
+          disabledSummary: 'Disabled clients',
+          blockedSummary: 'Blocked clients',
+          onlineSummary: 'Clients online right now',
+          xrayStatus: 'Xray control API status',
+          lastSnapshot: 'Last traffic snapshot',
+          snapshotFallback: 'not captured yet',
+          loadingSummary: 'Loading summary from PostgreSQL...',
+          operationsTitle: 'Operations contour',
+          refreshSessions: 'Administrators work through refresh sessions and an audit log.',
+          controlApi:
+            'Clients are synced to Xray through the control API without giving the app access to docker.sock.',
+          lastSync: 'Last successful Xray sync',
+          syncFallback: 'not performed yet',
+        }
+      : {
+          loadError: 'Не удалось загрузить дашборд.',
+          onlineNow: 'Онлайн сейчас',
+          onlineHint: 'реальные live-подключения по данным Xray runtime',
+          availableClients: 'Доступные клиенты',
+          availableHint: 'клиенты со статусом ACTIVE, готовые к подключению',
+          expiredClients: 'Истекшие клиенты',
+          expiredHint: 'автоматически обновляется по сроку действия',
+          totalTraffic: 'Суммарный трафик',
+          totalTrafficHint: 'агрегировано по daily usage buckets',
+          totalClients: 'Всего клиентов',
+          totalClientsHint: 'активные, истекшие, отключенные и заблокированные',
+          cpuHint: 'приблизительная текущая загрузка окружения',
+          ramHint: 'использование памяти по данным рантайма',
+          diskHint: 'доступная ёмкость файловой системы контейнера',
+          summaryTitle: 'Текущая сводка',
+          availableSummary: 'Доступных клиентов',
+          disabledSummary: 'Отключенных клиентов',
+          blockedSummary: 'Заблокированных клиентов',
+          onlineSummary: 'Клиентов онлайн сейчас',
+          xrayStatus: 'Статус Xray control API',
+          lastSnapshot: 'Последний snapshot трафика',
+          snapshotFallback: 'ещё не выполнялся',
+          loadingSummary: 'Загрузка сводки из PostgreSQL...',
+          operationsTitle: 'Операционный контур',
+          refreshSessions: 'Администратор работает через refresh-сессии и журнал аудита.',
+          controlApi:
+            'Клиенты синхронизируются с Xray через control API без доступа приложения к docker.sock.',
+          lastSync: 'Последняя успешная синхронизация Xray',
+          syncFallback: 'ещё не выполнялась',
+        };
 
   useEffect(() => {
     let isMounted = true;
@@ -28,9 +94,7 @@ export function DashboardPage() {
         }
       } catch (loadError) {
         if (isMounted) {
-          setError(
-            loadError instanceof Error ? loadError.message : 'Не удалось загрузить дашборд.',
-          );
+          setError(loadError instanceof Error ? loadError.message : text.loadError);
         }
       }
     };
@@ -40,57 +104,61 @@ export function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [apiFetch]);
+  }, [apiFetch, text.loadError]);
 
   const metrics = [
     {
-      label: 'Онлайн сейчас',
+      label: text.onlineNow,
       value: String(summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0),
-      hint: 'реальные live-подключения по данным Xray runtime',
+      hint: text.onlineHint,
     },
     {
-      label: 'Доступные клиенты',
+      label: text.availableClients,
       value: String(summary?.totals.available ?? summary?.totals.active ?? 0),
-      hint: 'клиенты со статусом ACTIVE, готовые к подключению',
+      hint: text.availableHint,
     },
     {
-      label: 'Истекшие клиенты',
+      label: text.expiredClients,
       value: String(summary?.totals.expired ?? 0),
-      hint: 'автоматически обновляется по сроку действия',
+      hint: text.expiredHint,
     },
     {
-      label: 'Суммарный трафик',
-      value: formatBytes(Number(summary?.totals.totalTrafficBytes ?? '0')),
-      hint: 'агрегировано по daily usage buckets',
+      label: text.totalTraffic,
+      value: formatBytes(Number(summary?.totals.totalTrafficBytes ?? '0'), locale),
+      hint: text.totalTrafficHint,
     },
     {
-      label: 'Всего клиентов',
+      label: text.totalClients,
       value: String(summary?.totals.clients ?? 0),
-      hint: 'активные, истекшие, отключенные и заблокированные',
+      hint: text.totalClientsHint,
     },
     {
       label: 'CPU',
       value: formatPercent(summary?.host.cpuPercent ?? null),
-      hint: 'приблизительная текущая загрузка окружения',
+      hint: text.cpuHint,
     },
     {
       label: 'RAM',
       value: formatPercent(summary?.host.ramPercent ?? null),
-      hint: 'использование памяти по данным рантайма',
+      hint: text.ramHint,
     },
     {
       label: 'Disk',
       value: formatPercent(summary?.host.diskPercent ?? null),
-      hint: 'доступная ёмкость файловой системы контейнера',
+      hint: text.diskHint,
     },
   ];
 
   return (
     <div className="page">
       <PageHeader
-        title="Дашборд"
-        description="Операционная сводка по доступным клиентам, live-подключениям, трафику, runtime Xray и состоянию сервисов."
-        actionLabel="Обновить"
+        title={ui.dashboard.title}
+        description={
+          locale === 'en'
+            ? 'Operational summary for available clients, live connections, traffic, Xray runtime, and service health.'
+            : 'Операционная сводка по доступным клиентам, live-подключениям, трафику, runtime Xray и состоянию сервисов.'
+        }
+        actionLabel={ui.common.refresh}
         onAction={() => {
           void apiFetch<DashboardSummary>('/api/dashboard/summary')
             .then((nextSummary) => {
@@ -98,9 +166,7 @@ export function DashboardPage() {
               setError(null);
             })
             .catch((loadError) => {
-              setError(
-                loadError instanceof Error ? loadError.message : 'Не удалось загрузить дашборд.',
-              );
+              setError(loadError instanceof Error ? loadError.message : text.loadError);
             });
         }}
       />
@@ -114,34 +180,39 @@ export function DashboardPage() {
       </div>
 
       <div className="content-grid">
-        <SectionCard title="Текущая сводка">
+        <SectionCard title={text.summaryTitle}>
           <ul className="feature-list">
-            <li>Доступных клиентов: {summary?.totals.available ?? summary?.totals.active ?? 0}</li>
-            <li>Отключенных клиентов: {summary?.totals.disabled ?? 0}</li>
-            <li>Заблокированных клиентов: {summary?.totals.blocked ?? 0}</li>
             <li>
-              Клиентов онлайн сейчас:{' '}
+              {text.availableSummary}: {summary?.totals.available ?? summary?.totals.active ?? 0}
+            </li>
+            <li>
+              {text.disabledSummary}: {summary?.totals.disabled ?? 0}
+            </li>
+            <li>
+              {text.blockedSummary}: {summary?.totals.blocked ?? 0}
+            </li>
+            <li>
+              {text.onlineSummary}:{' '}
               {summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0}
             </li>
-            <li>Статус Xray control API: {summary?.runtime.xrayStatus ?? 'unknown'}</li>
             <li>
-              Последний snapshot трафика:{' '}
-              {formatDateTime(summary?.runtime.lastStatsSnapshotAt ?? null, 'ещё не выполнялся')}
+              {text.xrayStatus}: {summary?.runtime.xrayStatus ?? 'unknown'}
             </li>
-            <li>{summary?.message ?? 'Загрузка сводки из PostgreSQL...'}</li>
+            <li>
+              {text.lastSnapshot}:{' '}
+              {formatDateTime(summary?.runtime.lastStatsSnapshotAt ?? null, text.snapshotFallback, locale)}
+            </li>
+            <li>{summary?.message ?? text.loadingSummary}</li>
           </ul>
         </SectionCard>
 
-        <SectionCard title="Операционный контур">
+        <SectionCard title={text.operationsTitle}>
           <ul className="feature-list">
-            <li>Администратор работает через refresh-сессии и журнал аудита.</li>
+            <li>{text.refreshSessions}</li>
+            <li>{text.controlApi}</li>
             <li>
-              Клиенты синхронизируются с Xray через control API без доступа приложения к
-              docker.sock.
-            </li>
-            <li>
-              Последняя успешная синхронизация Xray:{' '}
-              {formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, 'ещё не выполнялась')}
+              {text.lastSync}:{' '}
+              {formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, text.syncFallback, locale)}
             </li>
           </ul>
         </SectionCard>

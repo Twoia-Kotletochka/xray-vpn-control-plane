@@ -240,6 +240,30 @@ a {
   flex-wrap: wrap;
 }
 
+.locale-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.locale-switch__button {
+  min-width: 52px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-soft);
+  background: transparent;
+}
+
+.locale-switch__button--active {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .topbar__chip {
   display: flex;
   gap: 8px;
@@ -539,6 +563,13 @@ a {
 
 .login-panel p {
   color: var(--text-soft);
+}
+
+.login-panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
 }
 
 .login-form {
@@ -983,6 +1014,11 @@ a {
   .toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .login-panel__header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .topbar__identity {

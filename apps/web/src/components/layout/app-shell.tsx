@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
+import { useI18n } from '../../i18n';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 
 export function AppShell() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { ui } = useI18n();
   const location = useLocation();
   const pathname = location.pathname;
 
@@ -34,7 +36,7 @@ export function AppShell() {
         <button
           className="app-shell__overlay"
           type="button"
-          aria-label="Закрыть навигацию"
+          aria-label={ui.common.closeNavigation}
           onClick={() => setIsSidebarOpen(false)}
         />
       ) : null}

@@ -1,7 +1,8 @@
 import { Menu, ShieldCheck } from 'lucide-react';
 
 import { useAuth } from '../../features/auth/auth-context';
-import { ui } from '../../i18n';
+import { useI18n } from '../../i18n';
+import { LanguageSwitch } from '../ui/language-switch';
 
 type TopbarProps = {
   onOpenNavigation: () => void;
@@ -9,6 +10,7 @@ type TopbarProps = {
 
 export function Topbar({ onOpenNavigation }: TopbarProps) {
   const { admin, logout } = useAuth();
+  const { ui } = useI18n();
 
   return (
     <header className="topbar">
@@ -16,7 +18,7 @@ export function Topbar({ onOpenNavigation }: TopbarProps) {
         <button
           className="icon-button topbar__menu"
           type="button"
-          aria-label="Открыть навигацию"
+          aria-label={ui.common.openNavigation}
           onClick={onOpenNavigation}
         >
           <Menu size={16} />
@@ -28,12 +30,13 @@ export function Topbar({ onOpenNavigation }: TopbarProps) {
       </div>
 
       <div className="topbar__actions">
+        <LanguageSwitch />
         <div className="topbar__chip">
           <ShieldCheck size={16} />
           <span>{ui.common.protectedAccess}</span>
         </div>
         <button className="button" type="button" onClick={() => void logout()}>
-          Выйти
+          {ui.common.logout}
         </button>
       </div>
     </header>
