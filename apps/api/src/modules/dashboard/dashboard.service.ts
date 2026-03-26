@@ -34,36 +34,37 @@ export class DashboardService {
       },
     });
 
-    const [clients, available, expired, disabled, blocked, usage, host, runtime] = await Promise.all([
-      this.prisma.client.count(),
-      this.prisma.client.count({
-        where: {
-          status: ClientStatus.ACTIVE,
-        },
-      }),
-      this.prisma.client.count({
-        where: {
-          status: ClientStatus.EXPIRED,
-        },
-      }),
-      this.prisma.client.count({
-        where: {
-          status: ClientStatus.DISABLED,
-        },
-      }),
-      this.prisma.client.count({
-        where: {
-          status: ClientStatus.BLOCKED,
-        },
-      }),
-      this.prisma.dailyClientUsage.aggregate({
-        _sum: {
-          totalBytes: true,
-        },
-      }),
-      this.systemService.getHostMetrics(),
-      this.xrayService.getRuntimeSummary(),
-    ]);
+    const [clients, available, expired, disabled, blocked, usage, host, runtime] =
+      await Promise.all([
+        this.prisma.client.count(),
+        this.prisma.client.count({
+          where: {
+            status: ClientStatus.ACTIVE,
+          },
+        }),
+        this.prisma.client.count({
+          where: {
+            status: ClientStatus.EXPIRED,
+          },
+        }),
+        this.prisma.client.count({
+          where: {
+            status: ClientStatus.DISABLED,
+          },
+        }),
+        this.prisma.client.count({
+          where: {
+            status: ClientStatus.BLOCKED,
+          },
+        }),
+        this.prisma.dailyClientUsage.aggregate({
+          _sum: {
+            totalBytes: true,
+          },
+        }),
+        this.systemService.getHostMetrics(),
+        this.xrayService.getRuntimeSummary(),
+      ]);
 
     return {
       totals: {

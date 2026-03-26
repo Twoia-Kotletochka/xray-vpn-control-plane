@@ -119,7 +119,10 @@ export function DashboardPage() {
             <li>Доступных клиентов: {summary?.totals.available ?? summary?.totals.active ?? 0}</li>
             <li>Отключенных клиентов: {summary?.totals.disabled ?? 0}</li>
             <li>Заблокированных клиентов: {summary?.totals.blocked ?? 0}</li>
-            <li>Клиентов онлайн сейчас: {summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0}</li>
+            <li>
+              Клиентов онлайн сейчас:{' '}
+              {summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0}
+            </li>
             <li>Статус Xray control API: {summary?.runtime.xrayStatus ?? 'unknown'}</li>
             <li>
               Последний snapshot трафика:{' '}
@@ -132,7 +135,10 @@ export function DashboardPage() {
         <SectionCard title="Операционный контур">
           <ul className="feature-list">
             <li>Администратор работает через refresh-сессии и журнал аудита.</li>
-            <li>Клиенты синхронизируются с Xray через control API без доступа приложения к docker.sock.</li>
+            <li>
+              Клиенты синхронизируются с Xray через control API без доступа приложения к
+              docker.sock.
+            </li>
             <li>
               Последняя успешная синхронизация Xray:{' '}
               {formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, 'ещё не выполнялась')}
