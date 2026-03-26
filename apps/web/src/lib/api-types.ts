@@ -15,6 +15,8 @@ export type AdminUserRecord = {
   twoFactorEnabled: boolean;
   createdAt: string;
   updatedAt: string;
+  isCurrentAdmin: boolean;
+  canDelete: boolean;
 };
 
 export type AuthSessionPayload = {
@@ -175,8 +177,15 @@ export type AdminUsersResponse = {
   total: number;
   capabilities: {
     twoFactorReady: boolean;
+    canManageAdmins: boolean;
+    manageableRoles: string[];
     roleModel: string[];
   };
+};
+
+export type AdminUserMutationResponse = {
+  success: boolean;
+  id: string;
 };
 
 export type TwoFactorStatusResponse = {

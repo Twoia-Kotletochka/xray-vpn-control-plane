@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
+import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { DisableTwoFactorDto } from './dto/disable-two-factor.dto';
 import { EnableTwoFactorDto } from './dto/enable-two-factor.dto';
 import { StartTwoFactorSetupDto } from './dto/start-two-factor-setup.dto';
@@ -13,8 +14,26 @@ export class AdminUsersController {
   constructor(private readonly adminUsersService: AdminUsersService) {}
 
   @Get()
-  list() {
-    return this.adminUsersService.list();
+  list(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.adminUsersService.list(admin);
+  }
+
+  @Post()
+  create(
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() input: CreateAdminUserDto,
+    @Req() request: Request,
+  ) {
+    return this.adminUsersService.create(admin, input, request);
+  }
+
+  @Delete(':adminUserId')
+  remove(
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Param('adminUserId') adminUserId: string,
+    @Req() request: Request,
+  ) {
+    return this.adminUsersService.remove(admin, adminUserId, request);
   }
 
   @Get('me/two-factor')

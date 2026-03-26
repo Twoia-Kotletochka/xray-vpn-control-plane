@@ -1,6 +1,13 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { AdminRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import type { Request } from 'express';
 
@@ -15,12 +22,26 @@ import {
 } from '../auth/two-factor-secret.util';
 import type { TwoFactorSetupPayload } from '../auth/auth.types';
 import { buildTotpOtpAuthUrl, generateTotpSecret, verifyTotpCode } from '../auth/totp.util';
+import type { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import type { DisableTwoFactorDto } from './dto/disable-two-factor.dto';
 import type { EnableTwoFactorDto } from './dto/enable-two-factor.dto';
 import type { StartTwoFactorSetupDto } from './dto/start-two-factor-setup.dto';
 
 const TWO_FACTOR_SETUP_TTL = '10m';
 const TWO_FACTOR_ISSUER = 'server-vpn';
+const ADMIN_ROLE_MODEL = ['SUPER_ADMIN', 'OPERATOR', 'READ_ONLY'] as const;
+const MANAGEABLE_ADMIN_ROLES = ['OPERATOR'] as const;
+
+type ListedAdminUser = {
+  id: string;
+  email: string;
+  username: string;
+  role: AdminRole;
+  isActive: boolean;
+  totpSecretEnc: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 @Injectable()
 export class AdminUsersService {
@@ -31,7 +52,7 @@ export class AdminUsersService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  async list() {
+  async list(admin: AuthenticatedAdmin) {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.adminUser.findMany({
         orderBy: {
@@ -52,21 +73,134 @@ export class AdminUsersService {
     ]);
 
     return {
-      items: items.map((item) => ({
-        id: item.id,
-        email: item.email,
-        username: item.username,
-        role: item.role,
-        isActive: item.isActive,
-        twoFactorEnabled: Boolean(item.totpSecretEnc),
-        createdAt: item.createdAt.toISOString(),
-        updatedAt: item.updatedAt.toISOString(),
-      })),
+      items: items.map((item) => this.serializeAdminUser(item, admin)),
       total,
       capabilities: {
         twoFactorReady: true,
-        roleModel: ['SUPER_ADMIN', 'OPERATOR', 'READ_ONLY'],
+        canManageAdmins: this.canManageAdmins(admin),
+        manageableRoles: this.canManageAdmins(admin) ? [...MANAGEABLE_ADMIN_ROLES] : [],
+        roleModel: [...ADMIN_ROLE_MODEL],
       },
+    };
+  }
+
+  async create(admin: AuthenticatedAdmin, input: CreateAdminUserDto, request: Request) {
+    this.assertCanManageAdmins(admin);
+
+    const email = input.email.trim().toLowerCase();
+    const username = input.username.trim();
+    const existing = await this.prisma.adminUser.findFirst({
+      where: {
+        OR: [{ email }, { username }],
+      },
+      select: {
+        email: true,
+        username: true,
+      },
+    });
+
+    if (existing?.email === email) {
+      throw new ConflictException('Admin email is already in use.');
+    }
+
+    if (existing?.username === username) {
+      throw new ConflictException('Admin username is already in use.');
+    }
+
+    const passwordHash = await bcrypt.hash(
+      input.password,
+      this.configService.get('BCRYPT_ROUNDS', { infer: true }),
+    );
+    const created = await this.prisma.adminUser.create({
+      data: {
+        email,
+        username,
+        passwordHash,
+        role: AdminRole.OPERATOR,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        role: true,
+        isActive: true,
+        totpSecretEnc: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    await this.auditLogService.write({
+      actorAdminId: admin.id,
+      action: 'ADMIN_CREATED',
+      entityType: 'admin_user',
+      entityId: created.id,
+      summary: `Operator ${created.username} created by ${admin.username}.`,
+      metadata: {
+        role: created.role,
+      },
+      ipAddress: this.getIpAddress(request),
+      userAgent: request.get('user-agent') ?? undefined,
+    });
+
+    return this.serializeAdminUser(created, admin);
+  }
+
+  async remove(admin: AuthenticatedAdmin, adminUserId: string, request: Request) {
+    this.assertCanManageAdmins(admin);
+
+    const target = await this.prisma.adminUser.findUnique({
+      where: {
+        id: adminUserId,
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        role: true,
+        isActive: true,
+        totpSecretEnc: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!target) {
+      throw new NotFoundException('Admin account was not found.');
+    }
+
+    if (target.id === admin.id) {
+      throw new ForbiddenException('You cannot delete your own admin account.');
+    }
+
+    if (target.role === AdminRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Super admin accounts cannot be deleted from the panel.');
+    }
+
+    await this.prisma.adminUser.delete({
+      where: {
+        id: target.id,
+      },
+    });
+
+    await this.auditLogService.write({
+      actorAdminId: admin.id,
+      action: 'ADMIN_UPDATED',
+      entityType: 'admin_user',
+      entityId: target.id,
+      summary: `Admin user ${target.username} deleted by ${admin.username}.`,
+      metadata: {
+        change: 'deleted',
+        deletedRole: target.role,
+      },
+      ipAddress: this.getIpAddress(request),
+      userAgent: request.get('user-agent') ?? undefined,
+    });
+
+    return {
+      success: true,
+      id: target.id,
     };
   }
 
@@ -276,5 +410,33 @@ export class AdminUsersService {
 
   private getIpAddress(request: Request): string | undefined {
     return request.ip ?? undefined;
+  }
+
+  private canManageAdmins(admin: Pick<AuthenticatedAdmin, 'role'>) {
+    return admin.role === AdminRole.SUPER_ADMIN;
+  }
+
+  private assertCanManageAdmins(admin: Pick<AuthenticatedAdmin, 'role'>) {
+    if (!this.canManageAdmins(admin)) {
+      throw new ForbiddenException('Only super admins can manage admin accounts.');
+    }
+  }
+
+  private serializeAdminUser(item: ListedAdminUser, currentAdmin: AuthenticatedAdmin) {
+    return {
+      id: item.id,
+      email: item.email,
+      username: item.username,
+      role: item.role,
+      isActive: item.isActive,
+      twoFactorEnabled: Boolean(item.totpSecretEnc),
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+      isCurrentAdmin: item.id === currentAdmin.id,
+      canDelete:
+        this.canManageAdmins(currentAdmin) &&
+        item.id !== currentAdmin.id &&
+        item.role !== AdminRole.SUPER_ADMIN,
+    };
   }
 }

@@ -5,6 +5,7 @@ import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
 import type {
+  AdminUserMutationResponse,
   AdminUsersResponse,
   TwoFactorMutationResponse,
   TwoFactorSetupResponse,
@@ -15,6 +16,22 @@ import { useAuth } from '../auth/auth-context';
 
 function formatTotpSecret(secret: string) {
   return secret.match(/.{1,4}/g)?.join(' ') ?? secret;
+}
+
+function formatAdminRole(role: string) {
+  if (role === 'SUPER_ADMIN') {
+    return 'Супер-админ';
+  }
+
+  if (role === 'OPERATOR') {
+    return 'Оператор';
+  }
+
+  if (role === 'READ_ONLY') {
+    return 'Только чтение';
+  }
+
+  return role;
 }
 
 export function AdminUsersPage() {
@@ -29,10 +46,17 @@ export function AdminUsersPage() {
   const [setupCode, setSetupCode] = useState('');
   const [disablePassword, setDisablePassword] = useState('');
   const [disableCode, setDisableCode] = useState('');
+  const [createUsername, setCreateUsername] = useState('');
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isStartingSetup, setIsStartingSetup] = useState(false);
   const [isEnabling, setIsEnabling] = useState(false);
   const [isDisabling, setIsDisabling] = useState(false);
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
+  const [deletingAdminId, setDeletingAdminId] = useState<string | null>(null);
+
+  const canManageAdmins = response?.capabilities.canManageAdmins ?? admin?.role === 'SUPER_ADMIN';
 
   const loadPage = useCallback(async () => {
     setIsLoading(true);
@@ -184,6 +208,64 @@ export function AdminUsersPage() {
       );
     } finally {
       setIsDisabling(false);
+    }
+  };
+
+  const handleCreateAdmin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsCreatingAdmin(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await apiFetch('/api/admin-users', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: createUsername,
+          email: createEmail,
+          password: createPassword,
+        }),
+      });
+
+      setCreateUsername('');
+      setCreateEmail('');
+      setCreatePassword('');
+      setNotice('Оператор создан. Он может управлять клиентами, но не админскими аккаунтами.');
+      await loadPage();
+    } catch (submissionError) {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : 'Не удалось создать операторский аккаунт.',
+      );
+    } finally {
+      setIsCreatingAdmin(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (adminUserId: string, username: string) => {
+    if (!window.confirm(`Удалить аккаунт ${username}? Доступ этого оператора будет отозван.`)) {
+      return;
+    }
+
+    setDeletingAdminId(adminUserId);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await apiFetch<AdminUserMutationResponse>(`/api/admin-users/${adminUserId}`, {
+        method: 'DELETE',
+      });
+      setNotice(`Аккаунт ${username} удалён.`);
+      await loadPage();
+    } catch (submissionError) {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : 'Не удалось удалить администраторский аккаунт.',
+      );
+    } finally {
+      setDeletingAdminId(null);
     }
   };
 
@@ -357,7 +439,69 @@ export function AdminUsersPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Список администраторов">
+      {canManageAdmins ? (
+        <SectionCard
+          title="Операторские аккаунты"
+          subtitle="Супер-админ может выдавать подчинённым операторам доступ к управлению клиентами без доступа к админским аккаунтам."
+        >
+          <form className="field-grid" onSubmit={(event) => void handleCreateAdmin(event)}>
+            <label className="login-form__field">
+              <span>Логин оператора</span>
+              <input
+                required
+                minLength={3}
+                value={createUsername}
+                onChange={(event) => setCreateUsername(event.target.value)}
+                placeholder="operator"
+              />
+            </label>
+            <label className="login-form__field">
+              <span>Email</span>
+              <input
+                type="email"
+                required
+                value={createEmail}
+                onChange={(event) => setCreateEmail(event.target.value)}
+                placeholder="operator@example.com"
+              />
+            </label>
+            <label className="login-form__field">
+              <span>Стартовый пароль</span>
+              <input
+                type="password"
+                required
+                minLength={12}
+                value={createPassword}
+                onChange={(event) => setCreatePassword(event.target.value)}
+                placeholder="Минимум 12 символов"
+              />
+            </label>
+            <div className="form-actions">
+              <button
+                className="button button--primary"
+                type="submit"
+                disabled={
+                  isCreatingAdmin ||
+                  createUsername.trim().length < 3 ||
+                  createEmail.trim().length < 3 ||
+                  createPassword.length < 12
+                }
+              >
+                {isCreatingAdmin ? 'Создаём...' : 'Создать оператора'}
+              </button>
+            </div>
+          </form>
+        </SectionCard>
+      ) : null}
+
+      <SectionCard
+        title="Список администраторов"
+        subtitle={
+          canManageAdmins
+            ? 'Супер-админ управляет составом операторов. Операторы могут работать с клиентами, но не с админскими аккаунтами.'
+            : 'Список административных аккаунтов доступен для справки. Управление составом доступно только супер-админу.'
+        }
+      >
         <div className="table-shell">
           <table className="data-table">
             <thead>
@@ -367,6 +511,7 @@ export function AdminUsersPage() {
                 <th>Статус</th>
                 <th>2FA</th>
                 <th>Создан</th>
+                {canManageAdmins ? <th>Действия</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -374,11 +519,11 @@ export function AdminUsersPage() {
                 <tr key={item.id}>
                   <td>
                     <div className="table-main">
-                      <strong>{item.username}</strong>
+                      <strong>{item.isCurrentAdmin ? `${item.username} (вы)` : item.username}</strong>
                       <span>{item.email}</span>
                     </div>
                   </td>
-                  <td>{item.role}</td>
+                  <td>{formatAdminRole(item.role)}</td>
                   <td>
                     <StatusPill tone={item.isActive ? 'success' : 'muted'}>
                       {item.isActive ? 'Активен' : 'Отключен'}
@@ -390,6 +535,23 @@ export function AdminUsersPage() {
                     </StatusPill>
                   </td>
                   <td>{formatDateTime(item.createdAt)}</td>
+                  {canManageAdmins ? (
+                    <td>
+                      {item.canDelete ? (
+                        <button
+                          className="button button--danger"
+                          type="button"
+                          aria-label={`Удалить ${item.username}`}
+                          disabled={deletingAdminId === item.id}
+                          onClick={() => void handleDeleteAdmin(item.id, item.username)}
+                        >
+                          {deletingAdminId === item.id ? 'Удаляем...' : 'Удалить'}
+                        </button>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
