@@ -50,7 +50,7 @@
     file_server
   }
 
-  @public_panel_assets path /favicon.svg /apple-touch-icon.png /site.webmanifest /manifest.webmanifest /robots.txt
+  @public_panel_assets path /assets/* /favicon.svg /apple-touch-icon.png /site.webmanifest /manifest.webmanifest /robots.txt
 
   handle @public_panel_assets {
     root * /srv/web
