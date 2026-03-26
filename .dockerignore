@@ -6,6 +6,8 @@ dist
 **/dist
 coverage
 **/coverage
+*.tsbuildinfo
+**/*.tsbuildinfo
 .env
 .env.local
 secrets

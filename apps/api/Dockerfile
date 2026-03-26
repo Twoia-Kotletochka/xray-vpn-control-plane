@@ -9,8 +9,9 @@ RUN npm install --workspaces --include-workspace-root
 
 COPY . .
 
+RUN rm -f apps/api/*.tsbuildinfo apps/api/tsconfig*.tsbuildinfo
 RUN npm run prisma:generate -w apps/api
-RUN npm run build -w apps/api
+RUN npm run build -w apps/api && test -f /app/apps/api/dist/main.js
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
