@@ -39,6 +39,5 @@ docker compose up -d --build
 
 - Harden host firewall.
 - Install Fail2ban.
-- Configure automated backups.
+- Review automated backup policy and retention after first production week.
 - Add a domain later if you want a public CA-signed panel certificate.
-

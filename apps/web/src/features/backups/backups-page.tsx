@@ -43,6 +43,8 @@ export function BackupsPage() {
   const { apiFetch, apiFetchResponse } = useAuth();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [backupDir, setBackupDir] = useState('');
+  const [autoCreateEnabled, setAutoCreateEnabled] = useState(false);
+  const [autoCreateIntervalDays, setAutoCreateIntervalDays] = useState(0);
   const [retentionDays, setRetentionDays] = useState(0);
   const [restoreDryRunCommand, setRestoreDryRunCommand] = useState('');
   const [restoreCommand, setRestoreCommand] = useState('');
@@ -65,6 +67,8 @@ export function BackupsPage() {
 
       setBackups(response.items);
       setBackupDir(response.policy.backupDir);
+      setAutoCreateEnabled(response.policy.autoCreateEnabled);
+      setAutoCreateIntervalDays(response.policy.autoCreateIntervalDays);
       setRetentionDays(response.policy.retentionDays);
       setRestoreDryRunCommand(response.policy.restoreDryRunCommand);
       setRestoreCommand(response.policy.restoreCommand);
@@ -234,6 +238,14 @@ export function BackupsPage() {
             <div className="stat-card">
               <span>Каталог архивов</span>
               <strong>{backupDir || '—'}</strong>
+            </div>
+            <div className="stat-card">
+              <span>Автобэкап</span>
+              <strong>
+                {autoCreateEnabled && autoCreateIntervalDays > 0
+                  ? `Каждые ${autoCreateIntervalDays} дн.`
+                  : 'Выключен'}
+              </strong>
             </div>
             <div className="stat-card">
               <span>Retention</span>

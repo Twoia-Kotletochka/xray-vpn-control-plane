@@ -238,6 +238,8 @@ export type BackupListResponse = {
   items: BackupRecord[];
   policy: {
     backupDir: string;
+    autoCreateEnabled: boolean;
+    autoCreateIntervalDays: number;
     retentionDays: number;
     restoreDryRunCommand: string;
     restoreCommand: string;

@@ -8,7 +8,10 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
+  type OnModuleDestroy,
+  type OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
@@ -24,6 +27,7 @@ import {
   parseArchiveEntries,
   parseBackupManifest,
 } from './backup-restore.util';
+import { isAutomaticBackupDue } from './backup-schedule.util';
 import type { CreateBackupDto } from './dto/create-backup.dto';
 
 const execFileAsync = promisify(execFile);
@@ -50,12 +54,40 @@ function formatPruneNotes(existingNotes: string | null, prunedAt: Date) {
 }
 
 @Injectable()
-export class BackupsService {
+export class BackupsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(BackupsService.name);
+  private automaticMaintenanceInterval: NodeJS.Timeout | null = null;
+  private inflightAutomaticMaintenance: Promise<void> | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService<AppEnv, true>,
     private readonly auditLogService: AuditLogService,
   ) {}
+
+  onModuleInit() {
+    if (
+      this.configService.get('NODE_ENV', { infer: true }) === 'test' ||
+      !this.backupAutoCreateEnabled
+    ) {
+      return;
+    }
+
+    this.automaticMaintenanceInterval = setInterval(() => {
+      void this.runAutomaticMaintenance('interval');
+    }, this.backupAutoMaintenanceIntervalMs);
+    this.automaticMaintenanceInterval.unref();
+
+    setTimeout(() => {
+      void this.runAutomaticMaintenance('bootstrap');
+    }, 15_000).unref();
+  }
+
+  onModuleDestroy() {
+    if (this.automaticMaintenanceInterval) {
+      clearInterval(this.automaticMaintenanceInterval);
+    }
+  }
 
   async list() {
     await this.pruneExpiredBackups();
@@ -70,6 +102,8 @@ export class BackupsService {
       items: items.map((item) => this.serializeBackup(item)),
       policy: {
         backupDir: this.backupDir,
+        autoCreateEnabled: this.backupAutoCreateEnabled,
+        autoCreateIntervalDays: this.backupAutoCreateIntervalDays,
         retentionDays: this.backupRetentionDays,
         restoreDryRunCommand:
           './infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz',
@@ -121,66 +155,13 @@ export class BackupsService {
   }
 
   async create(payload: CreateBackupDto, admin: AuthenticatedAdmin, request: Request) {
-    await this.pruneExpiredBackups();
-
-    const placeholderFileName = `pending-${Date.now()}.tar.gz`;
-    const snapshot = await this.prisma.backupSnapshot.create({
-      data: {
-        fileName: placeholderFileName,
-        checksumSha256: 'pending',
-        fileSizeBytes: 0n,
-        status: 'CREATING',
-        notes: payload.notes?.trim() || null,
-      },
+    return this.createSnapshot({
+      notes: payload.notes?.trim() || null,
+      summary: 'manual',
+      actorAdminId: admin.id,
+      ipAddress: request.ip ?? undefined,
+      userAgent: request.get('user-agent') ?? undefined,
     });
-
-    try {
-      const artifact = await this.buildArchive(snapshot.id);
-
-      const updated = await this.prisma.backupSnapshot.update({
-        where: {
-          id: snapshot.id,
-        },
-        data: {
-          checksumSha256: artifact.checksumSha256,
-          fileName: artifact.fileName,
-          fileSizeBytes: artifact.fileSizeBytes,
-          status: 'READY',
-        },
-      });
-
-      await this.auditLogService.write({
-        actorAdminId: admin.id,
-        action: 'BACKUP_CREATED',
-        entityType: 'backup',
-        entityId: updated.id,
-        summary: `Backup ${updated.fileName} created.`,
-        metadata: {
-          checksumSha256: artifact.checksumSha256,
-          fileSizeBytes: artifact.fileSizeBytes.toString(),
-        },
-        ipAddress: request.ip ?? undefined,
-        userAgent: request.get('user-agent') ?? undefined,
-      });
-
-      return this.serializeBackup(updated);
-    } catch (error) {
-      await this.prisma.backupSnapshot.update({
-        where: {
-          id: snapshot.id,
-        },
-        data: {
-          status: 'FAILED',
-          notes: payload.notes?.trim()
-            ? `${payload.notes.trim()}\nCreation failed.`
-            : 'Creation failed.',
-        },
-      });
-
-      throw new InternalServerErrorException(
-        error instanceof Error ? error.message : 'Backup creation failed.',
-      );
-    }
   }
 
   async prepareDownload(backupId: string) {
@@ -306,6 +287,77 @@ export class BackupsService {
     }
   }
 
+  private async createSnapshot(input: {
+    actorAdminId?: string;
+    ipAddress?: string;
+    notes: string | null;
+    summary: 'automatic' | 'manual';
+    userAgent?: string;
+  }) {
+    await this.pruneExpiredBackups();
+
+    const placeholderFileName = `pending-${Date.now()}.tar.gz`;
+    const snapshot = await this.prisma.backupSnapshot.create({
+      data: {
+        fileName: placeholderFileName,
+        checksumSha256: 'pending',
+        fileSizeBytes: 0n,
+        status: 'CREATING',
+        notes: input.notes,
+      },
+    });
+
+    try {
+      const artifact = await this.buildArchive(snapshot.id);
+
+      const updated = await this.prisma.backupSnapshot.update({
+        where: {
+          id: snapshot.id,
+        },
+        data: {
+          checksumSha256: artifact.checksumSha256,
+          fileName: artifact.fileName,
+          fileSizeBytes: artifact.fileSizeBytes,
+          status: 'READY',
+        },
+      });
+
+      await this.auditLogService.write({
+        actorAdminId: input.actorAdminId,
+        action: 'BACKUP_CREATED',
+        entityType: 'backup',
+        entityId: updated.id,
+        summary:
+          input.summary === 'automatic'
+            ? `Automatic backup ${updated.fileName} created by scheduler.`
+            : `Backup ${updated.fileName} created.`,
+        metadata: {
+          checksumSha256: artifact.checksumSha256,
+          fileSizeBytes: artifact.fileSizeBytes.toString(),
+          trigger: input.summary,
+        },
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+      });
+
+      return this.serializeBackup(updated);
+    } catch (error) {
+      await this.prisma.backupSnapshot.update({
+        where: {
+          id: snapshot.id,
+        },
+        data: {
+          status: 'FAILED',
+          notes: input.notes ? `${input.notes}\nCreation failed.` : 'Creation failed.',
+        },
+      });
+
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Backup creation failed.',
+      );
+    }
+  }
+
   private async createPostgresDump(outputPath: string) {
     const databaseUrl = new URL(this.configService.get('DATABASE_URL', { infer: true }));
     const username = decodeURIComponent(databaseUrl.username);
@@ -427,6 +479,81 @@ export class BackupsService {
     );
   }
 
+  private async runAutomaticMaintenance(reason: string) {
+    if (this.inflightAutomaticMaintenance) {
+      return this.inflightAutomaticMaintenance;
+    }
+
+    this.inflightAutomaticMaintenance = this.performAutomaticMaintenance(reason).finally(() => {
+      this.inflightAutomaticMaintenance = null;
+    });
+
+    return this.inflightAutomaticMaintenance;
+  }
+
+  private async performAutomaticMaintenance(reason: string) {
+    try {
+      if (!(await this.shouldCreateAutomaticBackup())) {
+        await this.pruneExpiredBackups();
+        return;
+      }
+
+      await this.createSnapshot({
+        notes: `Automatic backup created by scheduler (${reason}).`,
+        summary: 'automatic',
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Automatic backup maintenance failed: ${error instanceof Error ? error.message : 'Unknown error.'}`,
+      );
+    }
+  }
+
+  private async shouldCreateAutomaticBackup() {
+    if (!this.backupAutoCreateEnabled) {
+      return false;
+    }
+
+    const recentPendingSnapshot = await this.prisma.backupSnapshot.findFirst({
+      where: {
+        status: 'CREATING',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    if (
+      recentPendingSnapshot &&
+      Date.now() - recentPendingSnapshot.createdAt.getTime() < this.backupAutoMaintenanceIntervalMs
+    ) {
+      return false;
+    }
+
+    const latestSuccessfulSnapshot = await this.prisma.backupSnapshot.findFirst({
+      where: {
+        status: {
+          in: ['PRUNED', 'READY', 'RESTORED'],
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    return isAutomaticBackupDue({
+      intervalDays: this.backupAutoCreateIntervalDays,
+      latestSuccessfulBackupCreatedAt: latestSuccessfulSnapshot?.createdAt ?? null,
+      now: new Date(),
+    });
+  }
+
   private async requireBackup(backupId: string) {
     const snapshot = await this.prisma.backupSnapshot.findUnique({
       where: {
@@ -469,6 +596,18 @@ export class BackupsService {
 
   private get backupDir() {
     return this.configService.get('BACKUP_DIR', { infer: true });
+  }
+
+  private get backupAutoCreateEnabled() {
+    return this.configService.get('BACKUP_AUTO_CREATE_ENABLED', { infer: true });
+  }
+
+  private get backupAutoCreateIntervalDays() {
+    return this.configService.get('BACKUP_AUTO_CREATE_INTERVAL_DAYS', { infer: true });
+  }
+
+  private get backupAutoMaintenanceIntervalMs() {
+    return this.configService.get('BACKUP_AUTO_MAINTENANCE_INTERVAL_MS', { infer: true });
   }
 
   private get backupRetentionDays() {

@@ -44,6 +44,8 @@ describe('BackupsPage', () => {
       items: [backupRecord],
       policy: {
         backupDir: '/var/backups/server-vpn',
+        autoCreateEnabled: true,
+        autoCreateIntervalDays: 5,
         retentionDays: 14,
         restoreDryRunCommand:
           './infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz',

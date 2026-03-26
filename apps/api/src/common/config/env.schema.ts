@@ -1,6 +1,28 @@
 import { z } from 'zod';
 
 const nodeEnvSchema = z.enum(['development', 'test', 'production']);
+const envBooleanSchema = z.union([z.boolean(), z.string()]).transform((value, context) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  context.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: 'Expected a boolean string (true or false).',
+  });
+
+  return z.NEVER;
+});
 
 export const envSchema = z.object({
   NODE_ENV: nodeEnvSchema.default('development'),
@@ -37,6 +59,9 @@ export const envSchema = z.object({
   XRAY_CONTROL_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
   CADDY_ACCESS_LOG_FILE: z.string().default('/var/log/server-vpn/caddy-access.log'),
   BACKUP_DIR: z.string().default('/var/backups/server-vpn'),
+  BACKUP_AUTO_CREATE_ENABLED: envBooleanSchema.default(true),
+  BACKUP_AUTO_CREATE_INTERVAL_DAYS: z.coerce.number().int().positive().default(5),
+  BACKUP_AUTO_MAINTENANCE_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
   BACKUP_RETENTION_DAYS: z.coerce.number().int().positive().default(14),
 });
 
