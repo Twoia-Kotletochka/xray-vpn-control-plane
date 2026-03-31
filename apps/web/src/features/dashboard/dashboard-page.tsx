@@ -155,8 +155,8 @@ export function DashboardPage() {
         title={ui.dashboard.title}
         description={
           locale === 'en'
-            ? 'Operational summary for available clients, live connections, traffic, Xray runtime, and service health.'
-            : 'Операционная сводка по доступным клиентам, live-подключениям, трафику, runtime Xray и состоянию сервисов.'
+            ? 'Operational summary for active profiles, live connections, traffic, Xray runtime, and service health.'
+            : 'Операционная сводка по активным профилям, live-подключениям, трафику, runtime Xray и состоянию сервисов.'
         }
         actionLabel={ui.common.refresh}
         onAction={() => {
