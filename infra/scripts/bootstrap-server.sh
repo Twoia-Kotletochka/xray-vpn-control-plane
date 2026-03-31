@@ -42,6 +42,7 @@ configure_firewall() {
   fi
 
   ufw allow OpenSSH
+  ufw allow 22/tcp
   ufw allow 443/tcp
   ufw allow 8443/tcp
   ufw --force enable

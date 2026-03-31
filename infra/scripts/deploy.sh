@@ -41,6 +41,7 @@ prepare_runtime_dirs() {
 normalize_legacy_env_paths
 prepare_runtime_dirs
 bash "${ROOT_DIR}/infra/scripts/render-xray-config.sh"
+bash "${ROOT_DIR}/infra/scripts/ensure-ssh-access.sh"
 
 docker compose -f "${ROOT_DIR}/docker-compose.yml" build api caddy
 docker compose -f "${ROOT_DIR}/docker-compose.yml" up -d postgres
