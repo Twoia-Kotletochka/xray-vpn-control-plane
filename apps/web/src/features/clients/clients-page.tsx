@@ -755,9 +755,16 @@ export function ClientsPage() {
           </form>
         ) : null}
 
-        <div className="split-grid">
-          <div className="table-shell">
-            <table className="data-table">
+        <div className="split-grid split-grid--clients">
+          <div className="table-shell table-shell--clients">
+            <table className="data-table clients-table">
+              <colgroup>
+                <col className="clients-table__col clients-table__col--client" />
+                <col className="clients-table__col clients-table__col--status" />
+                <col className="clients-table__col clients-table__col--traffic" />
+                <col className="clients-table__col clients-table__col--expiry" />
+                <col className="clients-table__col clients-table__col--actions" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>{text.client}</th>
@@ -770,7 +777,7 @@ export function ClientsPage() {
               <tbody>
                 {clients.map((client) => (
                   <tr key={client.id} className="table-row--interactive">
-                    <td>
+                    <td className="clients-table__cell clients-table__cell--client">
                       <button
                         className="table-link"
                         type="button"
@@ -782,15 +789,21 @@ export function ClientsPage() {
                         </div>
                       </button>
                     </td>
-                    <td>
+                    <td className="clients-table__cell clients-table__cell--status">
                       <StatusPill tone={liveStatusTone(resolveClientLiveStatus(client))}>
                         {formatClientLiveStatus(resolveClientLiveStatus(client), locale)}
                       </StatusPill>
                     </td>
-                    <td>{formatBytes(Number(client.trafficUsedBytes), locale)}</td>
-                    <td>{formatDateTime(client.expiresAt, text.noExpiry, locale)}</td>
-                    <td>
-                      <div className="table-actions">
+                    <td className="clients-table__cell clients-table__cell--traffic">
+                      {formatBytes(Number(client.trafficUsedBytes), locale)}
+                    </td>
+                    <td className="clients-table__cell clients-table__cell--expiry">
+                      <span className="clients-table__date">
+                        {formatDateTime(client.expiresAt, text.noExpiry, locale)}
+                      </span>
+                    </td>
+                    <td className="clients-table__cell clients-table__cell--actions">
+                      <div className="table-actions table-actions--clients">
                         <button
                           className="icon-button"
                           type="button"

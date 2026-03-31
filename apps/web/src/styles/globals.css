@@ -323,6 +323,10 @@ a {
   gap: 18px;
 }
 
+.split-grid--clients {
+  grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.82fr);
+}
+
 .metric-card,
 .section-card {
   position: relative;
@@ -433,11 +437,65 @@ a {
   border-collapse: collapse;
 }
 
+.clients-table {
+  min-width: 940px;
+}
+
 .data-table th,
 .data-table td {
   padding: 16px;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.data-table th {
+  white-space: nowrap;
+}
+
+.clients-table__col--client {
+  width: 34%;
+}
+
+.clients-table__col--status {
+  width: 15%;
+}
+
+.clients-table__col--traffic {
+  width: 11%;
+}
+
+.clients-table__col--expiry {
+  width: 18%;
+}
+
+.clients-table__col--actions {
+  width: 22%;
+}
+
+.clients-table__cell--status,
+.clients-table__cell--traffic,
+.clients-table__cell--expiry,
+.clients-table__cell--actions {
+  white-space: nowrap;
+}
+
+.clients-table__cell--traffic,
+.clients-table__date {
+  font-variant-numeric: tabular-nums;
+}
+
+.clients-table__date {
+  display: inline-block;
+}
+
+.clients-table .table-main {
+  min-width: 0;
+  max-width: 320px;
+}
+
+.clients-table .table-main span {
+  overflow-wrap: anywhere;
 }
 
 .data-table tbody tr:last-child td {
@@ -456,6 +514,7 @@ a {
   border-radius: 999px;
   font-size: 0.9rem;
   border: 1px solid var(--border);
+  white-space: nowrap;
 }
 
 .status-pill--success {
@@ -512,6 +571,7 @@ a {
   min-height: 46px;
   padding: 0 18px;
   border-radius: 14px;
+  white-space: nowrap;
 }
 
 .button--primary {
@@ -527,7 +587,7 @@ a {
 
 .button--compact {
   min-height: 40px;
-  padding: 0 14px;
+  padding: 0 16px;
   border-radius: 12px;
   gap: 8px;
 }
@@ -836,6 +896,21 @@ a {
   cursor: pointer;
 }
 
+.table-shell--clients {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.table-actions--clients {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  min-width: max-content;
+}
+
+.table-actions--clients > * {
+  flex: 0 0 auto;
+}
+
 .mono-output,
 .textarea-field {
   width: 100%;
@@ -1019,11 +1094,19 @@ a {
   .stat-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .split-grid--clients {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 780px) {
   .app-shell__content {
     padding: 18px;
+  }
+
+  .clients-table {
+    min-width: 860px;
   }
 
   .topbar,
