@@ -525,6 +525,13 @@ a {
   background: rgba(242, 155, 155, 0.08);
 }
 
+.button--compact {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  gap: 8px;
+}
+
 .icon-button {
   display: inline-grid;
   place-items: center;

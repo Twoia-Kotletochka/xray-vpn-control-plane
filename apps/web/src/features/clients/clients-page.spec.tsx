@@ -72,7 +72,7 @@ function createBundle(client: ClientRecord): ClientSubscriptionBundle {
 }
 
 function selectedClientStatusText(client: ClientRecord) {
-  return `Активен • ${client.uuid}`;
+  return `Не активен • ${client.uuid}`;
 }
 
 describe('ClientsPage', () => {
@@ -156,5 +156,49 @@ describe('ClientsPage', () => {
     await waitFor(() => {
       expect(listCalls()).toBe(1);
     });
+  });
+
+  it('shows an explicit block action instead of the three-dots button', async () => {
+    const client = createClient(
+      'client-1',
+      'Client One',
+      'client-one',
+      '11111111-1111-1111-1111-111111111111',
+    );
+    const listResponse: ClientListResponse = {
+      items: [client],
+      pagination: {
+        page: 1,
+        pageSize: 50,
+        total: 1,
+      },
+      filters: {
+        search: null,
+      },
+    };
+
+    mockApiFetch.mockImplementation(async (path: string) => {
+      if (path === '/api/clients?page=1&pageSize=50&search=') {
+        return listResponse;
+      }
+
+      if (path === '/api/clients/client-1') {
+        return createClientDetail(client);
+      }
+
+      if (path === '/api/subscriptions/client/client-1') {
+        return createBundle(client);
+      }
+
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ClientsPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findAllByRole('button', { name: /Заблокировать/i })).not.toHaveLength(0);
   });
 });

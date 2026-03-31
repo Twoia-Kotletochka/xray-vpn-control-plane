@@ -1,7 +1,8 @@
 import {
   Download,
   FileUp,
-  MoreHorizontal,
+  Lock,
+  LockOpen,
   Plus,
   QrCode,
   RotateCcw,
@@ -25,7 +26,14 @@ import type {
   ClientRecord,
   ClientSubscriptionBundle,
 } from '../../lib/api-types';
-import { formatBytes, formatClientStatus, formatDateTime, statusTone } from '../../lib/format';
+import {
+  formatBytes,
+  formatClientAccessStatus,
+  formatClientLiveStatus,
+  formatDateTime,
+  liveStatusTone,
+  resolveClientLiveStatus,
+} from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
 
 type CreateClientFormState = {
@@ -38,13 +46,13 @@ type CreateClientFormState = {
 };
 
 type EditClientFormState = {
+  accessStatus: 'ACTIVE' | 'DISABLED';
   deviceLimit: string;
   displayName: string;
   expiresAt: string;
   ipLimit: string;
   isTrafficUnlimited: boolean;
   note: string;
-  status: ClientRecord['status'];
   tags: string;
   trafficLimitGb: string;
 };
@@ -59,16 +67,20 @@ const initialCreateFormState: CreateClientFormState = {
 };
 
 const emptyEditFormState: EditClientFormState = {
+  accessStatus: 'ACTIVE',
   deviceLimit: '',
   displayName: '',
   expiresAt: '',
   ipLimit: '',
   isTrafficUnlimited: false,
   note: '',
-  status: 'ACTIVE',
   tags: '',
   trafficLimitGb: '',
 };
+
+function isClientManuallyBlocked(status: ClientRecord['status']) {
+  return status === 'DISABLED';
+}
 
 function toTrafficLimitBytes(value: string): number | undefined {
   const numeric = Number(value);
@@ -92,18 +104,29 @@ function toDateTimeLocal(value: string | null): string {
 
 function mapClientToEditState(client: ClientDetailResponse): EditClientFormState {
   return {
+    accessStatus: isClientManuallyBlocked(client.status) ? 'DISABLED' : 'ACTIVE',
     deviceLimit: client.deviceLimit?.toString() ?? '',
     displayName: client.displayName,
     expiresAt: toDateTimeLocal(client.expiresAt),
     ipLimit: client.ipLimit?.toString() ?? '',
     isTrafficUnlimited: client.isTrafficUnlimited,
     note: client.note ?? '',
-    status: client.status,
     tags: client.tags.join(', '),
     trafficLimitGb: client.trafficLimitBytes
       ? (Number(client.trafficLimitBytes) / 1024 / 1024 / 1024).toFixed(2)
       : '',
   };
+}
+
+function resolveRequestedStatus(
+  currentStatus: ClientRecord['status'],
+  accessStatus: EditClientFormState['accessStatus'],
+): ClientRecord['status'] {
+  if (accessStatus === 'DISABLED') {
+    return 'DISABLED';
+  }
+
+  return currentStatus === 'DISABLED' ? 'ACTIVE' : currentStatus;
 }
 
 async function downloadText(filename: string, content: string) {
@@ -194,8 +217,8 @@ export function ClientsPage() {
     newClient: isEnglish ? 'New client' : 'Новый клиент',
     managementTitle: isEnglish ? 'Client management' : 'Управление клиентами',
     managementSubtitle: isEnglish
-      ? 'Search, create, and edit quotas or statuses without reissuing the client UUID.'
-      : 'Поиск, создание, редактирование лимитов и статусов без перевыпуска клиентского UUID.',
+      ? 'Search, create, and edit quotas or access without reissuing the client UUID.'
+      : 'Поиск, создание, редактирование лимитов и доступа без перевыпуска клиентского UUID.',
     searchPlaceholder: isEnglish
       ? 'Search by name, UUID, tag, or note'
       : 'Поиск по имени, UUID, тегу или заметке',
@@ -215,6 +238,7 @@ export function ClientsPage() {
     createClient: isEnglish ? 'Create client' : 'Создать клиента',
     client: isEnglish ? 'Client' : 'Клиент',
     status: isEnglish ? 'Status' : 'Статус',
+    access: isEnglish ? 'Access' : 'Доступ',
     traffic: isEnglish ? 'Traffic' : 'Трафик',
     expiry: isEnglish ? 'Expiry' : 'Срок',
     actions: isEnglish ? 'Actions' : 'Действия',
@@ -229,8 +253,8 @@ export function ClientsPage() {
     connections: isEnglish ? 'Connections' : 'Подключения',
     extend30: isEnglish ? 'Extend by 30 days' : 'Продлить на 30 дней',
     resetTraffic: isEnglish ? 'Reset traffic' : 'Сбросить трафик',
-    enable: isEnglish ? 'Enable' : 'Включить',
-    disable: isEnglish ? 'Disable' : 'Отключить',
+    unblock: isEnglish ? 'Unblock' : 'Разблокировать',
+    block: isEnglish ? 'Block' : 'Заблокировать',
     showQr: isEnglish ? 'Show QR' : 'Показать QR',
     delete: isEnglish ? 'Delete' : 'Удалить',
     expiryDate: isEnglish ? 'Expiry date' : 'Дата окончания',
@@ -273,7 +297,8 @@ export function ClientsPage() {
     noExpiry: isEnglish ? 'No expiry' : 'Без срока',
     notAvailable: isEnglish ? '—' : '—',
     qrConfigAria: isEnglish ? 'Show QR and config' : 'Показать QR и конфиг',
-    toggleClientAria: isEnglish ? 'Disable or enable client' : 'Отключить или включить клиента',
+    blockClientAria: isEnglish ? 'Block client access' : 'Заблокировать доступ клиента',
+    unblockClientAria: isEnglish ? 'Restore client access' : 'Разблокировать доступ клиента',
   };
 
   const clearSelectedClient = useCallback(() => {
@@ -442,7 +467,7 @@ export function ClientsPage() {
           ipLimit: Number(editFormState.ipLimit) || undefined,
           isTrafficUnlimited: editFormState.isTrafficUnlimited,
           note: editFormState.note || undefined,
-          status: editFormState.status,
+          status: resolveRequestedStatus(selectedClient.status, editFormState.accessStatus),
           tags: editFormState.tags
             .split(',')
             .map((item) => item.trim())
@@ -462,7 +487,7 @@ export function ClientsPage() {
   };
 
   const handleToggleClient = async (client: ClientRecord) => {
-    const nextStatus = client.status === 'DISABLED' ? 'ACTIVE' : 'DISABLED';
+    const nextStatus = isClientManuallyBlocked(client.status) ? 'ACTIVE' : 'DISABLED';
 
     await apiFetch(`/api/clients/${client.id}`, {
       method: 'PATCH',
@@ -758,8 +783,8 @@ export function ClientsPage() {
                       </button>
                     </td>
                     <td>
-                      <StatusPill tone={statusTone(client.status)}>
-                        {formatClientStatus(client.status, locale)}
+                      <StatusPill tone={liveStatusTone(resolveClientLiveStatus(client))}>
+                        {formatClientLiveStatus(resolveClientLiveStatus(client), locale)}
                       </StatusPill>
                     </td>
                     <td>{formatBytes(Number(client.trafficUsedBytes), locale)}</td>
@@ -779,12 +804,23 @@ export function ClientsPage() {
                         </button>
                         {!isReadOnly ? (
                           <button
-                            className="icon-button"
+                            className={`button button--compact ${
+                              isClientManuallyBlocked(client.status) ? '' : 'button--danger'
+                            }`}
                             type="button"
-                            aria-label={text.toggleClientAria}
+                            aria-label={
+                              isClientManuallyBlocked(client.status)
+                                ? text.unblockClientAria
+                                : text.blockClientAria
+                            }
                             onClick={() => void handleToggleClient(client)}
                           >
-                            <MoreHorizontal size={16} />
+                            {isClientManuallyBlocked(client.status) ? (
+                              <LockOpen size={16} />
+                            ) : (
+                              <Lock size={16} />
+                            )}
+                            {isClientManuallyBlocked(client.status) ? text.unblock : text.block}
                           </button>
                         ) : null}
                       </div>
@@ -806,7 +842,7 @@ export function ClientsPage() {
             title={selectedClient ? selectedClient.displayName : text.clientCard}
             subtitle={
               selectedClient
-                ? `${formatClientStatus(selectedClient.status, locale)} • ${selectedClient.uuid}`
+                ? `${formatClientLiveStatus(resolveClientLiveStatus(selectedClient), locale)} • ${selectedClient.uuid}`
                 : text.selectClient
             }
           >
@@ -856,7 +892,7 @@ export function ClientsPage() {
                         type="button"
                         onClick={() => void handleToggleClient(selectedClient)}
                       >
-                        {selectedClient.status === 'DISABLED' ? text.enable : text.disable}
+                        {isClientManuallyBlocked(selectedClient.status) ? text.unblock : text.block}
                       </button>
                       <button
                         className="button button--danger"
@@ -885,20 +921,18 @@ export function ClientsPage() {
                       />
                     </label>
                     <label className="login-form__field">
-                      <span>{text.status}</span>
+                      <span>{text.access}</span>
                       <select
-                        value={editFormState.status}
+                        value={editFormState.accessStatus}
                         onChange={(event) =>
                           setEditFormState((current) => ({
                             ...current,
-                            status: event.target.value as ClientRecord['status'],
+                            accessStatus: event.target.value as EditClientFormState['accessStatus'],
                           }))
                         }
                       >
-                        <option value="ACTIVE">{formatClientStatus('ACTIVE', locale)}</option>
-                        <option value="DISABLED">{formatClientStatus('DISABLED', locale)}</option>
-                        <option value="BLOCKED">{formatClientStatus('BLOCKED', locale)}</option>
-                        <option value="EXPIRED">{formatClientStatus('EXPIRED', locale)}</option>
+                        <option value="ACTIVE">{formatClientAccessStatus('ACTIVE', locale)}</option>
+                        <option value="DISABLED">{formatClientAccessStatus('DISABLED', locale)}</option>
                       </select>
                     </label>
                     <label className="login-form__field">

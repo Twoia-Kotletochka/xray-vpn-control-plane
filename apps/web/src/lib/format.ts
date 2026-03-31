@@ -5,6 +5,10 @@ const byteUnits = {
   en: ['B', 'KB', 'MB', 'GB', 'TB'],
 } as const;
 
+type ClientBackendStatus = 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'BLOCKED';
+type ClientLiveStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
+type ClientAccessStatus = 'ACTIVE' | 'DISABLED';
+
 function toLocaleTag(locale: Locale) {
   return locale === 'en' ? 'en-US' : 'ru-RU';
 }
@@ -40,31 +44,47 @@ export function formatDateTime(
   }).format(new Date(value));
 }
 
-export function formatClientStatus(
-  status: 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'BLOCKED',
-  locale: Locale = 'ru',
-): string {
+export function formatClientLiveStatus(status: ClientLiveStatus, locale: Locale = 'ru'): string {
   switch (status) {
     case 'ACTIVE':
       return locale === 'en' ? 'Active' : 'Активен';
-    case 'DISABLED':
-      return locale === 'en' ? 'Disabled' : 'Отключен';
-    case 'EXPIRED':
-      return locale === 'en' ? 'Expired' : 'Истек';
+    case 'INACTIVE':
+      return locale === 'en' ? 'Inactive' : 'Не активен';
     case 'BLOCKED':
       return locale === 'en' ? 'Blocked' : 'Заблокирован';
   }
 }
 
-export function statusTone(status: 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'BLOCKED') {
+export function liveStatusTone(status: ClientLiveStatus) {
   switch (status) {
     case 'ACTIVE':
       return 'success' as const;
-    case 'EXPIRED':
-      return 'warning' as const;
+    case 'INACTIVE':
+      return 'muted' as const;
     case 'BLOCKED':
       return 'danger' as const;
-    case 'DISABLED':
-      return 'muted' as const;
   }
+}
+
+export function formatClientAccessStatus(
+  status: ClientAccessStatus,
+  locale: Locale = 'ru',
+): string {
+  switch (status) {
+    case 'ACTIVE':
+      return locale === 'en' ? 'Allowed' : 'Разрешен';
+    case 'DISABLED':
+      return locale === 'en' ? 'Blocked' : 'Заблокирован';
+  }
+}
+
+export function resolveClientLiveStatus(client: {
+  activeConnections: number;
+  status: ClientBackendStatus;
+}): ClientLiveStatus {
+  if (client.status === 'DISABLED') {
+    return 'BLOCKED';
+  }
+
+  return client.activeConnections > 0 ? 'ACTIVE' : 'INACTIVE';
 }
