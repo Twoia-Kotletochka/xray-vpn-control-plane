@@ -137,7 +137,7 @@ function translateSubscriptionInstruction(instruction: string, locale: 'ru' | 'e
 }
 
 export function ClientsPage() {
-  const { apiFetch } = useAuth();
+  const { admin, apiFetch } = useAuth();
   const { locale, ui } = useI18n();
   const importFileRef = useRef<HTMLInputElement | null>(null);
   const selectedClientIdRef = useRef<string | null>(null);
@@ -166,6 +166,7 @@ export function ClientsPage() {
   const [editFormState, setEditFormState] = useState<EditClientFormState>(emptyEditFormState);
   const deferredSearch = useDeferredValue(search);
   const isEnglish = locale === 'en';
+  const isReadOnly = admin?.role === 'READ_ONLY';
   const text = {
     loadError: isEnglish ? 'Failed to load clients.' : 'Не удалось загрузить клиентов.',
     createError: isEnglish ? 'Failed to create the client.' : 'Не удалось создать клиента.',
@@ -580,13 +581,17 @@ export function ClientsPage() {
     return usageHistory.reduce((max, item) => Math.max(max, Number(item.totalBytes)), 0);
   }, [usageHistory]);
 
+  const headerActionLabel = isReadOnly ? '' : isComposerOpen ? text.hideForm : text.newClient;
+
   return (
     <div className="page">
       <PageHeader
         title={ui.clients.title}
         description={text.description}
-        actionLabel={isComposerOpen ? text.hideForm : text.newClient}
-        onAction={() => setIsComposerOpen((value) => !value)}
+        actionLabel={headerActionLabel}
+        onAction={() =>
+          !isReadOnly ? setIsComposerOpen((value) => !value) : undefined
+        }
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
@@ -620,18 +625,22 @@ export function ClientsPage() {
               <Download size={16} />
               {isExporting ? text.exporting : text.export}
             </button>
-            <button className="button" type="button" onClick={() => importFileRef.current?.click()}>
-              <FileUp size={16} />
-              {text.import}
-            </button>
-            <button
-              className="button button--primary"
-              type="button"
-              onClick={() => setIsComposerOpen((value) => !value)}
-            >
-              <Plus size={16} />
-              {isComposerOpen ? text.closeForm : text.addClient}
-            </button>
+            {!isReadOnly ? (
+              <>
+                <button className="button" type="button" onClick={() => importFileRef.current?.click()}>
+                  <FileUp size={16} />
+                  {text.import}
+                </button>
+                <button
+                  className="button button--primary"
+                  type="button"
+                  onClick={() => setIsComposerOpen((value) => !value)}
+                >
+                  <Plus size={16} />
+                  {isComposerOpen ? text.closeForm : text.addClient}
+                </button>
+              </>
+            ) : null}
           </div>
           <input
             ref={importFileRef}
@@ -642,7 +651,7 @@ export function ClientsPage() {
           />
         </div>
 
-        {isComposerOpen ? (
+        {!isReadOnly && isComposerOpen ? (
           <form className="inline-form" onSubmit={(event) => void handleCreateClient(event)}>
             <div className="field-grid">
               <label className="login-form__field">
@@ -768,14 +777,16 @@ export function ClientsPage() {
                         >
                           <QrCode size={16} />
                         </button>
-                        <button
-                          className="icon-button"
-                          type="button"
-                          aria-label={text.toggleClientAria}
-                          onClick={() => void handleToggleClient(client)}
-                        >
-                          <MoreHorizontal size={16} />
-                        </button>
+                        {!isReadOnly ? (
+                          <button
+                            className="icon-button"
+                            type="button"
+                            aria-label={text.toggleClientAria}
+                            onClick={() => void handleToggleClient(client)}
+                          >
+                            <MoreHorizontal size={16} />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -821,40 +832,45 @@ export function ClientsPage() {
                 </div>
 
                 <div className="toolbar__actions wrap-actions">
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={() => void handleExtendClient(selectedClient.id)}
-                  >
-                    {text.extend30}
-                  </button>
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={() => void handleResetTraffic(selectedClient.id)}
-                  >
-                    {text.resetTraffic}
-                  </button>
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={() => void handleToggleClient(selectedClient)}
-                  >
-                    {selectedClient.status === 'DISABLED' ? text.enable : text.disable}
-                  </button>
                   <button className="button" type="button" onClick={() => setIsQrOpen(true)}>
                     {text.showQr}
                   </button>
-                  <button
-                    className="button button--danger"
-                    type="button"
-                    onClick={() => void handleDeleteClient(selectedClient.id)}
-                  >
-                    {text.delete}
-                  </button>
+                  {!isReadOnly ? (
+                    <>
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => void handleExtendClient(selectedClient.id)}
+                      >
+                        {text.extend30}
+                      </button>
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => void handleResetTraffic(selectedClient.id)}
+                      >
+                        {text.resetTraffic}
+                      </button>
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => void handleToggleClient(selectedClient)}
+                      >
+                        {selectedClient.status === 'DISABLED' ? text.enable : text.disable}
+                      </button>
+                      <button
+                        className="button button--danger"
+                        type="button"
+                        onClick={() => void handleDeleteClient(selectedClient.id)}
+                      >
+                        {text.delete}
+                      </button>
+                    </>
+                  ) : null}
                 </div>
 
-                <form className="inline-form" onSubmit={(event) => void handleSaveClient(event)}>
+                {!isReadOnly ? (
+                  <form className="inline-form" onSubmit={(event) => void handleSaveClient(event)}>
                   <div className="field-grid">
                     <label className="login-form__field">
                       <span>{text.clientName}</span>
@@ -993,7 +1009,8 @@ export function ClientsPage() {
                       {isSavingClient ? text.saving : text.saveChanges}
                     </button>
                   </div>
-                </form>
+                  </form>
+                ) : null}
 
                 {subscriptionBundle ? (
                   <div className="detail-stack">

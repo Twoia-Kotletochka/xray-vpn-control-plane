@@ -41,7 +41,7 @@ function downloadBlob(fileName: string, blob: Blob) {
 }
 
 export function BackupsPage() {
-  const { apiFetch, apiFetchResponse } = useAuth();
+  const { admin, apiFetch, apiFetchResponse } = useAuth();
   const { locale, ui } = useI18n();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [backupDir, setBackupDir] = useState('');
@@ -59,6 +59,7 @@ export function BackupsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<BackupRecord | null>(null);
   const [restorePlan, setRestorePlan] = useState<BackupRestorePlanResponse | null>(null);
+  const isReadOnly = admin?.role === 'READ_ONLY';
   const text =
     locale === 'en'
       ? {
@@ -363,9 +364,9 @@ export function BackupsPage() {
       <PageHeader
         title={ui.backups.title}
         description={text.description}
-        actionLabel={isCreating ? text.creatingAction : text.createAction}
+        actionLabel={isReadOnly ? undefined : isCreating ? text.creatingAction : text.createAction}
         actionDisabled={isCreating}
-        onAction={() => void handleCreateBackup()}
+        onAction={isReadOnly ? undefined : () => void handleCreateBackup()}
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
@@ -462,28 +463,32 @@ export function BackupsPage() {
                     <Download size={16} />
                     {isDownloadingId === backup.id ? text.downloading : text.download}
                   </button>
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={() => {
-                      setError(null);
-                      setNotice(null);
-                      setRestoreTarget(backup);
-                    }}
-                    disabled={!backup.exists || backup.status !== 'READY'}
-                  >
-                    <RotateCcw size={16} />
-                    Restore
-                  </button>
-                  <button
-                    className="button button--danger"
-                    type="button"
-                    onClick={() => void handleDelete(backup)}
-                    disabled={isDeletingId === backup.id}
-                  >
-                    <Trash2 size={16} />
-                    {isDeletingId === backup.id ? text.deleting : text.delete}
-                  </button>
+                  {!isReadOnly ? (
+                    <>
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          setNotice(null);
+                          setRestoreTarget(backup);
+                        }}
+                        disabled={!backup.exists || backup.status !== 'READY'}
+                      >
+                        <RotateCcw size={16} />
+                        Restore
+                      </button>
+                      <button
+                        className="button button--danger"
+                        type="button"
+                        onClick={() => void handleDelete(backup)}
+                        disabled={isDeletingId === backup.id}
+                      >
+                        <Trash2 size={16} />
+                        {isDeletingId === backup.id ? text.deleting : text.delete}
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
 

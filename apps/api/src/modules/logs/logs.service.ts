@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { open, stat } from 'node:fs/promises';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -11,12 +11,37 @@ type LogSource = {
   path: string;
 };
 
-function tailLines(content: string, maxLines: number) {
-  const lines = content.split(/\r?\n/);
-  return lines
-    .slice(Math.max(0, lines.length - maxLines))
-    .join('\n')
-    .trim();
+async function readTailLines(filePath: string, maxLines: number): Promise<string> {
+  const file = await open(filePath, 'r');
+
+  try {
+    const stats = await file.stat();
+    const linesWanted = Math.min(Math.max(maxLines, 50), 2_000);
+    const maxBytes = 8 * 1024 * 1024;
+    const readWindow = Math.min(stats.size, maxBytes);
+
+    if (readWindow <= 0) {
+      return '';
+    }
+
+    const start = Math.max(0, stats.size - readWindow);
+    const buffer = Buffer.alloc(readWindow);
+    const { bytesRead } = await file.read(buffer, 0, buffer.length, start);
+
+    const source = buffer.subarray(0, bytesRead).toString('utf8');
+
+    if (!source.length) {
+      return '';
+    }
+
+    return source
+      .split(/\r?\n/)
+      .slice(-linesWanted)
+      .join('\n')
+      .trim();
+  } finally {
+    await file.close();
+  }
 }
 
 @Injectable()
@@ -49,10 +74,13 @@ export class LogsService {
       };
     }
 
-    const [content, stats] = await Promise.all([readFile(source.path, 'utf8'), stat(source.path)]);
+    const [content, stats] = await Promise.all([
+      readTailLines(source.path, Math.min(Math.max(lines, 50), 2_000)),
+      stat(source.path),
+    ]);
 
     return {
-      content: tailLines(content, Math.min(Math.max(lines, 50), 2_000)),
+      content,
       exists: true,
       label: source.label,
       path: source.path,

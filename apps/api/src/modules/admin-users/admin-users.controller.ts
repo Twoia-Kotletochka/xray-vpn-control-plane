@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
+import { AdminRole } from '@prisma/client';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
+import { Roles } from '../../common/auth/roles.decorator';
 import { AdminUsersService } from './admin-users.service';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { DisableTwoFactorDto } from './dto/disable-two-factor.dto';
@@ -10,6 +12,7 @@ import { EnableTwoFactorDto } from './dto/enable-two-factor.dto';
 import { StartTwoFactorSetupDto } from './dto/start-two-factor-setup.dto';
 
 @Controller('admin-users')
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR, AdminRole.READ_ONLY)
 export class AdminUsersController {
   constructor(private readonly adminUsersService: AdminUsersService) {}
 
@@ -19,6 +22,7 @@ export class AdminUsersController {
   }
 
   @Post()
+  @Roles(AdminRole.SUPER_ADMIN)
   create(
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Body() input: CreateAdminUserDto,
@@ -28,6 +32,7 @@ export class AdminUsersController {
   }
 
   @Delete(':adminUserId')
+  @Roles(AdminRole.SUPER_ADMIN)
   remove(
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Param('adminUserId') adminUserId: string,

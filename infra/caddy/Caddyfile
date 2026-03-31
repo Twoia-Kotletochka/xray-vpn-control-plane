@@ -57,15 +57,9 @@
     file_server
   }
 
-  route {
-    basic_auth {
-      {$PANEL_BASIC_AUTH_USER} {$PANEL_BASIC_AUTH_PASSWORD_HASH}
-    }
-
-    handle {
-      root * /srv/web
-      try_files {path} /index.html
-      file_server
-    }
+  handle {
+    root * /srv/web
+    try_files {path} /index.html
+    file_server
   }
 }

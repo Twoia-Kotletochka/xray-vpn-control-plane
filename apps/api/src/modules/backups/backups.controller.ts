@@ -10,13 +10,16 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { AdminRole } from '@prisma/client';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
+import { Roles } from '../../common/auth/roles.decorator';
 import { BackupsService } from './backups.service';
 import { CreateBackupDto } from './dto/create-backup.dto';
 
 @Controller('backups')
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR, AdminRole.READ_ONLY)
 export class BackupsController {
   constructor(private readonly backupsService: BackupsService) {}
 
@@ -26,6 +29,7 @@ export class BackupsController {
   }
 
   @Post()
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR)
   create(
     @Body() payload: CreateBackupDto,
     @CurrentAdmin() admin: AuthenticatedAdmin,
@@ -35,6 +39,7 @@ export class BackupsController {
   }
 
   @Get(':backupId/download')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR, AdminRole.READ_ONLY)
   async download(
     @Param('backupId') backupId: string,
     @Res({ passthrough: true }) response: Response,
@@ -56,6 +61,7 @@ export class BackupsController {
   }
 
   @Delete(':backupId')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR)
   remove(
     @Param('backupId') backupId: string,
     @CurrentAdmin() admin: AuthenticatedAdmin,

@@ -607,7 +607,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
             reset: false,
           });
 
-          return [emailTag, Math.max(1, countOnlineIpEntries(response.ips))] as const;
+          return [emailTag, countOnlineIpEntries(response.ips)] as const;
         } catch {
           const fallbackResponse = await this.callStatsService<{
             stat?: {
@@ -621,7 +621,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
 
           return [
             emailTag,
-            Number.isFinite(fallbackValue) && fallbackValue > 0 ? fallbackValue : 1,
+            Number.isFinite(fallbackValue) && fallbackValue > 0 ? Math.trunc(fallbackValue) : 0,
           ] as const;
         }
       }),
@@ -640,7 +640,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      counts.set(emailTag, 1);
+      counts.set(emailTag, 0);
     });
 
     return counts;

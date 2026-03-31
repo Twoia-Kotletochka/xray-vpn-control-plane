@@ -1,9 +1,12 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { AdminRole } from '@prisma/client';
 
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { Roles } from '../../common/auth/roles.decorator';
 import { AuditLogService } from './audit-log.service';
 
 @Controller('audit-log')
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR, AdminRole.READ_ONLY)
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
