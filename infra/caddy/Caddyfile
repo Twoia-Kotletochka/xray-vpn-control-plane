@@ -25,6 +25,7 @@
     Permissions-Policy "camera=(), geolocation=(), microphone=()"
     Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   }
+  header_down -WWW-Authenticate
 
   @public_subscription path_regexp public_subscription ^/api/subscriptions/[A-Za-z0-9_-]+$
 

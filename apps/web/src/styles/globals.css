@@ -49,6 +49,16 @@ optgroup {
   background: #111114;
 }
 
+option {
+  background: var(--bg);
+  color: var(--text);
+}
+
+select {
+  color-scheme: dark;
+  appearance: none;
+}
+
 input[type="checkbox"] {
   accent-color: #d7d7d7;
 }
