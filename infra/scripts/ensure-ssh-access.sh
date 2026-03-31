@@ -21,7 +21,17 @@ ensure_fail2ban_unbans() {
     return
   fi
 
-  fail2ban-client set sshd unban "*" || true
+  local banned_ips
+
+  banned_ips="$(fail2ban-client status sshd 2>/dev/null | sed -n 's/.*Banned IP list:[[:space:]]*//p')"
+
+  if [[ -z "${banned_ips}" ]]; then
+    return
+  fi
+
+  for ip in ${banned_ips}; do
+    fail2ban-client set sshd unbanip "${ip}" || true
+  done
 }
 
 ensure_ufw_open

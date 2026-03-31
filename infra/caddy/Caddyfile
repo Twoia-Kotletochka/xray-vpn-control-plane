@@ -25,24 +25,31 @@
     Permissions-Policy "camera=(), geolocation=(), microphone=()"
     Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   }
-  header_down -WWW-Authenticate
 
   @public_subscription path_regexp public_subscription ^/api/subscriptions/[A-Za-z0-9_-]+$
 
   handle @public_subscription {
-    reverse_proxy api:3000
+    reverse_proxy api:3000 {
+      header_down -WWW-Authenticate
+    }
   }
 
   handle /api/* {
-    reverse_proxy api:3000
+    reverse_proxy api:3000 {
+      header_down -WWW-Authenticate
+    }
   }
 
   handle /healthz {
-    reverse_proxy api:3000
+    reverse_proxy api:3000 {
+      header_down -WWW-Authenticate
+    }
   }
 
   handle /readyz {
-    reverse_proxy api:3000
+    reverse_proxy api:3000 {
+      header_down -WWW-Authenticate
+    }
   }
 
   handle /favicon.ico {
