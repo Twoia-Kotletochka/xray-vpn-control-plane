@@ -141,6 +141,8 @@ describe('ClientsPage', () => {
     );
 
     await screen.findByText(selectedClientStatusText(firstClient));
+    expect(screen.getByRole('button', { name: /Client One/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Client Two/i })).toHaveAttribute('aria-pressed', 'false');
 
     const listCalls = () =>
       mockApiFetch.mock.calls.filter(([path]) =>
@@ -152,6 +154,8 @@ describe('ClientsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Client Two/i }));
 
     await screen.findByText(selectedClientStatusText(secondClient));
+    expect(screen.getByRole('button', { name: /Client One/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /Client Two/i })).toHaveAttribute('aria-pressed', 'true');
 
     await waitFor(() => {
       expect(listCalls()).toBe(1);

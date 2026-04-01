@@ -825,10 +825,16 @@ export function ClientsPage() {
               </thead>
               <tbody>
                 {clients.map((client) => (
-                  <tr key={client.id} className="table-row--interactive">
+                  <tr
+                    key={client.id}
+                    className={`table-row--interactive ${
+                      selectedClient?.id === client.id ? 'table-row--selected' : ''
+                    }`}
+                  >
                     <td className="clients-table__cell clients-table__cell--client">
                       <button
                         className="table-link"
+                        aria-pressed={selectedClient?.id === client.id}
                         type="button"
                         onClick={() => void loadClientDetails(client.id)}
                       >
