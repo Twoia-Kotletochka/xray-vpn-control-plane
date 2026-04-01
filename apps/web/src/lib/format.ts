@@ -44,6 +44,20 @@ export function formatDateTime(
   }).format(new Date(value));
 }
 
+export function formatDate(
+  value: string | null | undefined,
+  fallback = 'Не задано',
+  locale: Locale = 'ru',
+): string {
+  if (!value) {
+    return fallback;
+  }
+
+  return new Intl.DateTimeFormat(toLocaleTag(locale), {
+    dateStyle: 'medium',
+  }).format(new Date(value));
+}
+
 export function formatClientLiveStatus(status: ClientLiveStatus, locale: Locale = 'ru'): string {
   switch (status) {
     case 'ACTIVE':

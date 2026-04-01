@@ -129,6 +129,25 @@ export type DashboardSummary = {
     blocked: number;
     totalTrafficBytes: string;
   };
+  trends: {
+    windowDays: number;
+    comparisonWindowDays: number;
+    buckets: Array<{
+      date: string;
+      totalTrafficBytes: string;
+      activeClients: number;
+    }>;
+    comparisons: {
+      last7DaysTrafficBytes: string;
+      previous7DaysTrafficBytes: string;
+      trafficDeltaPercent: number | null;
+      averageDailyTrafficBytes: string;
+      busiestDayDate: string | null;
+      busiestDayTrafficBytes: string;
+      activeClientsToday: number;
+      peakActiveClients: number;
+    };
+  };
   host: {
     cpuPercent: number | null;
     ramPercent: number | null;

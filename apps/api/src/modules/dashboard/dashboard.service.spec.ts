@@ -1,10 +1,73 @@
 import { ClientStatus } from '@prisma/client';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DashboardService } from './dashboard.service';
 
 describe('DashboardService', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-01T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('returns separate counts for available and matched online clients', async () => {
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          activeConnections: 2,
+          client: {
+            status: ClientStatus.ACTIVE,
+          },
+        },
+        {
+          activeConnections: 1,
+          client: {
+            status: ClientStatus.DISABLED,
+          },
+        },
+        {
+          activeConnections: 0,
+          client: {
+            status: ClientStatus.ACTIVE,
+          },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          bucketDate: new Date('2026-03-25T00:00:00.000Z'),
+          clientId: 'client-one',
+          totalBytes: 1000n,
+          activeConnections: 1,
+        },
+        {
+          bucketDate: new Date('2026-03-24T00:00:00.000Z'),
+          clientId: 'client-two',
+          totalBytes: 2000n,
+          activeConnections: 1,
+        },
+        {
+          bucketDate: new Date('2026-03-30T00:00:00.000Z'),
+          clientId: 'client-one',
+          totalBytes: 4000n,
+          activeConnections: 1,
+        },
+        {
+          bucketDate: new Date('2026-03-31T00:00:00.000Z'),
+          clientId: 'client-two',
+          totalBytes: 3000n,
+          activeConnections: 1,
+        },
+        {
+          bucketDate: new Date('2026-04-01T00:00:00.000Z'),
+          clientId: 'client-three',
+          totalBytes: 6000n,
+          activeConnections: 1,
+        },
+      ]);
     const prisma = {
       client: {
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -22,26 +85,7 @@ describe('DashboardService', () => {
             totalBytes: 4096n,
           },
         }),
-        findMany: vi.fn().mockResolvedValue([
-          {
-            activeConnections: 2,
-            client: {
-              status: ClientStatus.ACTIVE,
-            },
-          },
-          {
-            activeConnections: 1,
-            client: {
-              status: ClientStatus.DISABLED,
-            },
-          },
-          {
-            activeConnections: 0,
-            client: {
-              status: ClientStatus.ACTIVE,
-            },
-          },
-        ]),
+        findMany,
       },
     };
     const systemService = {
@@ -98,6 +142,44 @@ describe('DashboardService', () => {
       disabled: 1,
       blocked: 1,
       totalTrafficBytes: '4096',
+    });
+    expect(prisma.dailyClientUsage.findMany).toHaveBeenNthCalledWith(1, {
+      distinct: ['clientId'],
+      orderBy: [{ bucketDate: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        activeConnections: true,
+        client: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
+    expect(prisma.dailyClientUsage.findMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        bucketDate: {
+          gte: new Date('2026-03-19T00:00:00.000Z'),
+        },
+      },
+      orderBy: [{ bucketDate: 'asc' }, { clientId: 'asc' }],
+      select: {
+        bucketDate: true,
+        clientId: true,
+        totalBytes: true,
+        activeConnections: true,
+      },
+    });
+    expect(summary.trends.windowDays).toBe(14);
+    expect(summary.trends.comparisonWindowDays).toBe(7);
+    expect(summary.trends.buckets).toHaveLength(14);
+    expect(summary.trends.comparisons).toMatchObject({
+      last7DaysTrafficBytes: '13000',
+      previous7DaysTrafficBytes: '3000',
+      trafficDeltaPercent: 333.3,
+      busiestDayDate: '2026-04-01T00:00:00.000Z',
+      busiestDayTrafficBytes: '6000',
+      activeClientsToday: 1,
+      peakActiveClients: 1,
     });
     expect(summary.runtime.onlineUsers).toBe(2);
     expect(summary.message).toContain('список клиентов');

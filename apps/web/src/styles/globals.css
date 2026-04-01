@@ -448,6 +448,27 @@ a {
   margin-bottom: 6px;
 }
 
+.insight-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 1.3rem;
+  letter-spacing: -0.03em;
+}
+
+.insight-card p {
+  margin: 0;
+}
+
+.dashboard-trends,
+.dashboard-trends__overview {
+  display: grid;
+  gap: 18px;
+}
+
+.dashboard-trends__overview {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -1038,6 +1059,14 @@ a {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.16));
 }
 
+.history-row__details {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--text-soft);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1108,6 +1137,7 @@ a {
   .metrics-grid,
   .content-grid,
   .split-grid,
+  .dashboard-trends__overview,
   .two-factor-grid,
   .field-grid,
   .stat-grid {
@@ -1167,10 +1197,17 @@ a {
   .metrics-grid,
   .content-grid,
   .split-grid,
+  .dashboard-trends__overview,
   .two-factor-grid,
   .field-grid,
   .stat-grid {
     grid-template-columns: 1fr;
+  }
+
+  .history-row__meta,
+  .history-row__details {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .sidebar__nav {
