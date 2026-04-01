@@ -201,4 +201,146 @@ describe('ClientsPage', () => {
 
     expect(await screen.findAllByRole('button', { name: /Заблокировать/i })).not.toHaveLength(0);
   });
+
+  it('sends device and IP limits when creating a client', async () => {
+    let createdClient: ClientRecord | null = null;
+    const createdUuid = '33333333-3333-3333-3333-333333333333';
+    const fallbackClient = createClient(
+      'fallback',
+      'Fallback',
+      'fallback',
+      '44444444-4444-4444-4444-444444444444',
+    );
+
+    mockApiFetch.mockImplementation(async (path: string, options?: RequestInit) => {
+      if (path === '/api/clients?page=1&pageSize=50&search=') {
+        return {
+          items: createdClient ? [createdClient] : [],
+          pagination: {
+            page: 1,
+            pageSize: 50,
+            total: createdClient ? 1 : 0,
+          },
+          filters: {
+            search: null,
+          },
+        } satisfies ClientListResponse;
+      }
+
+      if (path === '/api/clients' && options?.method === 'POST') {
+        expect(JSON.parse(String(options.body))).toMatchObject({
+          displayName: 'Shared plan',
+          deviceLimit: 3,
+          ipLimit: 2,
+        });
+
+        createdClient = createClient(
+          'client-3',
+          'Shared plan',
+          'shared-plan',
+          createdUuid,
+        );
+
+        return createdClient;
+      }
+
+      if (path === '/api/clients/client-3') {
+        return createClientDetail(createdClient ?? fallbackClient);
+      }
+
+      if (path === '/api/subscriptions/client/client-3') {
+        return createBundle(createdClient ?? fallbackClient);
+      }
+
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ClientsPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Добавить клиента/i }));
+
+    fireEvent.change(screen.getByLabelText('Имя клиента'), { target: { value: 'Shared plan' } });
+    fireEvent.change(screen.getByLabelText('Лимит устройств'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Лимит IP'), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: /Создать клиента/i }));
+
+    await screen.findByText(`Не активен • ${createdUuid}`);
+  });
+
+  it('clears device and IP limits back to unlimited', async () => {
+    const client = {
+      ...createClient(
+        'client-4',
+        'Limited Client',
+        'limited-client',
+        '44444444-4444-4444-4444-444444444444',
+      ),
+      deviceLimit: 3,
+      ipLimit: 2,
+    } satisfies ClientRecord;
+
+    mockApiFetch.mockImplementation(async (path: string, options?: RequestInit) => {
+      if (path === '/api/clients?page=1&pageSize=50&search=') {
+        return {
+          items: [client],
+          pagination: {
+            page: 1,
+            pageSize: 50,
+            total: 1,
+          },
+          filters: {
+            search: null,
+          },
+        } satisfies ClientListResponse;
+      }
+
+      if (path === '/api/clients/client-4' && options?.method === 'PATCH') {
+        expect(JSON.parse(String(options.body))).toMatchObject({
+          deviceLimit: null,
+          ipLimit: null,
+        });
+
+        return {
+          ...client,
+          deviceLimit: null,
+          ipLimit: null,
+        };
+      }
+
+      if (path === '/api/clients/client-4') {
+        return createClientDetail(client);
+      }
+
+      if (path === '/api/subscriptions/client/client-4') {
+        return createBundle(client);
+      }
+
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ClientsPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText(selectedClientStatusText(client));
+
+    fireEvent.change(screen.getByDisplayValue('3'), { target: { value: '' } });
+    fireEvent.change(screen.getByDisplayValue('2'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Сохранить изменения/i }));
+
+    await waitFor(() => {
+      expect(
+        mockApiFetch.mock.calls.some(
+          ([path, options]) =>
+            path === '/api/clients/client-4' && (options as RequestInit | undefined)?.method === 'PATCH',
+        ),
+      ).toBe(true);
+    });
+  });
 });

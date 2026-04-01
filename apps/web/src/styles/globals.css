@@ -746,6 +746,12 @@ a {
   gap: 8px;
 }
 
+.form-hint {
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
 .login-form__field input {
   min-height: 48px;
   padding: 0 14px;

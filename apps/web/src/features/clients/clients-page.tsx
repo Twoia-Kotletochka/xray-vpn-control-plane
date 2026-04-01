@@ -37,7 +37,9 @@ import {
 import { useAuth } from '../auth/auth-context';
 
 type CreateClientFormState = {
+  deviceLimit: string;
   displayName: string;
+  ipLimit: string;
   note: string;
   tags: string;
   durationDays: string;
@@ -58,7 +60,9 @@ type EditClientFormState = {
 };
 
 const initialCreateFormState: CreateClientFormState = {
+  deviceLimit: '',
   displayName: '',
+  ipLimit: '',
   note: '',
   tags: '',
   durationDays: '30',
@@ -90,6 +94,16 @@ function toTrafficLimitBytes(value: string): number | undefined {
   }
 
   return Math.round(numeric * 1024 * 1024 * 1024);
+}
+
+function toOptionalLimit(value: string): number | null {
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+
+  return Math.trunc(numeric);
 }
 
 function toDateTimeLocal(value: string | null): string {
@@ -259,6 +273,11 @@ export function ClientsPage() {
     delete: isEnglish ? 'Delete' : 'Удалить',
     expiryDate: isEnglish ? 'Expiry date' : 'Дата окончания',
     deviceLimit: isEnglish ? 'Device limit' : 'Лимит устройств',
+    ipLimit: isEnglish ? 'IP limit' : 'Лимит IP',
+    limitHint: isEnglish ? 'Leave empty for unlimited access.' : 'Оставьте пустым для режима без ограничений.',
+    ipLimitHint: isEnglish
+      ? 'Counts simultaneous external IPs for one config.'
+      : 'Считает одновременные внешние IP для одного конфига.',
     saving: isEnglish ? 'Saving...' : 'Сохраняем...',
     saveChanges: isEnglish ? 'Save changes' : 'Сохранить изменения',
     copy: isEnglish ? 'Copy' : 'Скопировать',
@@ -429,7 +448,9 @@ export function ClientsPage() {
             .map((item) => item.trim())
             .filter((item) => item.length > 0),
           durationDays: Number(formState.durationDays) || undefined,
+          deviceLimit: toOptionalLimit(formState.deviceLimit) ?? undefined,
           isTrafficUnlimited: formState.isTrafficUnlimited,
+          ipLimit: toOptionalLimit(formState.ipLimit) ?? undefined,
           trafficLimitBytes: formState.isTrafficUnlimited
             ? undefined
             : toTrafficLimitBytes(formState.trafficLimitGb),
@@ -459,12 +480,12 @@ export function ClientsPage() {
       await apiFetch(`/api/clients/${selectedClient.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          deviceLimit: Number(editFormState.deviceLimit) || undefined,
+          deviceLimit: toOptionalLimit(editFormState.deviceLimit),
           displayName: editFormState.displayName,
           expiresAt: editFormState.expiresAt
             ? new Date(editFormState.expiresAt).toISOString()
             : null,
-          ipLimit: Number(editFormState.ipLimit) || undefined,
+          ipLimit: toOptionalLimit(editFormState.ipLimit),
           isTrafficUnlimited: editFormState.isTrafficUnlimited,
           note: editFormState.note || undefined,
           status: resolveRequestedStatus(selectedClient.status, editFormState.accessStatus),
@@ -713,6 +734,34 @@ export function ClientsPage() {
                 />
               </label>
               <label className="login-form__field">
+                <span>{text.deviceLimit}</span>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder={text.noLimit}
+                  value={formState.deviceLimit}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, deviceLimit: event.target.value }))
+                  }
+                />
+                <small className="form-hint">{text.limitHint}</small>
+              </label>
+              <label className="login-form__field">
+                <span>{text.ipLimit}</span>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder={text.noLimit}
+                  value={formState.ipLimit}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, ipLimit: event.target.value }))
+                  }
+                />
+                <small className="form-hint">
+                  {text.limitHint} {text.ipLimitHint}
+                </small>
+              </label>
+              <label className="login-form__field">
                 <span>{text.tagsComma}</span>
                 <input
                   value={formState.tags}
@@ -878,6 +927,16 @@ export function ClientsPage() {
                     <span>{text.connections}</span>
                     <strong>{selectedClient.activeConnections}</strong>
                   </div>
+                  <div className="stat-card">
+                    <span>{text.deviceLimit}</span>
+                    <strong>
+                      {selectedClient.deviceLimit === null ? text.noLimit : selectedClient.deviceLimit}
+                    </strong>
+                  </div>
+                  <div className="stat-card">
+                    <span>{text.ipLimit}</span>
+                    <strong>{selectedClient.ipLimit === null ? text.noLimit : selectedClient.ipLimit}</strong>
+                  </div>
                 </div>
 
                 <div className="toolbar__actions wrap-actions">
@@ -981,6 +1040,7 @@ export function ClientsPage() {
                       <input
                         type="number"
                         min="1"
+                        placeholder={text.noLimit}
                         value={editFormState.deviceLimit}
                         onChange={(event) =>
                           setEditFormState((current) => ({
@@ -989,12 +1049,14 @@ export function ClientsPage() {
                           }))
                         }
                       />
+                      <small className="form-hint">{text.limitHint}</small>
                     </label>
                     <label className="login-form__field">
-                      <span>IP limit</span>
+                      <span>{text.ipLimit}</span>
                       <input
                         type="number"
                         min="1"
+                        placeholder={text.noLimit}
                         value={editFormState.ipLimit}
                         onChange={(event) =>
                           setEditFormState((current) => ({
@@ -1003,6 +1065,9 @@ export function ClientsPage() {
                           }))
                         }
                       />
+                      <small className="form-hint">
+                        {text.limitHint} {text.ipLimitHint}
+                      </small>
                     </label>
                   </div>
 
