@@ -18,7 +18,7 @@ install_docker() {
   case "${OS_ID}" in
     ubuntu|debian)
       apt-get update
-      apt-get install -y ca-certificates curl gnupg ufw fail2ban
+      apt-get install -y ca-certificates curl git gnupg openssl ufw fail2ban
       install -m 0755 -d /etc/apt/keyrings
       curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
       chmod a+r /etc/apt/keyrings/docker.gpg
@@ -76,4 +76,4 @@ configure_firewall
 configure_fail2ban
 prepare_runtime_dirs
 
-echo "Bootstrap completed. Fill .env, render the Xray config, then run infra/scripts/deploy.sh."
+echo "Bootstrap completed. Run install.sh for guided setup, or fill .env manually and then run infra/scripts/deploy.sh."

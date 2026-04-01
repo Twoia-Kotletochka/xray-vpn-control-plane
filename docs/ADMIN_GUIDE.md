@@ -14,7 +14,7 @@
 ## Authentication
 
 - Enable `TOTP 2FA` for accounts with persistent access.
-- Treat the panel basic auth and the in-app admin login as separate credentials.
+- Treat panel login and server SSH access as separate credentials and rotate them independently.
 
 ## Backups
 

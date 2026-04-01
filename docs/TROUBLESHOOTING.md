@@ -2,11 +2,11 @@
 
 ## Panel Shows a Certificate Warning
 
-If the panel is exposed directly on an IP and `PANEL_TLS_MODE=internal`, browsers will show a certificate warning. A public CA-signed certificate requires a real DNS name.
+By default the panel is served on `8443` with Caddy's internal certificate. Browsers will show a warning until you trust that CA or place the panel behind your own public certificate setup.
 
-## Browser Keeps Asking for Basic Auth
+## Browser Still Shows the Old UI After a Deploy
 
-If you recently changed the panel edge auth configuration, do a full reload or reopen the panel in a new tab to clear a cached browser challenge.
+Do a full reload or open the panel in a new tab to clear cached assets after a frontend update.
 
 ## Admin Login Fails
 
