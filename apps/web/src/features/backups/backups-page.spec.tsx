@@ -136,12 +136,12 @@ describe('BackupsPage', () => {
       ),
     ).toBeTruthy();
     const restoreCopyButton = screen.getByRole('button', { name: 'Скопировать restore' });
-    expect(restoreCopyButton).toBeDisabled();
+    expect((restoreCopyButton as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(screen.getByLabelText(/Сначала выполню и проверю dry-run/i));
     fireEvent.click(screen.getByLabelText(/есть свежий внешний backup/i));
     fireEvent.click(screen.getByLabelText(/окно обслуживания/i));
 
-    expect(restoreCopyButton).not.toBeDisabled();
+    expect((restoreCopyButton as HTMLButtonElement).disabled).toBe(false);
   });
 });
