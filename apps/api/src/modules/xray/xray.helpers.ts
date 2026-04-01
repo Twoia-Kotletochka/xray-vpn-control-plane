@@ -72,6 +72,17 @@ export function buildTrafficDeltaMap(stats: XrayStatEntry[]): Map<string, XrayTr
   return usage;
 }
 
+export function resolveObservedActiveConnections(input: {
+  emailTag: string;
+  onlineIpCountByEmailTag: ReadonlyMap<string, number>;
+  onlineUsers: ReadonlySet<string>;
+}) {
+  return Math.max(
+    input.onlineIpCountByEmailTag.get(input.emailTag) ?? 0,
+    input.onlineUsers.has(input.emailTag) ? 1 : 0,
+  );
+}
+
 export function startOfUtcDay(value: Date): Date {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }

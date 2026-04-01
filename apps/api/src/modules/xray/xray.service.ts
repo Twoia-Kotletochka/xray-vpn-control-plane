@@ -15,7 +15,11 @@ import {
   describeClientLimitBreaches,
   evaluateClientLimitBreaches,
 } from './xray-limit-enforcement.util';
-import { buildTrafficDeltaMap, startOfUtcDay } from './xray.helpers';
+import {
+  buildTrafficDeltaMap,
+  resolveObservedActiveConnections,
+  startOfUtcDay,
+} from './xray.helpers';
 
 @Injectable()
 export class XrayService implements OnModuleInit, OnModuleDestroy {
@@ -295,83 +299,133 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
       const capturedAt = new Date();
       const bucketDate = startOfUtcDay(capturedAt);
       const onlineUsers = Array.from(new Set(onlineUsersResponse.users ?? []));
+      const onlineUserSet = new Set(onlineUsers);
       const onlineIpCountByEmailTag = await this.loadOnlineIpCountMap(onlineUsers);
       const deltas = buildTrafficDeltaMap(queryResponse.stat ?? []);
       const emailTags = Array.from(new Set([...deltas.keys(), ...onlineUsers]));
+      const clients =
+        emailTags.length === 0
+          ? []
+          : await this.prisma.client.findMany({
+              where: {
+                emailTag: {
+                  in: emailTags,
+                },
+              },
+              select: {
+                deviceLimit: true,
+                displayName: true,
+                emailTag: true,
+                id: true,
+                ipLimit: true,
+                status: true,
+              },
+            });
 
-      if (emailTags.length > 0) {
-        const clients = await this.prisma.client.findMany({
+      await this.prisma.$transaction(async (tx) => {
+        await tx.dailyClientUsage.updateMany({
           where: {
-            emailTag: {
-              in: emailTags,
-            },
+            bucketDate,
           },
-          select: {
-            deviceLimit: true,
-            displayName: true,
-            emailTag: true,
-            id: true,
-            ipLimit: true,
-            status: true,
+          data: {
+            activeConnections: 0,
           },
         });
 
-        await this.prisma.$transaction(async (tx) => {
-          for (const client of clients) {
-            const delta = deltas.get(client.emailTag) ?? {
+        const latestConnectionSnapshots = await tx.dailyClientUsage.findMany({
+          distinct: ['clientId'],
+          orderBy: [{ bucketDate: 'desc' }, { updatedAt: 'desc' }],
+          select: {
+            activeConnections: true,
+            clientId: true,
+          },
+        });
+        const currentClientIds = new Set(clients.map((client) => client.id));
+
+        for (const snapshot of latestConnectionSnapshots) {
+          if (snapshot.activeConnections === 0 || currentClientIds.has(snapshot.clientId)) {
+            continue;
+          }
+
+          await tx.dailyClientUsage.upsert({
+            where: {
+              clientId_bucketDate: {
+                bucketDate,
+                clientId: snapshot.clientId,
+              },
+            },
+            update: {
+              activeConnections: 0,
+            },
+            create: {
+              activeConnections: 0,
+              bucketDate,
+              clientId: snapshot.clientId,
               incomingBytes: 0n,
               outgoingBytes: 0n,
               totalBytes: 0n,
-            };
-            const activeConnections =
-              onlineIpCountByEmailTag.get(client.emailTag) ??
-              (onlineUsers.includes(client.emailTag) ? 1 : 0);
+            },
+          });
+        }
 
-            if (delta.totalBytes === 0n && activeConnections === 0) {
-              continue;
-            }
+        for (const client of clients) {
+          const delta = deltas.get(client.emailTag) ?? {
+            incomingBytes: 0n,
+            outgoingBytes: 0n,
+            totalBytes: 0n,
+          };
+          const activeConnections = resolveObservedActiveConnections({
+            emailTag: client.emailTag,
+            onlineIpCountByEmailTag,
+            onlineUsers: onlineUserSet,
+          });
 
-            await tx.dailyClientUsage.upsert({
-              where: {
-                clientId_bucketDate: {
-                  bucketDate,
-                  clientId: client.id,
-                },
-              },
-              update: {
-                activeConnections,
-                incomingBytes: {
-                  increment: delta.incomingBytes,
-                },
-                outgoingBytes: {
-                  increment: delta.outgoingBytes,
-                },
-                totalBytes: {
-                  increment: delta.totalBytes,
-                },
-              },
-              create: {
-                activeConnections,
+          if (delta.totalBytes === 0n && activeConnections === 0) {
+            continue;
+          }
+
+          await tx.dailyClientUsage.upsert({
+            where: {
+              clientId_bucketDate: {
                 bucketDate,
                 clientId: client.id,
-                incomingBytes: delta.incomingBytes,
-                outgoingBytes: delta.outgoingBytes,
-                totalBytes: delta.totalBytes,
               },
-            });
+            },
+            update: {
+              activeConnections,
+              incomingBytes: {
+                increment: delta.incomingBytes,
+              },
+              outgoingBytes: {
+                increment: delta.outgoingBytes,
+              },
+              totalBytes: {
+                increment: delta.totalBytes,
+              },
+            },
+            create: {
+              activeConnections,
+              bucketDate,
+              clientId: client.id,
+              incomingBytes: delta.incomingBytes,
+              outgoingBytes: delta.outgoingBytes,
+              totalBytes: delta.totalBytes,
+            },
+          });
 
-            await tx.client.update({
-              where: {
-                id: client.id,
-              },
-              data: {
-                lastActivatedAt: activeConnections > 0 ? capturedAt : undefined,
-                lastSeenAt: capturedAt,
-              },
-            });
-          }
-        });
+          await tx.client.update({
+            where: {
+              id: client.id,
+            },
+            data: {
+              lastActivatedAt: activeConnections > 0 ? capturedAt : undefined,
+              lastSeenAt: capturedAt,
+            },
+          });
+        }
+      });
 
+      if (emailTags.length > 0) {
         await this.enforceTrafficQuotas(emailTags);
         await this.enforceClientAccessLimits(clients, onlineIpCountByEmailTag);
       }

@@ -34,7 +34,7 @@ export class DashboardService {
       },
     });
 
-    const [clients, available, expired, disabled, blocked, usage, host, runtime] =
+    const [clients, available, expired, disabled, blocked, usage, latestConnections, host, runtime] =
       await Promise.all([
         this.prisma.client.count(),
         this.prisma.client.count({
@@ -62,16 +62,31 @@ export class DashboardService {
             totalBytes: true,
           },
         }),
+        this.prisma.dailyClientUsage.findMany({
+          distinct: ['clientId'],
+          orderBy: [{ bucketDate: 'desc' }, { updatedAt: 'desc' }],
+          select: {
+            activeConnections: true,
+            client: {
+              select: {
+                status: true,
+              },
+            },
+          },
+        }),
         this.systemService.getHostMetrics(),
         this.xrayService.getRuntimeSummary(),
       ]);
+    const onlineNow = latestConnections.filter(
+      (item) => item.activeConnections > 0 && item.client.status === ClientStatus.ACTIVE,
+    ).length;
 
     return {
       totals: {
         clients,
         active: available,
         available,
-        onlineNow: runtime.onlineUsers,
+        onlineNow,
         expired,
         disabled,
         blocked,
@@ -85,7 +100,7 @@ export class DashboardService {
         xrayStatus: runtime.status,
       },
       message:
-        'Дашборд разделяет доступных клиентов по статусу и реальные live-подключения из Xray runtime, чтобы онлайн не смешивался с просто активными профилями.',
+        'Дашборд считает онлайн по тем же live-снимкам клиентов, что и список клиентов, поэтому online-статус больше не расходится между экранами.',
     };
   }
 }

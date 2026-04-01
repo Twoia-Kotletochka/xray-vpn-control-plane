@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DashboardService } from './dashboard.service';
 
 describe('DashboardService', () => {
-  it('returns separate counts for available and online clients', async () => {
+  it('returns separate counts for available and matched online clients', async () => {
     const prisma = {
       client: {
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -22,6 +22,26 @@ describe('DashboardService', () => {
             totalBytes: 4096n,
           },
         }),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            activeConnections: 2,
+            client: {
+              status: ClientStatus.ACTIVE,
+            },
+          },
+          {
+            activeConnections: 1,
+            client: {
+              status: ClientStatus.DISABLED,
+            },
+          },
+          {
+            activeConnections: 0,
+            client: {
+              status: ClientStatus.ACTIVE,
+            },
+          },
+        ]),
       },
     };
     const systemService = {
@@ -79,6 +99,7 @@ describe('DashboardService', () => {
       blocked: 1,
       totalTrafficBytes: '4096',
     });
-    expect(summary.message).toContain('live');
+    expect(summary.runtime.onlineUsers).toBe(2);
+    expect(summary.message).toContain('список клиентов');
   });
 });
