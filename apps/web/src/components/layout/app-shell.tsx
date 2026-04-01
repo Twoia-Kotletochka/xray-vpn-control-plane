@@ -29,6 +29,24 @@ export function AppShell() {
     };
   }, [isSidebarOpen]);
 
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSidebarOpen]);
+
   return (
     <div className={`app-shell ${isSidebarOpen ? 'app-shell--nav-open' : ''}`}>
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

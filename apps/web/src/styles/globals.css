@@ -69,17 +69,24 @@ a {
 }
 
 .app-shell {
-  display: grid;
-  grid-template-columns: 280px 1fr;
+  position: relative;
   min-height: 100vh;
 }
 
 .app-shell__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
   display: none;
+  border: 0;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(4px);
 }
 
 .app-shell__content {
   position: relative;
+  z-index: 1;
+  width: 100%;
   padding: 24px;
 }
 
@@ -88,13 +95,30 @@ a {
 }
 
 .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  overflow-y: auto;
+  width: min(320px, calc(100vw - 24px));
+  max-width: 100%;
+  transform: translateX(calc(-100% - 24px));
+  transition: transform 220ms ease;
   padding: 28px 22px;
   border-right: 1px solid var(--border);
   background: rgba(8, 8, 10, 0.92);
   backdrop-filter: blur(20px);
+  box-shadow: var(--shadow);
+}
+
+.sidebar--open {
+  transform: translateX(0);
+}
+
+.app-shell--nav-open .app-shell__overlay {
+  display: block;
 }
 
 .sidebar__header {
@@ -147,7 +171,8 @@ a {
 
 .sidebar__close,
 .topbar__menu {
-  display: none;
+  display: inline-grid;
+  place-items: center;
 }
 
 .sidebar__link {
@@ -210,6 +235,7 @@ a {
 
 .topbar__identity {
   padding: 10px 14px;
+  max-width: min(100%, 420px);
 }
 
 .topbar__identity strong {
@@ -248,6 +274,18 @@ a {
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.topbar__actions {
+  justify-content: flex-end;
+}
+
+.topbar__actions > * {
+  flex-shrink: 0;
+}
+
+.topbar__menu {
+  flex-shrink: 0;
 }
 
 .locale-switch {
@@ -1048,42 +1086,8 @@ a {
 }
 
 @media (max-width: 1100px) {
-  .app-shell {
-    display: block;
-  }
-
   .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 30;
     width: min(320px, 86vw);
-    transform: translateX(-100%);
-    transition: transform 220ms ease;
-    border-right: 1px solid var(--border);
-    border-bottom: 0;
-  }
-
-  .sidebar--open {
-    transform: translateX(0);
-  }
-
-  .app-shell__overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    display: block;
-    border: 0;
-    background: rgba(0, 0, 0, 0.52);
-    backdrop-filter: blur(4px);
-  }
-
-  .sidebar__close,
-  .topbar__menu {
-    display: inline-grid;
-  }
-
-  .topbar__menu {
-    flex-shrink: 0;
   }
 
   .metrics-grid,
@@ -1105,6 +1109,10 @@ a {
     padding: 18px;
   }
 
+  .sidebar {
+    width: min(320px, calc(100vw - 18px));
+  }
+
   .clients-table {
     min-width: 860px;
   }
@@ -1124,6 +1132,21 @@ a {
   .topbar__identity {
     width: 100%;
     justify-content: flex-start;
+    max-width: none;
+  }
+
+  .topbar__actions,
+  .page-header__actions,
+  .toolbar__actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .topbar__chip,
+  .topbar__actions .button,
+  .topbar__actions .locale-switch {
+    width: 100%;
+    justify-content: center;
   }
 
   .metrics-grid,
