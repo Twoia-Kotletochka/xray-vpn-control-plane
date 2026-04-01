@@ -11,10 +11,10 @@
 - импорт/экспорт клиентов
 - backup management и автоматические локальные backup snapshots
 - web panel с переключением `RU/EN`, дашбордом, логами и статусом сервера
+- guided UI restore flow с preflight, host-side командами и автоматическим safeguard backup
 
 ## Следующие Приоритеты
 
-- безопасный UI restore flow
 - более глубокая аналитика и usage history
 - richer logs UX с фильтрацией и лучшей навигацией
 - более простой public-domain onboarding для панели

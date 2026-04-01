@@ -59,6 +59,7 @@ export const envSchema = z.object({
   XRAY_CONTROL_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
   CADDY_ACCESS_LOG_FILE: z.string().default('/var/log/server-vpn/caddy-access.log'),
   BACKUP_DIR: z.string().default('/var/backups/server-vpn'),
+  BACKUP_HOST_DIR: z.string().default(''),
   BACKUP_AUTO_CREATE_ENABLED: envBooleanSchema.default(true),
   BACKUP_AUTO_CREATE_INTERVAL_DAYS: z.coerce.number().int().positive().default(5),
   BACKUP_AUTO_MAINTENANCE_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),

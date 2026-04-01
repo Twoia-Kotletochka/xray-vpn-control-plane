@@ -236,6 +236,8 @@ export type BackupRecord = {
   id: string;
   fileName: string;
   absolutePath: string;
+  containerAbsolutePath: string;
+  hostAbsolutePath: string | null;
   checksumSha256: string;
   fileSizeBytes: string;
   status: string;
@@ -249,6 +251,7 @@ export type BackupListResponse = {
   items: BackupRecord[];
   policy: {
     backupDir: string;
+    hostBackupDir: string | null;
     autoCreateEnabled: boolean;
     autoCreateIntervalDays: number;
     retentionDays: number;
@@ -262,6 +265,15 @@ export type BackupRestorePlanResponse = {
   commands: {
     dryRun: string;
     restore: string;
+    verification: Array<{
+      id: 'composePs' | 'apiHealthz' | 'apiReadyz' | 'recentLogs';
+      command: string;
+    }>;
+  };
+  guidance: {
+    createsSafeguardBackup: boolean;
+    hostPathConfigured: boolean;
+    restoreScope: 'FULL' | 'DATABASE_ONLY';
   };
   preflight: {
     canRestore: boolean;

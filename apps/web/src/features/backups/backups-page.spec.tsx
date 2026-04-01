@@ -31,7 +31,9 @@ describe('BackupsPage', () => {
     const backupRecord = {
       id: 'backup-1',
       fileName: 'server-vpn-20260324-184000Z.tar.gz',
-      absolutePath: '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz',
+      absolutePath: '/opt/server-vpn/infra/backup/output/server-vpn-20260324-184000Z.tar.gz',
+      containerAbsolutePath: '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz',
+      hostAbsolutePath: '/opt/server-vpn/infra/backup/output/server-vpn-20260324-184000Z.tar.gz',
       checksumSha256: 'abc',
       fileSizeBytes: '1024',
       status: 'READY',
@@ -44,6 +46,7 @@ describe('BackupsPage', () => {
       items: [backupRecord],
       policy: {
         backupDir: '/var/backups/server-vpn',
+        hostBackupDir: '/opt/server-vpn/infra/backup/output',
         autoCreateEnabled: true,
         autoCreateIntervalDays: 5,
         retentionDays: 14,
@@ -58,7 +61,30 @@ describe('BackupsPage', () => {
         dryRun:
           "./infra/scripts/restore.sh --dry-run --yes-restore '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz'",
         restore:
-          "./infra/scripts/restore.sh --yes-restore '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz'",
+          "./infra/scripts/restore.sh --yes-restore '/opt/server-vpn/infra/backup/output/server-vpn-20260324-184000Z.tar.gz'",
+        verification: [
+          {
+            id: 'composePs',
+            command: 'docker compose ps',
+          },
+          {
+            id: 'apiHealthz',
+            command: 'curl -sk https://127.0.0.1:8443/healthz',
+          },
+          {
+            id: 'apiReadyz',
+            command: 'curl -sk https://127.0.0.1:8443/readyz',
+          },
+          {
+            id: 'recentLogs',
+            command: 'docker compose logs --tail=100 api xray caddy',
+          },
+        ],
+      },
+      guidance: {
+        createsSafeguardBackup: true,
+        hostPathConfigured: true,
+        restoreScope: 'FULL',
       },
       preflight: {
         canRestore: true,
@@ -103,11 +129,19 @@ describe('BackupsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
 
     await screen.findByText(/Preflight пройден/i);
+    expect(screen.getByText(/Автоматический safeguard backup/i)).toBeTruthy();
     expect(
       screen.getByText(
-        "./infra/scripts/restore.sh --dry-run --yes-restore '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz'",
+        "./infra/scripts/restore.sh --dry-run --yes-restore '/opt/server-vpn/infra/backup/output/server-vpn-20260324-184000Z.tar.gz'",
       ),
     ).toBeTruthy();
-    expect(screen.getByText(/Schema version/i)).toBeTruthy();
+    const restoreCopyButton = screen.getByRole('button', { name: 'Скопировать restore' });
+    expect(restoreCopyButton).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText(/Сначала выполню и проверю dry-run/i));
+    fireEvent.click(screen.getByLabelText(/есть свежий внешний backup/i));
+    fireEvent.click(screen.getByLabelText(/окно обслуживания/i));
+
+    expect(restoreCopyButton).not.toBeDisabled();
   });
 });

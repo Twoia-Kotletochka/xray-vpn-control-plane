@@ -21,7 +21,8 @@
 - Create backups from the `Backups` page before risky changes, migrations, or large imports.
 - Automatic local backups run every 5 days and archives older than 14 days are pruned automatically.
 - Download important archives to external storage; retention cleanup only protects local disk usage, not long-term disaster recovery.
-- Restores remain a host-side operator action via `./infra/scripts/restore.sh --yes-restore /absolute/path/to/archive.tar.gz`.
+- Use the `Backups` page to review the restore preflight, exact host-side commands, and post-restore checks before touching production data.
+- Restores remain a host-side operator action via `./infra/scripts/restore.sh`, but destructive restore now creates an automatic safeguard backup of the current state first.
 
 ## Import / Export
 

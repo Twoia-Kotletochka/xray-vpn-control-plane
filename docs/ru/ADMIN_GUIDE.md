@@ -22,7 +22,8 @@
 - Перед рискованными изменениями и крупным импортом создай ручной backup.
 - Автоматические локальные backups создаются каждые 5 дней.
 - Архивы старше 14 дней удаляются автоматически.
-- Restore пока делается только с хоста через `./infra/scripts/restore.sh`.
+- Перед restore используй страницу `Backups`: там есть preflight, точные host-side команды и post-restore checks.
+- Restore по-прежнему запускается только с хоста через `./infra/scripts/restore.sh`, но destructive restore теперь сначала создаёт автоматический safeguard backup текущего состояния.
 
 ## Import / Export
 

@@ -988,6 +988,21 @@ a {
   flex-wrap: wrap;
 }
 
+.restore-guide {
+  gap: 14px;
+}
+
+.restore-guide__hint {
+  color: var(--text-soft);
+}
+
+.restore-guide__check {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-soft);
+}
+
 .guide-grid,
 .history-list {
   display: grid;

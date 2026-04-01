@@ -10,10 +10,10 @@
 - [x] React admin panel with dashboard, clients, logs, backups, help, and `RU/EN` switching
 - [x] TOTP 2FA and a basic role split between `SUPER_ADMIN` and `OPERATOR`
 - [x] Scheduled local backups with automatic retention cleanup
+- [x] Guided UI restore flow with preflight, host-side commands, and an automatic safeguard backup
 
 ## In Progress Toward a Stronger Public Release
 
-- [ ] Safer UI restore flow on top of the existing host-side restore script
 - [ ] Richer analytics and historical usage views
 - [ ] Better logs UX with filtering and deeper operator workflows
 - [ ] Simpler panel-domain onboarding and public TLS automation

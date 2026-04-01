@@ -32,6 +32,10 @@ import type { CreateBackupDto } from './dto/create-backup.dto';
 
 const execFileAsync = promisify(execFile);
 const XRAY_RUNTIME_CONFIG_PATH = '/var/lib/server-vpn/xray/config.json';
+const RESTORE_DRY_RUN_PLACEHOLDER =
+  './infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz';
+const RESTORE_COMMAND_PLACEHOLDER =
+  './infra/scripts/restore.sh --yes-restore /absolute/path/to/archive.tar.gz';
 
 type BackupArchiveArtifact = {
   archivePath: string;
@@ -102,19 +106,19 @@ export class BackupsService implements OnModuleInit, OnModuleDestroy {
       items: items.map((item) => this.serializeBackup(item)),
       policy: {
         backupDir: this.backupDir,
+        hostBackupDir: this.backupHostDir,
         autoCreateEnabled: this.backupAutoCreateEnabled,
         autoCreateIntervalDays: this.backupAutoCreateIntervalDays,
         retentionDays: this.backupRetentionDays,
-        restoreDryRunCommand:
-          './infra/scripts/restore.sh --dry-run --yes-restore /absolute/path/to/archive.tar.gz',
-        restoreCommand: './infra/scripts/restore.sh --yes-restore /absolute/path/to/archive.tar.gz',
+        restoreDryRunCommand: RESTORE_DRY_RUN_PLACEHOLDER,
+        restoreCommand: RESTORE_COMMAND_PLACEHOLDER,
       },
     };
   }
 
   async getRestorePlan(backupId: string) {
     const snapshot = await this.requireBackup(backupId);
-    const archivePath = join(this.backupDir, snapshot.fileName);
+    const archivePath = this.buildContainerArchivePath(snapshot.fileName);
 
     if (!existsSync(archivePath)) {
       throw new NotFoundException('Backup archive is not available.');
@@ -143,12 +147,41 @@ export class BackupsService implements OnModuleInit, OnModuleDestroy {
       manifest,
       manifestError,
     });
+    const hostArchivePath = this.buildHostArchivePath(snapshot.fileName);
+    const restoreScope = preflight.files.xrayConfig ? 'FULL' : 'DATABASE_ONLY';
 
     return {
       backup: this.serializeBackup(snapshot),
       commands: {
-        dryRun: `./infra/scripts/restore.sh --dry-run --yes-restore ${this.quoteShellArg(archivePath)}`,
-        restore: `./infra/scripts/restore.sh --yes-restore ${this.quoteShellArg(archivePath)}`,
+        dryRun: hostArchivePath
+          ? `./infra/scripts/restore.sh --dry-run --yes-restore ${this.quoteShellArg(hostArchivePath)}`
+          : RESTORE_DRY_RUN_PLACEHOLDER,
+        restore: hostArchivePath
+          ? `./infra/scripts/restore.sh --yes-restore ${this.quoteShellArg(hostArchivePath)}`
+          : RESTORE_COMMAND_PLACEHOLDER,
+        verification: [
+          {
+            id: 'composePs',
+            command: 'docker compose ps',
+          },
+          {
+            id: 'apiHealthz',
+            command: 'curl -sk https://127.0.0.1:8443/healthz',
+          },
+          {
+            id: 'apiReadyz',
+            command: 'curl -sk https://127.0.0.1:8443/readyz',
+          },
+          {
+            id: 'recentLogs',
+            command: 'docker compose logs --tail=100 api xray caddy',
+          },
+        ],
+      },
+      guidance: {
+        createsSafeguardBackup: true,
+        hostPathConfigured: hostArchivePath !== null,
+        restoreScope,
       },
       preflight,
     };
@@ -578,24 +611,33 @@ export class BackupsService implements OnModuleInit, OnModuleDestroy {
     restoredAt: Date | null;
     status: string;
   }) {
-    const archivePath = join(this.backupDir, snapshot.fileName);
+    const containerArchivePath = this.buildContainerArchivePath(snapshot.fileName);
+    const hostArchivePath = this.buildHostArchivePath(snapshot.fileName);
 
     return {
       id: snapshot.id,
       fileName: snapshot.fileName,
-      absolutePath: archivePath,
+      absolutePath: hostArchivePath ?? containerArchivePath,
+      containerAbsolutePath: containerArchivePath,
+      hostAbsolutePath: hostArchivePath,
       checksumSha256: snapshot.checksumSha256,
       fileSizeBytes: snapshot.fileSizeBytes.toString(),
       status: snapshot.status,
       createdAt: snapshot.createdAt.toISOString(),
       restoredAt: snapshot.restoredAt?.toISOString() ?? null,
       notes: snapshot.notes,
-      exists: existsSync(archivePath),
+      exists: existsSync(containerArchivePath),
     };
   }
 
   private get backupDir() {
     return this.configService.get('BACKUP_DIR', { infer: true });
+  }
+
+  private get backupHostDir() {
+    const value = this.configService.get('BACKUP_HOST_DIR', { infer: true }).trim();
+
+    return value.length > 0 ? value : null;
   }
 
   private get backupAutoCreateEnabled() {
@@ -616,5 +658,13 @@ export class BackupsService implements OnModuleInit, OnModuleDestroy {
 
   private quoteShellArg(value: string) {
     return `'${value.replace(/'/g, `'\\''`)}'`;
+  }
+
+  private buildContainerArchivePath(fileName: string) {
+    return join(this.backupDir, fileName);
+  }
+
+  private buildHostArchivePath(fileName: string) {
+    return this.backupHostDir ? join(this.backupHostDir, fileName) : null;
   }
 }

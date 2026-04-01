@@ -45,6 +45,7 @@ export function BackupsPage() {
   const { locale, ui } = useI18n();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [backupDir, setBackupDir] = useState('');
+  const [hostBackupDir, setHostBackupDir] = useState<string | null>(null);
   const [autoCreateEnabled, setAutoCreateEnabled] = useState(false);
   const [autoCreateIntervalDays, setAutoCreateIntervalDays] = useState(0);
   const [retentionDays, setRetentionDays] = useState(0);
@@ -59,6 +60,9 @@ export function BackupsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<BackupRecord | null>(null);
   const [restorePlan, setRestorePlan] = useState<BackupRestorePlanResponse | null>(null);
+  const [hasConfirmedDryRun, setHasConfirmedDryRun] = useState(false);
+  const [hasConfirmedExternalBackup, setHasConfirmedExternalBackup] = useState(false);
+  const [hasConfirmedMaintenanceWindow, setHasConfirmedMaintenanceWindow] = useState(false);
   const isReadOnly = admin?.role === 'READ_ONLY';
   const text =
     locale === 'en'
@@ -80,6 +84,7 @@ export function BackupsPage() {
           policySubtitle:
             'These parameters come from the production config and are enforced automatically when new archives are created.',
           archiveDirectory: 'Archive directory',
+          hostArchiveDirectory: 'Host archive directory',
           autoBackup: 'Auto-backup',
           everyDays: (days: number) => `Every ${days} days`,
           disabled: 'Disabled',
@@ -129,6 +134,33 @@ export function BackupsPage() {
           found: 'Found',
           missing: 'Missing',
           keepCurrentXrayConfig: 'Not in the archive. The current config.json will be preserved.',
+          restoreOpen: 'Restore',
+          restoreScope: 'Restore scope',
+          restoreScopeFull: 'Database and Xray runtime config',
+          restoreScopeDatabaseOnly: 'Database only, current Xray config stays in place',
+          safeguardBackup: 'Automatic safeguard backup',
+          included: 'Included before destructive restore',
+          hostArchivePath: 'Host archive path',
+          containerArchivePath: 'Container archive path',
+          hostPathMissing:
+            'The host backup directory is not configured. Replace the placeholder archive path manually before running restore from the host shell.',
+          checklistTitle: 'Restore checklist',
+          checklistHint: 'Confirm every item to unlock the destructive restore command.',
+          confirmDryRun: 'I will run and review the dry-run first.',
+          confirmExternalBackup:
+            'I confirmed there is a fresh external backup of the current state.',
+          confirmMaintenanceWindow:
+            'I am restoring in a maintenance window and understand current data may be overwritten.',
+          destructiveUnlockHint:
+            'The destructive restore command stays locked until the checklist is confirmed and the host archive path is available.',
+          verificationTitle: 'Post-restore checks',
+          copyVerification: 'Copy verification bundle',
+          verificationLabels: {
+            composePs: 'Container status',
+            apiHealthz: 'API health',
+            apiReadyz: 'API readiness',
+            recentLogs: 'Recent logs',
+          },
           runbook: [
             'Run the dry-run on the host first and make sure every check is green.',
             'Create a fresh external backup before the real restore.',
@@ -160,6 +192,7 @@ export function BackupsPage() {
           policySubtitle:
             'Параметры берутся из production-конфига и соблюдаются автоматически при создании новых архивов.',
           archiveDirectory: 'Каталог архивов',
+          hostArchiveDirectory: 'Каталог архивов на хосте',
           autoBackup: 'Автобэкап',
           everyDays: (days: number) => `Каждые ${days} дн.`,
           disabled: 'Выключен',
@@ -209,6 +242,33 @@ export function BackupsPage() {
           found: 'Найден',
           missing: 'Отсутствует',
           keepCurrentXrayConfig: 'Нет в архиве, будет сохранён текущий config.json',
+          restoreOpen: 'Восстановить',
+          restoreScope: 'Объём восстановления',
+          restoreScopeFull: 'База и runtime-конфиг Xray',
+          restoreScopeDatabaseOnly: 'Только база, текущий Xray config будет сохранён',
+          safeguardBackup: 'Автоматический safeguard backup',
+          included: 'Будет создан перед destructive restore',
+          hostArchivePath: 'Путь к архиву на хосте',
+          containerArchivePath: 'Путь к архиву в контейнере',
+          hostPathMissing:
+            'Каталог архивов на хосте не настроен. Перед запуском restore вручную подставьте реальный host path к архиву.',
+          checklistTitle: 'Checklist восстановления',
+          checklistHint: 'Подтвердите каждый пункт, чтобы открыть destructive restore команду.',
+          confirmDryRun: 'Сначала выполню и проверю dry-run.',
+          confirmExternalBackup:
+            'Подтверждаю, что есть свежий внешний backup текущего состояния.',
+          confirmMaintenanceWindow:
+            'Восстановление выполняется в окно обслуживания, и я понимаю, что текущие данные могут быть перезаписаны.',
+          destructiveUnlockHint:
+            'Destructive restore команда остаётся заблокированной, пока не подтверждён checklist и не доступен host path архива.',
+          verificationTitle: 'Проверки после restore',
+          copyVerification: 'Скопировать post-restore checks',
+          verificationLabels: {
+            composePs: 'Статус контейнеров',
+            apiHealthz: 'Проверка API health',
+            apiReadyz: 'Проверка API readiness',
+            recentLogs: 'Последние логи',
+          },
           runbook: [
             'Сначала выполните dry-run на хосте и убедитесь, что все проверки зелёные.',
             'Сделайте свежий внешний backup перед реальным restore.',
@@ -232,6 +292,7 @@ export function BackupsPage() {
 
       setBackups(response.items);
       setBackupDir(response.policy.backupDir);
+      setHostBackupDir(response.policy.hostBackupDir);
       setAutoCreateEnabled(response.policy.autoCreateEnabled);
       setAutoCreateIntervalDays(response.policy.autoCreateIntervalDays);
       setRetentionDays(response.policy.retentionDays);
@@ -252,6 +313,9 @@ export function BackupsPage() {
     if (!restoreTarget) {
       setRestorePlan(null);
       setIsRestorePlanLoading(false);
+      setHasConfirmedDryRun(false);
+      setHasConfirmedExternalBackup(false);
+      setHasConfirmedMaintenanceWindow(false);
       return;
     }
 
@@ -359,6 +423,28 @@ export function BackupsPage() {
     setNotice(text.copyNotice(label, backup.fileName));
   };
 
+  const handleCopyVerificationBundle = async (
+    commands: BackupRestorePlanResponse['commands']['verification'],
+    backup: BackupRecord,
+  ) => {
+    await navigator.clipboard.writeText(commands.map((item) => item.command).join('\n'));
+    setNotice(text.copyNotice(text.copyVerification, backup.fileName));
+  };
+
+  const restoreScopeLabel =
+    restorePlan?.guidance.restoreScope === 'FULL'
+      ? text.restoreScopeFull
+      : text.restoreScopeDatabaseOnly;
+  const canCopyRestoreCommand = restorePlan
+    ? Boolean(
+        restorePlan.preflight.canRestore &&
+          restorePlan.guidance.hostPathConfigured &&
+          hasConfirmedDryRun &&
+          hasConfirmedExternalBackup &&
+          hasConfirmedMaintenanceWindow,
+      )
+    : false;
+
   return (
     <div className="page">
       <PageHeader
@@ -378,6 +464,10 @@ export function BackupsPage() {
             <div className="stat-card">
               <span>{text.archiveDirectory}</span>
               <strong>{backupDir || '—'}</strong>
+            </div>
+            <div className="stat-card">
+              <span>{text.hostArchiveDirectory}</span>
+              <strong>{hostBackupDir || '—'}</strong>
             </div>
             <div className="stat-card">
               <span>{text.autoBackup}</span>
@@ -476,7 +566,7 @@ export function BackupsPage() {
                         disabled={!backup.exists || backup.status !== 'READY'}
                       >
                         <RotateCcw size={16} />
-                        Restore
+                        {text.restoreOpen}
                       </button>
                       <button
                         className="button button--danger"
@@ -550,18 +640,28 @@ export function BackupsPage() {
                     : text.preflightFailed}
                 </div>
 
+                {!restorePlan.guidance.hostPathConfigured ? (
+                  <div className="banner banner--danger">{text.hostPathMissing}</div>
+                ) : null}
+
                 <div className="feature-list">
                   <div className="feature-list__card">
-                    <strong>{text.archive}</strong>
-                    <code>{restorePlan.backup.absolutePath}</code>
+                    <strong>{text.hostArchivePath}</strong>
+                    <code>{restorePlan.backup.hostAbsolutePath ?? restorePlan.backup.absolutePath}</code>
                   </div>
                   <div className="feature-list__card">
-                    <strong>{text.dryRun}</strong>
-                    <code>{restorePlan.commands.dryRun}</code>
+                    <strong>{text.containerArchivePath}</strong>
+                    <code>{restorePlan.backup.containerAbsolutePath}</code>
                   </div>
                   <div className="feature-list__card">
-                    <strong>{text.restoreCommand}</strong>
-                    <code>{restorePlan.commands.restore}</code>
+                    <strong>{text.restoreScope}</strong>
+                    <span>{restoreScopeLabel}</span>
+                  </div>
+                  <div className="feature-list__card">
+                    <strong>{text.safeguardBackup}</strong>
+                    <span>
+                      {restorePlan.guidance.createsSafeguardBackup ? text.included : text.disabled}
+                    </span>
                   </div>
                 </div>
 
@@ -610,11 +710,60 @@ export function BackupsPage() {
                   </ul>
                 ) : null}
 
-                <ul className="feature-list">
-                  {text.runbook.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+                <div className="detail-stack restore-guide">
+                  <strong>{text.checklistTitle}</strong>
+                  <span className="restore-guide__hint">{text.checklistHint}</span>
+                  <label className="checkbox-row restore-guide__check">
+                    <input
+                      type="checkbox"
+                      checked={hasConfirmedDryRun}
+                      onChange={(event) => setHasConfirmedDryRun(event.target.checked)}
+                    />
+                    <span>{text.confirmDryRun}</span>
+                  </label>
+                  <label className="checkbox-row restore-guide__check">
+                    <input
+                      type="checkbox"
+                      checked={hasConfirmedExternalBackup}
+                      onChange={(event) => setHasConfirmedExternalBackup(event.target.checked)}
+                    />
+                    <span>{text.confirmExternalBackup}</span>
+                  </label>
+                  <label className="checkbox-row restore-guide__check">
+                    <input
+                      type="checkbox"
+                      checked={hasConfirmedMaintenanceWindow}
+                      onChange={(event) => setHasConfirmedMaintenanceWindow(event.target.checked)}
+                    />
+                    <span>{text.confirmMaintenanceWindow}</span>
+                  </label>
+                  {!canCopyRestoreCommand ? (
+                    <div className="banner">{text.destructiveUnlockHint}</div>
+                  ) : null}
+                </div>
+
+                <div className="feature-list">
+                  <div className="feature-list__card">
+                    <strong>{text.dryRun}</strong>
+                    <code>{restorePlan.commands.dryRun}</code>
+                  </div>
+                  <div className="feature-list__card">
+                    <strong>{text.restoreCommand}</strong>
+                    <code>{restorePlan.commands.restore}</code>
+                  </div>
+                </div>
+
+                <div className="detail-stack restore-guide">
+                  <strong>{text.verificationTitle}</strong>
+                  <div className="feature-list">
+                    {restorePlan.commands.verification.map((item) => (
+                      <div key={item.id} className="feature-list__card">
+                        <strong>{text.verificationLabels[item.id]}</strong>
+                        <code>{item.command}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="toolbar__actions wrap-actions">
                   <button
@@ -635,12 +784,26 @@ export function BackupsPage() {
                     className="button"
                     type="button"
                     onClick={() =>
+                      void handleCopyVerificationBundle(
+                        restorePlan.commands.verification,
+                        restoreTarget,
+                      )
+                    }
+                  >
+                    <Copy size={16} />
+                    {text.copyVerification}
+                  </button>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() =>
                       void handleCopyRestoreCommand(
                         restorePlan.commands.restore,
                         restoreTarget,
                         text.restoreLabel,
                       )
                     }
+                    disabled={!canCopyRestoreCommand}
                   >
                     <Copy size={16} />
                     {text.copyRestore}

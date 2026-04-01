@@ -11,13 +11,28 @@ fi
 
 normalize_legacy_env_paths() {
   local current_backup_dir
+  local current_host_backup_dir
+  local desired_host_backup_dir
 
   current_backup_dir="$(grep '^BACKUP_DIR=' "${ENV_FILE}" | cut -d'=' -f2- || true)"
+  current_host_backup_dir="$(grep '^BACKUP_HOST_DIR=' "${ENV_FILE}" | cut -d'=' -f2- || true)"
+  desired_host_backup_dir="${ROOT_DIR}/infra/backup/output"
 
   case "${current_backup_dir}" in
     "${ROOT_DIR}/infra/backup/output"|"/opt/server-vpn/infra/backup/output")
       sed -i 's#^BACKUP_DIR=.*#BACKUP_DIR=/var/backups/server-vpn#' "${ENV_FILE}"
       echo "Normalized BACKUP_DIR to container path /var/backups/server-vpn"
+      ;;
+  esac
+
+  case "${current_host_backup_dir}" in
+    ""|"/var/backups/server-vpn"|"/absolute/path/to/project/infra/backup/output")
+      if grep -q '^BACKUP_HOST_DIR=' "${ENV_FILE}"; then
+        sed -i "s#^BACKUP_HOST_DIR=.*#BACKUP_HOST_DIR=${desired_host_backup_dir}#" "${ENV_FILE}"
+      else
+        printf '\nBACKUP_HOST_DIR=%s\n' "${desired_host_backup_dir}" >> "${ENV_FILE}"
+      fi
+      echo "Normalized BACKUP_HOST_DIR to ${desired_host_backup_dir}"
       ;;
   esac
 }

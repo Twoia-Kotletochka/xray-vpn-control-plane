@@ -23,6 +23,7 @@ describe('validateEnv', () => {
       XRAY_ERROR_LOG_FILE: '/var/log/server-vpn/xray-error.log',
       CADDY_ACCESS_LOG_FILE: '/var/log/server-vpn/caddy-access.log',
       BACKUP_DIR: '/var/backups/server-vpn',
+      BACKUP_HOST_DIR: '/opt/server-vpn/infra/backup/output',
       BACKUP_AUTO_CREATE_ENABLED: 'true',
       BACKUP_AUTO_CREATE_INTERVAL_DAYS: '5',
       BACKUP_AUTO_MAINTENANCE_INTERVAL_MS: '3600000',
@@ -33,6 +34,7 @@ describe('validateEnv', () => {
     expect(env.BCRYPT_ROUNDS).toBe(12);
     expect(env.XRAY_API_TARGET).toBe('xray:10085');
     expect(env.XRAY_VLESS_PORT).toBe(443);
+    expect(env.BACKUP_HOST_DIR).toBe('/opt/server-vpn/infra/backup/output');
     expect(env.BACKUP_AUTO_CREATE_ENABLED).toBe(true);
     expect(env.BACKUP_AUTO_CREATE_INTERVAL_DAYS).toBe(5);
     expect(env.BACKUP_RETENTION_DAYS).toBe(14);
