@@ -989,8 +989,11 @@ export function ClientsPage() {
                 </div>
 
                 {!isReadOnly ? (
-                  <form className="inline-form" onSubmit={(event) => void handleSaveClient(event)}>
-                  <div className="field-grid">
+                  <form
+                    className="inline-form inline-form--details"
+                    onSubmit={(event) => void handleSaveClient(event)}
+                  >
+                    <div className="field-grid field-grid--details">
                     <label className="login-form__field">
                       <span>{text.clientName}</span>
                       <input
