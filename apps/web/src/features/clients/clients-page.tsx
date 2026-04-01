@@ -882,7 +882,12 @@ export function ClientsPage() {
                             ) : (
                               <Lock size={16} />
                             )}
-                            {isClientManuallyBlocked(client.status) ? text.unblock : text.block}
+                            <span
+                              className="table-actions__label"
+                              title={isClientManuallyBlocked(client.status) ? text.unblock : text.block}
+                            >
+                              {isClientManuallyBlocked(client.status) ? text.unblock : text.block}
+                            </span>
                           </button>
                         ) : null}
                       </div>

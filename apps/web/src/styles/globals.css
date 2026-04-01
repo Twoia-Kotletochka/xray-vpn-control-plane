@@ -362,7 +362,8 @@ a {
 }
 
 .split-grid--clients {
-  grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.82fr);
+  align-items: start;
+  grid-template-columns: minmax(0, 1.78fr) minmax(280px, 0.68fr);
 }
 
 .metric-card,
@@ -513,23 +514,23 @@ a {
 }
 
 .clients-table__col--client {
-  width: 34%;
+  width: 31%;
 }
 
 .clients-table__col--status {
-  width: 15%;
+  width: 14%;
 }
 
 .clients-table__col--traffic {
-  width: 11%;
+  width: 10%;
 }
 
 .clients-table__col--expiry {
-  width: 18%;
+  width: 19%;
 }
 
 .clients-table__col--actions {
-  width: 22%;
+  width: 26%;
 }
 
 .clients-table__cell--status,
@@ -646,9 +647,10 @@ a {
 
 .button--compact {
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 14px;
   border-radius: 12px;
   gap: 8px;
+  font-size: 0.95rem;
 }
 
 .icon-button {
@@ -967,13 +969,30 @@ a {
 }
 
 .table-actions--clients {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
   flex-wrap: nowrap;
+  gap: 10px;
   justify-content: flex-start;
-  min-width: max-content;
+  min-width: 0;
+  width: 100%;
 }
 
 .table-actions--clients > * {
   flex: 0 0 auto;
+}
+
+.table-actions--clients .button--compact {
+  justify-content: flex-start;
+  min-width: 0;
+  width: 100%;
+}
+
+.table-actions__label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mono-output,
