@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildTrafficDeltaMap,
+  normalizeOnlineUserEmailTags,
+  parseOnlineUserStatName,
   parseUserTrafficStatName,
   resolveObservedActiveConnections,
   startOfUtcDay,
@@ -17,6 +19,29 @@ describe('parseUserTrafficStatName', () => {
 
   it('ignores unrelated stats', () => {
     expect(parseUserTrafficStatName('inbound>>>main>>>traffic>>>uplink')).toBeNull();
+  });
+});
+
+describe('parseOnlineUserStatName', () => {
+  it('parses xray online user stats into email tags', () => {
+    expect(parseOnlineUserStatName('user>>>alice@example>>>online')).toBe('alice@example');
+  });
+
+  it('ignores unrelated online stat names', () => {
+    expect(parseOnlineUserStatName('user>>>alice@example>>>traffic>>>uplink')).toBeNull();
+  });
+});
+
+describe('normalizeOnlineUserEmailTags', () => {
+  it('normalizes mixed online user identifiers into clean email tags', () => {
+    expect(
+      normalizeOnlineUserEmailTags([
+        'user>>>alice>>>online',
+        'bob',
+        ' user>>>carol>>>online ',
+        '',
+      ]),
+    ).toEqual(['alice', 'bob', 'carol']);
   });
 });
 

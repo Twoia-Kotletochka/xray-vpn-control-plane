@@ -17,6 +17,7 @@ import {
 } from './xray-limit-enforcement.util';
 import {
   buildTrafficDeltaMap,
+  normalizeOnlineUserEmailTags,
   resolveObservedActiveConnections,
   startOfUtcDay,
 } from './xray.helpers';
@@ -199,6 +200,9 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
         this.callStatsService<{ Uptime?: number }>('GetSysStats', {}),
         this.callStatsService<{ users?: string[] }>('GetAllOnlineUsers', {}),
       ]);
+      const onlineUsers = Array.from(
+        new Set(normalizeOnlineUserEmailTags(onlineUsersResponse.users ?? [])),
+      );
       const uptimeSeconds =
         typeof sysStats.Uptime === 'number' ? sysStats.Uptime : this.lastKnownXrayUptimeSeconds;
 
@@ -208,7 +212,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
         lastStatsSnapshotAt: this.lastStatsSnapshotAt?.toISOString() ?? null,
         lastSyncReason: this.lastSyncReason,
         latencyMs: Date.now() - startedAt,
-        onlineUsers: onlineUsersResponse.users?.length ?? 0,
+        onlineUsers: onlineUsers.length,
         status: 'healthy',
         uptimeSeconds,
       };
@@ -298,7 +302,9 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
 
       const capturedAt = new Date();
       const bucketDate = startOfUtcDay(capturedAt);
-      const onlineUsers = Array.from(new Set(onlineUsersResponse.users ?? []));
+      const onlineUsers = Array.from(
+        new Set(normalizeOnlineUserEmailTags(onlineUsersResponse.users ?? [])),
+      );
       const onlineUserSet = new Set(onlineUsers);
       const onlineIpCountByEmailTag = await this.loadOnlineIpCountMap(onlineUsers);
       const deltas = buildTrafficDeltaMap(queryResponse.stat ?? []);

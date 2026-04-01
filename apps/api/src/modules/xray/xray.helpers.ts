@@ -42,6 +42,23 @@ export function parseUserTrafficStatName(
   };
 }
 
+export function parseOnlineUserStatName(value: string): string | null {
+  const parts = value.split('>>>');
+
+  if (parts.length !== 3 || parts[0] !== 'user' || parts[2] !== 'online') {
+    return null;
+  }
+
+  return parts[1] ?? '';
+}
+
+export function normalizeOnlineUserEmailTags(values: string[]) {
+  return values
+    .map((value) => parseOnlineUserStatName(value) ?? value)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
 export function buildTrafficDeltaMap(stats: XrayStatEntry[]): Map<string, XrayTrafficDelta> {
   const usage = new Map<string, XrayTrafficDelta>();
 
