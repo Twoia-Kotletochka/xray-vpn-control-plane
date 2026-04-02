@@ -23,7 +23,7 @@ describe('DashboardPage', () => {
     mockApiFetch.mockReset();
   });
 
-  it('shows the new operational overview with traffic pulse and workspaces', async () => {
+  it('shows the operational overview and runtime state', async () => {
     const summary: DashboardSummary = {
       totals: {
         clients: 9,
@@ -89,12 +89,10 @@ describe('DashboardPage', () => {
 
     await screen.findByText('Пульс трафика');
     expect(screen.getByText('Активные профили')).toBeTruthy();
-    expect(screen.getByText('Рабочие разделы')).toBeTruthy();
-    expect(screen.getByText('Открыть трафик')).toBeTruthy();
-    expect(screen.getByText('Открыть систему')).toBeTruthy();
     expect(screen.getByText('Состояние runtime')).toBeTruthy();
     expect(screen.getByText('Дельта тренда')).toBeTruthy();
     expect(screen.getByText('Клиентов замечено: 1')).toBeTruthy();
     expect(screen.queryByText('live-подключения по данным Xray runtime')).toBeNull();
+    expect(screen.queryByText('Рабочие разделы')).toBeNull();
   });
 });

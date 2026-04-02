@@ -392,28 +392,6 @@ export function DashboardPage() {
               </div>
             </div>
           </SectionCard>
-
-          <SectionCard title={text.actionsTitle}>
-            <div className="logs-source-list">
-              {!isReadOnly ? (
-                <Link className="logs-source-button" to="/clients?composer=1">
-                  <strong>{text.createClient}</strong>
-                </Link>
-              ) : null}
-              <Link className="logs-source-button" to="/clients">
-                <strong>{text.openClients}</strong>
-              </Link>
-              <Link className="logs-source-button" to="/subscriptions">
-                <strong>{text.openConnections}</strong>
-              </Link>
-              <Link className="logs-source-button" to="/analytics">
-                <strong>{text.openTraffic}</strong>
-              </Link>
-              <Link className="logs-source-button" to="/server-status">
-                <strong>{text.openSystem}</strong>
-              </Link>
-            </div>
-          </SectionCard>
         </div>
       </div>
     </div>
