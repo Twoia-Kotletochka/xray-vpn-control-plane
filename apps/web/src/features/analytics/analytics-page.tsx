@@ -510,7 +510,7 @@ export function AnalyticsPage() {
       <div className="split-grid split-grid--analytics">
         <SectionCard title={text.chartTitle} subtitle={text.chartSubtitle}>
           <div className="analytics-toolbar">
-            <div className="analytics-toolbar__group">
+            <div className="analytics-toolbar__group analytics-toolbar__group--window">
               <span className="analytics-toolbar__label">{text.windowSelector}</span>
               <div className="analytics-window-switch" role="group" aria-label={text.windowSelector}>
                 {windowOptions.map((windowDays) => (
@@ -532,7 +532,7 @@ export function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="analytics-toolbar__group analytics-toolbar__group--chips">
+            <div className="analytics-toolbar__group analytics-toolbar__group--chips analytics-toolbar__group--summary">
               <div className="topbar__chip">
                 <strong>{selectedWindowLabel}</strong>
                 <span>{text.windowTrafficHint}</span>
