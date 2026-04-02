@@ -1,6 +1,7 @@
 import {
   Activity,
   ArchiveRestore,
+  BarChart3,
   Cable,
   CircleHelp,
   FileText,
@@ -17,6 +18,7 @@ export function useNavigationItems() {
 
   return [
     { label: ui.navigation.dashboard, path: '/dashboard', icon: Gauge },
+    { label: ui.navigation.analytics, path: '/analytics', icon: BarChart3 },
     { label: ui.navigation.clients, path: '/clients', icon: Cable },
     { label: ui.navigation.subscriptions, path: '/subscriptions', icon: KeyRound },
     { label: ui.navigation.serverStatus, path: '/server-status', icon: Activity },

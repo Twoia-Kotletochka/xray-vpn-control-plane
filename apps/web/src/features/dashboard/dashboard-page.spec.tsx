@@ -37,11 +37,15 @@ describe('DashboardPage', () => {
         buckets: [
           {
             date: '2026-03-31T00:00:00.000Z',
+            incomingTrafficBytes: '1024',
+            outgoingTrafficBytes: '1024',
             totalTrafficBytes: '2048',
             activeClients: 1,
           },
           {
             date: '2026-04-01T00:00:00.000Z',
+            incomingTrafficBytes: '2048',
+            outgoingTrafficBytes: '2048',
             totalTrafficBytes: '4096',
             activeClients: 2,
           },
@@ -81,9 +85,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('клиенты со статусом ACTIVE, готовые к подключению')).toBeTruthy();
     expect(screen.getByText('Клиентов онлайн сейчас: 2')).toBeTruthy();
     expect(screen.getByText('Активные профили: 6')).toBeTruthy();
-    expect(screen.getByText('Тренды нагрузки')).toBeTruthy();
-    expect(screen.getByText('Последние 7 дней')).toBeTruthy();
-    expect(screen.getByText('Замечено онлайн сегодня')).toBeTruthy();
-    expect(screen.getByText('Клиентов замечено онлайн: 2')).toBeTruthy();
+    expect(screen.getByText('Аналитика вынесена в отдельную вкладку')).toBeTruthy();
+    expect(screen.getByText('Используй Дашборд для состояния системы и операций, а Аналитику для разбора нагрузки.')).toBeTruthy();
   });
 });

@@ -23,6 +23,7 @@ export const en: DeepTranslate<typeof ru> = {
   },
   navigation: {
     dashboard: 'Dashboard',
+    analytics: 'Analytics',
     clients: 'Clients',
     subscriptions: 'Subscriptions',
     serverStatus: 'Server status',
@@ -84,6 +85,11 @@ export const en: DeepTranslate<typeof ru> = {
       panelTlsValue: 'HTTPS on 8443',
       persistenceValue: 'PostgreSQL + Prisma',
     },
+  },
+  analytics: {
+    title: 'Analytics',
+    description:
+      'Traffic charts, activity trends, and per-client usage visibility without turning the dashboard into noise.',
   },
   clients: {
     title: 'Clients',

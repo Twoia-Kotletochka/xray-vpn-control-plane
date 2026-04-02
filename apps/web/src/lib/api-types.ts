@@ -134,6 +134,8 @@ export type DashboardSummary = {
     comparisonWindowDays: number;
     buckets: Array<{
       date: string;
+      incomingTrafficBytes: string;
+      outgoingTrafficBytes: string;
       totalTrafficBytes: string;
       activeClients: number;
     }>;
@@ -160,6 +162,47 @@ export type DashboardSummary = {
     xrayStatus: string;
   };
   message: string;
+};
+
+export type DashboardAnalyticsResponse = {
+  generatedAt: string;
+  windowDays: number;
+  totals: {
+    totalTrafficBytes: string;
+    windowTrafficBytes: string;
+    windowIncomingBytes: string;
+    windowOutgoingBytes: string;
+    averageDailyTrafficBytes: string;
+    activeClientsToday: number;
+    peakActiveClients: number;
+    uniqueClientsWithTraffic: number;
+    onlineNow: number;
+    topClientDisplayName: string | null;
+    topClientTrafficBytes: string;
+    todayTrafficBytes: string;
+  };
+  timeline: Array<{
+    date: string;
+    incomingTrafficBytes: string;
+    outgoingTrafficBytes: string;
+    totalTrafficBytes: string;
+    activeClients: number;
+  }>;
+  clients: Array<{
+    id: string;
+    displayName: string;
+    emailTag: string;
+    status: 'ACTIVE' | 'DISABLED' | 'EXPIRED' | 'BLOCKED';
+    lastSeenAt: string | null;
+    activeConnections: number;
+    activeDays: number;
+    incomingBytes: string;
+    outgoingBytes: string;
+    peakActiveConnections: number;
+    todayTrafficBytes: string;
+    totalTrafficBytes: string;
+    windowTrafficBytes: string;
+  }>;
 };
 
 export type SubscriptionTemplatesResponse = {

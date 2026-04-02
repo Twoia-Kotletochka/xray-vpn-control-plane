@@ -20,6 +20,7 @@ export const ru = {
   },
   navigation: {
     dashboard: 'Дашборд',
+    analytics: 'Аналитика',
     clients: 'Клиенты',
     subscriptions: 'Подписки',
     serverStatus: 'Состояние сервера',
@@ -81,6 +82,11 @@ export const ru = {
       panelTlsValue: 'HTTPS на 8443',
       persistenceValue: 'PostgreSQL + Prisma',
     },
+  },
+  analytics: {
+    title: 'Аналитика',
+    description:
+      'Графики нагрузки, динамика трафика и разрез по каждому клиенту без операционного шума дашборда.',
   },
   clients: {
     title: 'Клиенты',
