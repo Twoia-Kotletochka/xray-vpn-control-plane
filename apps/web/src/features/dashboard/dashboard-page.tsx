@@ -197,42 +197,34 @@ export function DashboardPage() {
     {
       label: text.activeProfiles,
       value: String(summary?.totals.available ?? summary?.totals.active ?? 0),
-      hint: text.activeProfilesHint,
     },
     {
       label: text.onlineNow,
       value: String(summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0),
-      hint: text.onlineHint,
     },
     {
       label: text.expiredClients,
       value: String(summary?.totals.expired ?? 0),
-      hint: text.expiredHint,
     },
     {
       label: text.totalTraffic,
       value: formatBytes(Number(summary?.totals.totalTrafficBytes ?? '0'), locale),
-      hint: text.totalTrafficHint,
     },
     {
       label: text.totalClients,
       value: String(summary?.totals.clients ?? 0),
-      hint: text.totalClientsHint,
     },
     {
       label: text.cpu,
       value: formatPercent(summary?.host.cpuPercent ?? null),
-      hint: text.cpuHint,
     },
     {
       label: text.ram,
       value: formatPercent(summary?.host.ramPercent ?? null),
-      hint: text.ramHint,
     },
     {
       label: text.disk,
       value: formatPercent(summary?.host.diskPercent ?? null),
-      hint: text.diskHint,
     },
   ];
 
@@ -247,7 +239,6 @@ export function DashboardPage() {
     <div className="page">
       <PageHeader
         title={ui.dashboard.title}
-        description={ui.dashboard.description}
         actions={
           <div className="page-header__actions">
             {!isReadOnly ? (
@@ -284,33 +275,24 @@ export function DashboardPage() {
       </div>
 
       <div className="split-grid">
-        <SectionCard title={text.overviewTitle} subtitle={text.overviewSubtitle}>
+        <SectionCard title={text.overviewTitle}>
           <div className="dashboard-trends">
             <div className="dashboard-trends__overview">
               <div className="insight-card">
                 <span>{text.peakDay}</span>
                 <strong>{formatBucketDate(comparison?.busiestDayDate ?? null, locale)}</strong>
-                <p>
-                  {text.peakDayHint}
-                  {comparison?.busiestDayTrafficBytes
-                    ? ` • ${formatBytes(Number(comparison.busiestDayTrafficBytes), locale)}`
-                    : ''}
-                </p>
               </div>
               <div className="insight-card">
                 <span>{text.averageDay}</span>
                 <strong>{formatBytes(Number(comparison?.averageDailyTrafficBytes ?? '0'), locale)}</strong>
-                <p>{text.averageDayHint}</p>
               </div>
               <div className="insight-card">
                 <span>{text.trafficDelta}</span>
                 <strong>{formatDelta(comparison?.trafficDeltaPercent ?? null)}</strong>
-                <p>{text.trafficDeltaHint}</p>
               </div>
               <div className="insight-card">
                 <span>{text.peakClients}</span>
                 <strong>{String(comparison?.peakActiveClients ?? 0)}</strong>
-                <p>{text.peakClientsHint}</p>
               </div>
             </div>
 
@@ -353,12 +335,11 @@ export function DashboardPage() {
         </SectionCard>
 
         <div className="detail-stack">
-          <SectionCard title={text.runtimeTitle} subtitle={text.runtimeSubtitle}>
+          <SectionCard title={text.runtimeTitle}>
             <div className="status-list">
               <div className="status-row">
                 <div className="status-row__content">
                   <strong>{text.runtimeHealth}</strong>
-                  <span>{summary?.message ?? ui.common.loading}</span>
                 </div>
                 <div className="status-row__meta">
                   <span>{text.runtimeUsers}: {summary?.runtime.onlineUsers ?? 0}</span>
@@ -370,25 +351,24 @@ export function DashboardPage() {
               <div className="status-row">
                 <div className="status-row__content">
                   <strong>{text.lastSnapshot}</strong>
-                  <span>{formatDateTime(summary?.runtime.lastStatsSnapshotAt ?? null, text.notYet, locale)}</span>
                 </div>
                 <div className="status-row__meta">
+                  <span>{formatDateTime(summary?.runtime.lastStatsSnapshotAt ?? null, text.notYet, locale)}</span>
                   <span>{text.onlineNow}: {summary?.totals.onlineNow ?? 0}</span>
                 </div>
               </div>
               <div className="status-row">
                 <div className="status-row__content">
                   <strong>{text.lastSync}</strong>
-                  <span>{formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, text.notYet, locale)}</span>
                 </div>
                 <div className="status-row__meta">
+                  <span>{formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, text.notYet, locale)}</span>
                   <span>{text.activeProfiles}: {summary?.totals.available ?? summary?.totals.active ?? 0}</span>
                 </div>
               </div>
               <div className="status-row">
                 <div className="status-row__content">
                   <strong>{text.cpu}</strong>
-                  <span>{text.cpuHint}</span>
                 </div>
                 <div className="status-row__meta">
                   <span>{formatPercent(summary?.host.cpuPercent ?? null)}</span>
@@ -397,7 +377,6 @@ export function DashboardPage() {
               <div className="status-row">
                 <div className="status-row__content">
                   <strong>{text.ram}</strong>
-                  <span>{text.ramHint}</span>
                 </div>
                 <div className="status-row__meta">
                   <span>{formatPercent(summary?.host.ramPercent ?? null)}</span>
@@ -406,7 +385,6 @@ export function DashboardPage() {
               <div className="status-row">
                 <div className="status-row__content">
                   <strong>{text.disk}</strong>
-                  <span>{text.diskHint}</span>
                 </div>
                 <div className="status-row__meta">
                   <span>{formatPercent(summary?.host.diskPercent ?? null)}</span>
@@ -415,29 +393,24 @@ export function DashboardPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title={text.actionsTitle} subtitle={text.actionsSubtitle}>
+          <SectionCard title={text.actionsTitle}>
             <div className="logs-source-list">
               {!isReadOnly ? (
                 <Link className="logs-source-button" to="/clients?composer=1">
                   <strong>{text.createClient}</strong>
-                  <span>{text.createClientHint}</span>
                 </Link>
               ) : null}
               <Link className="logs-source-button" to="/clients">
                 <strong>{text.openClients}</strong>
-                <span>{text.openClientsHint}</span>
               </Link>
               <Link className="logs-source-button" to="/subscriptions">
                 <strong>{text.openConnections}</strong>
-                <span>{text.openConnectionsHint}</span>
               </Link>
               <Link className="logs-source-button" to="/analytics">
                 <strong>{text.openTraffic}</strong>
-                <span>{text.openTrafficHint}</span>
               </Link>
               <Link className="logs-source-button" to="/server-status">
                 <strong>{text.openSystem}</strong>
-                <span>{text.openSystemHint}</span>
               </Link>
             </div>
           </SectionCard>

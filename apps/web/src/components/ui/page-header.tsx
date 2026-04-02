@@ -4,7 +4,7 @@ import { useI18n } from '../../i18n';
 
 type PageHeaderProps = {
   title: string;
-  description: string;
+  description?: string;
   eyebrow?: string;
   actionLabel?: string;
   actionDisabled?: boolean;
@@ -28,7 +28,7 @@ export function PageHeader({
       <div>
         <p className="page-header__eyebrow">{eyebrow ?? ui.common.operations}</p>
         <h2>{title}</h2>
-        <p>{description}</p>
+        {description ? <p>{description}</p> : null}
       </div>
 
       {actions ?? (

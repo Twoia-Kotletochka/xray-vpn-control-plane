@@ -89,13 +89,12 @@ describe('DashboardPage', () => {
 
     await screen.findByText('Пульс трафика');
     expect(screen.getByText('Активные профили')).toBeTruthy();
-    expect(screen.getByText('реальные live-подключения по данным Xray runtime')).toBeTruthy();
-    expect(screen.getByText('клиенты со статусом ACTIVE, готовые к подключению')).toBeTruthy();
     expect(screen.getByText('Рабочие разделы')).toBeTruthy();
     expect(screen.getByText('Открыть трафик')).toBeTruthy();
     expect(screen.getByText('Открыть систему')).toBeTruthy();
     expect(screen.getByText('Состояние runtime')).toBeTruthy();
     expect(screen.getByText('Дельта тренда')).toBeTruthy();
     expect(screen.getByText('Клиентов замечено: 1')).toBeTruthy();
+    expect(screen.queryByText('live-подключения по данным Xray runtime')).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 type MetricCardProps = {
   label: string;
   value: string;
-  hint: string;
+  hint?: string;
 };
 
 export function MetricCard({ label, value, hint }: MetricCardProps) {
@@ -9,7 +9,7 @@ export function MetricCard({ label, value, hint }: MetricCardProps) {
     <article className="metric-card">
       <span className="metric-card__label">{label}</span>
       <strong className="metric-card__value">{value}</strong>
-      <p className="metric-card__hint">{hint}</p>
+      {hint ? <p className="metric-card__hint">{hint}</p> : null}
     </article>
   );
 }
