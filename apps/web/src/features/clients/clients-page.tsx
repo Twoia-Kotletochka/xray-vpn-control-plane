@@ -1538,7 +1538,6 @@ export function ClientsPage() {
               <div className="workspace-panel__header">
                 <div>
                   <strong>{text.identityTitle}</strong>
-                  <p>{text.identitySubtitle}</p>
                 </div>
               </div>
               <dl className="detail-list">
@@ -1571,7 +1570,6 @@ export function ClientsPage() {
                 <div className="workspace-panel__header">
                   <div>
                     <strong>{text.trafficLimit}</strong>
-                    <p>{selectedClient.isTrafficUnlimited ? text.unlimited : text.traffic}</p>
                   </div>
                   <strong>
                     {selectedClient.isTrafficUnlimited || !selectedClient.trafficLimitBytes
