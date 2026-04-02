@@ -1398,9 +1398,21 @@ export function ClientsPage() {
                                 {!isReadOnly ? (
                                   <>
                                     <button
+                                      className="icon-button icon-button--danger"
+                                      type="button"
+                                      title={text.delete}
+                                      aria-label={text.delete}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void handleDeleteClient(client.id);
+                                      }}
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                    <button
                                       className={`button button--compact ${
                                         isClientManuallyBlocked(client.status) ? '' : 'button--danger'
-                                      }`}
+                                      } table-actions__toggle`}
                                       type="button"
                                       aria-label={
                                         isClientManuallyBlocked(client.status)
@@ -1420,18 +1432,6 @@ export function ClientsPage() {
                                       <span className="table-actions__label">
                                         {isClientManuallyBlocked(client.status) ? text.unblock : text.block}
                                       </span>
-                                    </button>
-                                    <button
-                                      className="icon-button icon-button--danger"
-                                      type="button"
-                                      title={text.delete}
-                                      aria-label={text.delete}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        void handleDeleteClient(client.id);
-                                      }}
-                                    >
-                                      <Trash2 size={16} />
                                     </button>
                                   </>
                                 ) : null}

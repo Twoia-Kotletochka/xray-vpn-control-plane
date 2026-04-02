@@ -98,7 +98,7 @@ a {
   z-index: 1;
   width: 100%;
   min-height: 100vh;
-  padding: 24px 28px 28px calc(var(--sidebar-width) + 28px);
+  padding: 24px 28px 28px;
 }
 
 .app-shell__main {
@@ -117,8 +117,12 @@ a {
   overflow-y: auto;
   width: var(--sidebar-width);
   max-width: 100%;
-  transform: translateX(0);
-  transition: transform 220ms ease;
+  transform: translateX(calc(-100% - 24px));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 220ms ease,
+    opacity 180ms ease;
   padding: 22px 18px 20px;
   border-right: 1px solid rgba(148, 163, 184, 0.14);
   background:
@@ -130,6 +134,8 @@ a {
 
 .sidebar--open {
   transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .app-shell--nav-open .app-shell__overlay {
@@ -190,7 +196,7 @@ a {
 
 .sidebar__close,
 .topbar__menu {
-  display: none;
+  display: inline-grid;
   place-items: center;
 }
 
@@ -1662,6 +1668,10 @@ a {
   min-width: 0;
 }
 
+.table-actions--clients .table-actions__toggle {
+  flex: 1 1 100%;
+}
+
 .table-actions__label {
   display: block;
   min-width: 0;
@@ -1943,11 +1953,6 @@ a {
 
   .sidebar--open {
     transform: translateX(0);
-  }
-
-  .sidebar__close,
-  .topbar__menu {
-    display: inline-grid;
   }
 
   .metrics-grid,
