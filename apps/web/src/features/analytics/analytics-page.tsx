@@ -58,8 +58,12 @@ function buildAreaPath(points: Array<{ x: number; y: number }>, height: number) 
   }
 
   const linePath = buildLinePath(points);
-  const firstPoint = points[0];
-  const lastPoint = points[points.length - 1];
+  const firstPoint = points.at(0);
+  const lastPoint = points.at(-1);
+
+  if (!firstPoint || !lastPoint) {
+    return '';
+  }
 
   return `${linePath} L ${lastPoint.x.toFixed(2)} ${height.toFixed(2)} L ${firstPoint.x.toFixed(2)} ${height.toFixed(2)} Z`;
 }
