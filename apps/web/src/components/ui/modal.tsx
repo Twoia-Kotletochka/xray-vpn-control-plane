@@ -3,12 +3,21 @@ import type { KeyboardEvent, PropsWithChildren } from 'react';
 import { useI18n } from '../../i18n';
 
 type ModalProps = PropsWithChildren<{
+  bodyClassName?: string;
+  dialogClassName?: string;
   isOpen: boolean;
   onClose: () => void;
   title: string;
 }>;
 
-export function Modal({ children, isOpen, onClose, title }: ModalProps) {
+export function Modal({
+  bodyClassName,
+  children,
+  dialogClassName,
+  isOpen,
+  onClose,
+  title,
+}: ModalProps) {
   const { ui } = useI18n();
 
   if (!isOpen) {
@@ -31,7 +40,7 @@ export function Modal({ children, isOpen, onClose, title }: ModalProps) {
     >
       <dialog
         aria-modal="true"
-        className="modal"
+        className={`modal${dialogClassName ? ` ${dialogClassName}` : ''}`}
         open
         onClick={(event) => event.stopPropagation()}
         onKeyDown={handleBackdropKeyDown}
@@ -49,7 +58,7 @@ export function Modal({ children, isOpen, onClose, title }: ModalProps) {
             ×
           </button>
         </div>
-        <div className="modal__body">{children}</div>
+        <div className={`modal__body${bodyClassName ? ` ${bodyClassName}` : ''}`}>{children}</div>
       </dialog>
     </div>
   );

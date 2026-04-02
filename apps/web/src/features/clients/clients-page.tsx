@@ -239,6 +239,7 @@ export function ClientsPage() {
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingClient, setIsSavingClient] = useState(false);
+  const [isClientCardOpen, setIsClientCardOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -410,8 +411,8 @@ export function ClientsPage() {
     ascending: isEnglish ? 'Ascending' : 'По возрастанию',
     descending: isEnglish ? 'Descending' : 'По убыванию',
     tableSubtitle: isEnglish
-      ? 'Search, filter, and act directly from the list. Click a row to open the inspector.'
-      : 'Ищи, фильтруй и действуй прямо из таблицы. Клик по строке открывает inspector.',
+      ? 'Search, filter, and act directly from the list. Click a row to open the client card.'
+      : 'Ищи, фильтруй и действуй прямо из таблицы. Клик по строке открывает карточку клиента.',
     trafficLimit: isEnglish ? 'Traffic cap' : 'Лимит трафика',
     unlimited: isEnglish ? 'Unlimited' : 'Без лимита',
     rowCopyConfig: isEnglish ? 'Copy config' : 'Скопировать конфиг',
@@ -436,6 +437,7 @@ export function ClientsPage() {
   const clearSelectedClient = useCallback(() => {
     detailRequestIdRef.current += 1;
     selectedClientIdRef.current = null;
+    setIsClientCardOpen(false);
     setSelectedClient(null);
     setSubscriptionBundle(null);
     setEditFormState(emptyEditFormState);
@@ -470,6 +472,24 @@ export function ClientsPage() {
     [apiFetch],
   );
 
+  const closeClientCard = useCallback(() => {
+    setIsQrOpen(false);
+    clearSelectedClient();
+  }, [clearSelectedClient]);
+
+  const openClientCard = useCallback(
+    async (clientId: string) => {
+      const details = await loadClientDetails(clientId);
+
+      if (details) {
+        setIsClientCardOpen(true);
+      }
+
+      return details;
+    },
+    [loadClientDetails],
+  );
+
   const loadClients = useCallback(
     async (searchValue: string, pageValue: number, preferredSelectedId?: string) => {
       const requestId = ++listRequestIdRef.current;
@@ -494,13 +514,13 @@ export function ClientsPage() {
         }
 
         const currentSelectedId = preferredSelectedId ?? selectedClientIdRef.current;
-        const nextSelectedId =
-          currentSelectedId && response.items.some((item) => item.id === currentSelectedId)
-            ? currentSelectedId
-            : response.items[0]?.id;
+        const hasSelectedClient =
+          currentSelectedId !== null && response.items.some((item) => item.id === currentSelectedId);
 
-        if (nextSelectedId) {
-          await loadClientDetails(nextSelectedId);
+        if (isClientCardOpen && currentSelectedId && hasSelectedClient) {
+          await loadClientDetails(currentSelectedId);
+        } else if (currentSelectedId && !hasSelectedClient) {
+          clearSelectedClient();
         }
       } catch (loadError) {
         if (requestId !== listRequestIdRef.current) {
@@ -514,7 +534,7 @@ export function ClientsPage() {
         }
       }
     },
-    [apiFetch, clearSelectedClient, loadClientDetails, pageSize, text.loadError],
+    [apiFetch, clearSelectedClient, isClientCardOpen, loadClientDetails, pageSize, text.loadError],
   );
 
   useEffect(() => {
@@ -639,7 +659,7 @@ export function ClientsPage() {
       setSearch('');
       setPage(1);
       showToast(text.clientCreated(created.displayName));
-      await loadClients('', 1, created.id);
+      await loadClients('', 1);
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : text.createError);
     } finally {
@@ -933,15 +953,10 @@ export function ClientsPage() {
       return;
     }
 
-    const firstVisibleClient = sortedClients[0];
-
-    if (
-      firstVisibleClient &&
-      (!selectedClient || !sortedClients.some((client) => client.id === selectedClient.id))
-    ) {
-      void loadClientDetails(firstVisibleClient.id);
+    if (selectedClient && !sortedClients.some((client) => client.id === selectedClient.id)) {
+      clearSelectedClient();
     }
-  }, [clearSelectedClient, loadClientDetails, selectedClient, sortedClients]);
+  }, [clearSelectedClient, selectedClient, sortedClients]);
 
   const headerActionLabel = !isReadOnly ? (isComposerOpen ? text.hideForm : text.newClient) : undefined;
 
@@ -1301,15 +1316,15 @@ export function ClientsPage() {
                           <tr
                             key={client.id}
                             className={`table-row--interactive ${
-                              selectedClient?.id === client.id ? 'table-row--selected' : ''
+                              isClientCardOpen && selectedClient?.id === client.id ? 'table-row--selected' : ''
                             }`}
                             tabIndex={0}
-                            aria-selected={selectedClient?.id === client.id}
-                            onClick={() => void loadClientDetails(client.id)}
+                            aria-selected={isClientCardOpen && selectedClient?.id === client.id}
+                            onClick={() => void openClientCard(client.id)}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault();
-                                void loadClientDetails(client.id);
+                                void openClientCard(client.id);
                               }
                             }}
                           >
@@ -1456,481 +1471,7 @@ export function ClientsPage() {
               </table>
             </div>
           </div>
-
-          <div className="client-inspector">
-            <SectionCard
-              title={selectedClient ? selectedClient.displayName : text.clientCard}
-              subtitle={
-                selectedClient
-                  ? `${formatClientLiveStatus(resolveClientLiveStatus(selectedClient), locale)} • ${selectedClient.uuid}`
-                  : text.selectClient
-              }
-            >
-              {selectedClient ? (
-                <div className="detail-stack">
-                  <div className="client-inspector__hero">
-                    <div>
-                      <StatusPill tone={liveStatusTone(resolveClientLiveStatus(selectedClient))}>
-                        {formatClientLiveStatus(resolveClientLiveStatus(selectedClient), locale)}
-                      </StatusPill>
-                      <p className="client-inspector__meta">{selectedClient.emailTag}</p>
-                    </div>
-                    <div className="client-inspector__meta-block">
-                      <span>{text.lastSeen}</span>
-                      <strong>
-                        {formatDateTime(selectedClient.lastSeenAt, text.notAvailable, locale)}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="stat-grid">
-                    <div className="stat-card">
-                      <span>{text.used}</span>
-                      <strong>{formatBytes(Number(selectedClient.trafficUsedBytes), locale)}</strong>
-                    </div>
-                    <div className="stat-card">
-                      <span>{text.remaining}</span>
-                      <strong>
-                        {selectedClient.remainingTrafficBytes
-                          ? formatBytes(Number(selectedClient.remainingTrafficBytes), locale)
-                          : text.noLimit}
-                      </strong>
-                    </div>
-                    <div className="stat-card">
-                      <span>{text.connections}</span>
-                      <strong>{selectedClient.activeConnections}</strong>
-                    </div>
-                    <div className="stat-card">
-                      <span>{text.deviceLimit}</span>
-                      <strong>
-                        {selectedClient.deviceLimit === null ? text.noLimit : selectedClient.deviceLimit}
-                      </strong>
-                    </div>
-                    <div className="stat-card">
-                      <span>{text.ipLimit}</span>
-                      <strong>{selectedClient.ipLimit === null ? text.noLimit : selectedClient.ipLimit}</strong>
-                    </div>
-                  </div>
-
-                  <div className="workspace-panel workspace-panel--tight">
-                    <div className="workspace-panel__header">
-                      <div>
-                        <strong>{text.identityTitle}</strong>
-                        <p>{text.identitySubtitle}</p>
-                      </div>
-                    </div>
-                    <dl className="detail-list">
-                      <div>
-                        <dt>{text.identifier}</dt>
-                        <dd className="detail-list__mono">{selectedClient.uuid}</dd>
-                      </div>
-                      <div>
-                        <dt>{text.transportProfileLabel}</dt>
-                        <dd>{selectedClient.transportProfile}</dd>
-                      </div>
-                      <div>
-                        <dt>{text.inboundLabel}</dt>
-                        <dd>{selectedClient.xrayInboundTag}</dd>
-                      </div>
-                      <div>
-                        <dt>{text.manualAccess}</dt>
-                        <dd>
-                          {formatClientAccessStatus(
-                            isClientManuallyBlocked(selectedClient.status) ? 'DISABLED' : 'ACTIVE',
-                            locale,
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-                  </div>
-
-                  {selectedTrafficProgress ? (
-                    <div className="workspace-panel workspace-panel--tight">
-                      <div className="workspace-panel__header">
-                        <div>
-                          <strong>{text.trafficLimit}</strong>
-                          <p>{selectedClient.isTrafficUnlimited ? text.unlimited : text.traffic}</p>
-                        </div>
-                        <strong>
-                          {selectedClient.isTrafficUnlimited || !selectedClient.trafficLimitBytes
-                            ? text.unlimited
-                            : `${Math.round(selectedTrafficProgress.percent)}%`}
-                        </strong>
-                      </div>
-                      <div className={`traffic-meter__bar traffic-meter__bar--${selectedTrafficProgress.tone}`}>
-                        <span
-                          style={{
-                            width: `${Math.max(
-                              selectedTrafficProgress.percent,
-                              selectedTrafficProgress.percent > 0 ? 10 : 0,
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="workspace-panel workspace-panel--tight">
-                    <div className="workspace-panel__header">
-                      <div>
-                        <strong>{text.quickActions}</strong>
-                        <p>{text.quickActionsHint}</p>
-                      </div>
-                    </div>
-                    <div className="workspace-actions-grid">
-                      <button className="button" type="button" onClick={() => setIsQrOpen(true)}>
-                        <QrCode size={16} />
-                        {text.showQr}
-                      </button>
-                      {subscriptionBundle ? (
-                        <>
-                          <button
-                            className="button"
-                            type="button"
-                            onClick={() =>
-                              void copyText(
-                                subscriptionBundle.config.subscriptionUrl,
-                                text.copiedSubscription(selectedClient.displayName),
-                              )
-                            }
-                          >
-                            <Copy size={16} />
-                            {text.subscriptionUrl}
-                          </button>
-                          <button
-                            className="button"
-                            type="button"
-                            onClick={() =>
-                              void copyText(
-                                subscriptionBundle.config.uri,
-                                text.copiedVless(selectedClient.displayName),
-                              )
-                            }
-                          >
-                            <Copy size={16} />
-                            {text.vlessLink}
-                          </button>
-                        </>
-                      ) : null}
-                      {!isReadOnly ? (
-                        <>
-                          <button
-                            className="button"
-                            type="button"
-                            onClick={() => void handleExtendClient(selectedClient.id)}
-                          >
-                            {text.extend30}
-                          </button>
-                          <button
-                            className="button"
-                            type="button"
-                            onClick={() => void handleResetTraffic(selectedClient.id)}
-                          >
-                            {text.resetTraffic}
-                          </button>
-                          <button
-                            className={`button ${
-                              isClientManuallyBlocked(selectedClient.status) ? '' : 'button--danger'
-                            }`}
-                            type="button"
-                            onClick={() => void handleToggleClient(selectedClient)}
-                          >
-                            {isClientManuallyBlocked(selectedClient.status) ? text.unblock : text.block}
-                          </button>
-                          <button
-                            className="button button--danger"
-                            type="button"
-                            onClick={() => void handleDeleteClient(selectedClient.id)}
-                          >
-                            {text.delete}
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {!isReadOnly ? (
-                    <form
-                      className="inline-form inline-form--details"
-                      onSubmit={(event) => void handleSaveClient(event)}
-                    >
-                      <div className="workspace-panel workspace-panel--tight">
-                        <div className="workspace-panel__header">
-                          <div>
-                            <strong>{text.access}</strong>
-                            <p>{text.limitHint}</p>
-                          </div>
-                        </div>
-
-                        <div className="field-grid field-grid--details">
-                          <label className="login-form__field">
-                            <span>{text.clientName}</span>
-                            <input
-                              value={editFormState.displayName}
-                              onChange={(event) =>
-                                setEditFormState((current) => ({
-                                  ...current,
-                                  displayName: event.target.value,
-                                }))
-                              }
-                            />
-                          </label>
-                          <label className="login-form__field">
-                            <span>{text.access}</span>
-                            <select
-                              value={editFormState.accessStatus}
-                              onChange={(event) =>
-                                setEditFormState((current) => ({
-                                  ...current,
-                                  accessStatus: event.target.value as EditClientFormState['accessStatus'],
-                                }))
-                              }
-                            >
-                              <option value="ACTIVE">{formatClientAccessStatus('ACTIVE', locale)}</option>
-                              <option value="DISABLED">
-                                {formatClientAccessStatus('DISABLED', locale)}
-                              </option>
-                            </select>
-                          </label>
-                          <label className="login-form__field">
-                            <span>{text.expiryDate}</span>
-                            <input
-                              type="datetime-local"
-                              value={editFormState.expiresAt}
-                              onChange={(event) =>
-                                setEditFormState((current) => ({
-                                  ...current,
-                                  expiresAt: event.target.value,
-                                }))
-                              }
-                            />
-                          </label>
-                          <label className="login-form__field">
-                            <span>{text.trafficLimitGb}</span>
-                            <input
-                              type="number"
-                              min="1"
-                              value={editFormState.trafficLimitGb}
-                              disabled={editFormState.isTrafficUnlimited}
-                              onChange={(event) =>
-                                setEditFormState((current) => ({
-                                  ...current,
-                                  trafficLimitGb: event.target.value,
-                                }))
-                              }
-                            />
-                          </label>
-                          <label className="login-form__field">
-                            <span>{text.deviceLimit}</span>
-                            <input
-                              type="number"
-                              min="1"
-                              placeholder={text.noLimit}
-                              value={editFormState.deviceLimit}
-                              onChange={(event) =>
-                                setEditFormState((current) => ({
-                                  ...current,
-                                  deviceLimit: event.target.value,
-                                }))
-                              }
-                            />
-                            <small className="form-hint">{text.limitHint}</small>
-                          </label>
-                          <label className="login-form__field">
-                            <span>{text.ipLimit}</span>
-                            <input
-                              type="number"
-                              min="1"
-                              placeholder={text.noLimit}
-                              value={editFormState.ipLimit}
-                              onChange={(event) =>
-                                setEditFormState((current) => ({
-                                  ...current,
-                                  ipLimit: event.target.value,
-                                }))
-                              }
-                            />
-                            <small className="form-hint">
-                              {text.limitHint} {text.ipLimitHint}
-                            </small>
-                          </label>
-                        </div>
-
-                        <label className="login-form__field">
-                          <span>{text.tagsComma}</span>
-                          <input
-                            value={editFormState.tags}
-                            onChange={(event) =>
-                              setEditFormState((current) => ({
-                                ...current,
-                                tags: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label className="login-form__field">
-                          <span>{text.note}</span>
-                          <input
-                            value={editFormState.note}
-                            onChange={(event) =>
-                              setEditFormState((current) => ({
-                                ...current,
-                                note: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label className="checkbox-row">
-                          <input
-                            type="checkbox"
-                            checked={editFormState.isTrafficUnlimited}
-                            onChange={(event) =>
-                              setEditFormState((current) => ({
-                                ...current,
-                                isTrafficUnlimited: event.target.checked,
-                              }))
-                            }
-                          />
-                          <span>{text.unlimitedTraffic}</span>
-                        </label>
-
-                        <div className="toolbar__actions">
-                          <button
-                            className="button button--primary"
-                            type="submit"
-                            disabled={isSavingClient}
-                          >
-                            <Save size={16} />
-                            {isSavingClient ? text.saving : text.saveChanges}
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  ) : null}
-
-                  {subscriptionBundle ? (
-                    <div className="workspace-panel workspace-panel--tight">
-                      <div className="workspace-panel__header">
-                        <div>
-                          <strong>{text.deliveryKitTitle}</strong>
-                          <p>{text.deliveryKitSubtitle}</p>
-                        </div>
-                      </div>
-
-                      <div className="detail-stack">
-                        <div className="mono-card">
-                          <div className="mono-card__header">
-                            <strong>{text.subscriptionUrl}</strong>
-                            <div className="toolbar__actions">
-                              <button
-                                className="button"
-                                type="button"
-                                onClick={() =>
-                                  void copyText(
-                                    subscriptionBundle.config.subscriptionUrl,
-                                    text.copiedSubscription(selectedClient.displayName),
-                                  )
-                                }
-                              >
-                                {text.copy}
-                              </button>
-                              <button
-                                className="button"
-                                type="button"
-                                onClick={() =>
-                                  void downloadText(
-                                    `${selectedClient.displayName}-subscription.txt`,
-                                    subscriptionBundle.config.subscriptionUrl,
-                                  )
-                                }
-                              >
-                                {text.download}
-                              </button>
-                            </div>
-                          </div>
-                          <code>{subscriptionBundle.config.subscriptionUrl}</code>
-                        </div>
-
-                        <div className="mono-card">
-                          <div className="mono-card__header">
-                            <strong>{text.vlessLink}</strong>
-                            <button
-                              className="button"
-                              type="button"
-                              onClick={() =>
-                                void copyText(
-                                  subscriptionBundle.config.uri,
-                                  text.copiedVless(selectedClient.displayName),
-                                )
-                              }
-                            >
-                              {text.copy}
-                            </button>
-                          </div>
-                          <code>{subscriptionBundle.config.uri}</code>
-                        </div>
-
-                        <ul className="feature-list">
-                          {subscriptionBundle.instructions.map((item) => (
-                            <li key={item}>{translateSubscriptionInstruction(item, locale)}</li>
-                          ))}
-                        </ul>
-
-                        <div className="feature-list__card">
-                          <strong>{text.appGuides}</strong>
-                          <span>
-                            {text.appGuidesText}{' '}
-                            <Link to="/help">
-                              <strong>{text.help}</strong>
-                            </Link>
-                            .
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="workspace-panel workspace-panel--tight">
-                    <div className="workspace-panel__header">
-                      <div>
-                        <strong>{text.usageHistory}</strong>
-                        <p>{text.usageHistorySubtitle}</p>
-                      </div>
-                    </div>
-                    <div className="history-list">
-                      {usageHistory.length > 0 ? (
-                        usageHistory.map((bucket) => {
-                          const width =
-                            usageHistoryMax > 0
-                              ? `${Math.max(8, (Number(bucket.totalBytes) / usageHistoryMax) * 100)}%`
-                              : '8%';
-
-                          return (
-                            <div key={bucket.date} className="history-row">
-                              <div className="history-row__meta">
-                                <strong>{formatDateTime(bucket.date, text.notAvailable, locale)}</strong>
-                                <span>{formatBytes(Number(bucket.totalBytes), locale)}</span>
-                              </div>
-                              <div className="history-row__bar">
-                                <span style={{ width }} />
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="empty-state">{text.historyEmpty}</div>
-                      )}
-                    </div>
-                  </div>
-              </div>
-            ) : (
-              <div className="empty-state">{text.selectClientEmpty}</div>
-            )}
-          </SectionCard>
         </div>
-      </div>
       </SectionCard>
 
       <Toast
@@ -1939,6 +1480,458 @@ export function ClientsPage() {
         tone={toast?.tone ?? 'success'}
         onClose={() => setToast(null)}
       />
+
+      <Modal
+        isOpen={isClientCardOpen && Boolean(selectedClient)}
+        onClose={closeClientCard}
+        title={selectedClient?.displayName ?? text.clientCard}
+        dialogClassName="modal--client"
+        bodyClassName="modal__body--client"
+      >
+        {selectedClient ? (
+          <div className="detail-stack">
+            <p className="client-inspector__summary">
+              {formatClientLiveStatus(resolveClientLiveStatus(selectedClient), locale)} • {selectedClient.uuid}
+            </p>
+
+            <div className="client-inspector__hero">
+              <div>
+                <StatusPill tone={liveStatusTone(resolveClientLiveStatus(selectedClient))}>
+                  {formatClientLiveStatus(resolveClientLiveStatus(selectedClient), locale)}
+                </StatusPill>
+                <p className="client-inspector__meta">{selectedClient.emailTag}</p>
+              </div>
+              <div className="client-inspector__meta-block">
+                <span>{text.lastSeen}</span>
+                <strong>{formatDateTime(selectedClient.lastSeenAt, text.notAvailable, locale)}</strong>
+              </div>
+            </div>
+
+            <div className="stat-grid">
+              <div className="stat-card">
+                <span>{text.used}</span>
+                <strong>{formatBytes(Number(selectedClient.trafficUsedBytes), locale)}</strong>
+              </div>
+              <div className="stat-card">
+                <span>{text.remaining}</span>
+                <strong>
+                  {selectedClient.remainingTrafficBytes
+                    ? formatBytes(Number(selectedClient.remainingTrafficBytes), locale)
+                    : text.noLimit}
+                </strong>
+              </div>
+              <div className="stat-card">
+                <span>{text.connections}</span>
+                <strong>{selectedClient.activeConnections}</strong>
+              </div>
+              <div className="stat-card">
+                <span>{text.deviceLimit}</span>
+                <strong>{selectedClient.deviceLimit === null ? text.noLimit : selectedClient.deviceLimit}</strong>
+              </div>
+              <div className="stat-card">
+                <span>{text.ipLimit}</span>
+                <strong>{selectedClient.ipLimit === null ? text.noLimit : selectedClient.ipLimit}</strong>
+              </div>
+            </div>
+
+            <div className="workspace-panel workspace-panel--tight">
+              <div className="workspace-panel__header">
+                <div>
+                  <strong>{text.identityTitle}</strong>
+                  <p>{text.identitySubtitle}</p>
+                </div>
+              </div>
+              <dl className="detail-list">
+                <div>
+                  <dt>{text.identifier}</dt>
+                  <dd className="detail-list__mono">{selectedClient.uuid}</dd>
+                </div>
+                <div>
+                  <dt>{text.transportProfileLabel}</dt>
+                  <dd>{selectedClient.transportProfile}</dd>
+                </div>
+                <div>
+                  <dt>{text.inboundLabel}</dt>
+                  <dd>{selectedClient.xrayInboundTag}</dd>
+                </div>
+                <div>
+                  <dt>{text.manualAccess}</dt>
+                  <dd>
+                    {formatClientAccessStatus(
+                      isClientManuallyBlocked(selectedClient.status) ? 'DISABLED' : 'ACTIVE',
+                      locale,
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            {selectedTrafficProgress ? (
+              <div className="workspace-panel workspace-panel--tight">
+                <div className="workspace-panel__header">
+                  <div>
+                    <strong>{text.trafficLimit}</strong>
+                    <p>{selectedClient.isTrafficUnlimited ? text.unlimited : text.traffic}</p>
+                  </div>
+                  <strong>
+                    {selectedClient.isTrafficUnlimited || !selectedClient.trafficLimitBytes
+                      ? text.unlimited
+                      : `${Math.round(selectedTrafficProgress.percent)}%`}
+                  </strong>
+                </div>
+                <div className={`traffic-meter__bar traffic-meter__bar--${selectedTrafficProgress.tone}`}>
+                  <span
+                    style={{
+                      width: `${Math.max(
+                        selectedTrafficProgress.percent,
+                        selectedTrafficProgress.percent > 0 ? 10 : 0,
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="workspace-panel workspace-panel--tight">
+              <div className="workspace-panel__header">
+                <div>
+                  <strong>{text.quickActions}</strong>
+                  <p>{text.quickActionsHint}</p>
+                </div>
+              </div>
+              <div className="workspace-actions-grid">
+                <button className="button" type="button" onClick={() => setIsQrOpen(true)}>
+                  <QrCode size={16} />
+                  {text.showQr}
+                </button>
+                {subscriptionBundle ? (
+                  <>
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() =>
+                        void copyText(
+                          subscriptionBundle.config.subscriptionUrl,
+                          text.copiedSubscription(selectedClient.displayName),
+                        )
+                      }
+                    >
+                      <Copy size={16} />
+                      {text.subscriptionUrl}
+                    </button>
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() =>
+                        void copyText(
+                          subscriptionBundle.config.uri,
+                          text.copiedVless(selectedClient.displayName),
+                        )
+                      }
+                    >
+                      <Copy size={16} />
+                      {text.vlessLink}
+                    </button>
+                  </>
+                ) : null}
+                {!isReadOnly ? (
+                  <>
+                    <button className="button" type="button" onClick={() => void handleExtendClient(selectedClient.id)}>
+                      {text.extend30}
+                    </button>
+                    <button className="button" type="button" onClick={() => void handleResetTraffic(selectedClient.id)}>
+                      {text.resetTraffic}
+                    </button>
+                    <button
+                      className={`button ${isClientManuallyBlocked(selectedClient.status) ? '' : 'button--danger'}`}
+                      type="button"
+                      onClick={() => void handleToggleClient(selectedClient)}
+                    >
+                      {isClientManuallyBlocked(selectedClient.status) ? text.unblock : text.block}
+                    </button>
+                    <button
+                      className="button button--danger"
+                      type="button"
+                      onClick={() => void handleDeleteClient(selectedClient.id)}
+                    >
+                      {text.delete}
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            {!isReadOnly ? (
+              <form className="inline-form inline-form--details" onSubmit={(event) => void handleSaveClient(event)}>
+                <div className="workspace-panel workspace-panel--tight">
+                  <div className="workspace-panel__header">
+                    <div>
+                      <strong>{text.access}</strong>
+                      <p>{text.limitHint}</p>
+                    </div>
+                  </div>
+
+                  <div className="field-grid field-grid--details">
+                    <label className="login-form__field">
+                      <span>{text.clientName}</span>
+                      <input
+                        value={editFormState.displayName}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            displayName: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="login-form__field">
+                      <span>{text.access}</span>
+                      <select
+                        value={editFormState.accessStatus}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            accessStatus: event.target.value as EditClientFormState['accessStatus'],
+                          }))
+                        }
+                      >
+                        <option value="ACTIVE">{formatClientAccessStatus('ACTIVE', locale)}</option>
+                        <option value="DISABLED">{formatClientAccessStatus('DISABLED', locale)}</option>
+                      </select>
+                    </label>
+                    <label className="login-form__field">
+                      <span>{text.expiryDate}</span>
+                      <input
+                        type="datetime-local"
+                        value={editFormState.expiresAt}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            expiresAt: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="login-form__field">
+                      <span>{text.trafficLimitGb}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editFormState.trafficLimitGb}
+                        disabled={editFormState.isTrafficUnlimited}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            trafficLimitGb: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="login-form__field">
+                      <span>{text.deviceLimit}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder={text.noLimit}
+                        value={editFormState.deviceLimit}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            deviceLimit: event.target.value,
+                          }))
+                        }
+                      />
+                      <small className="form-hint">{text.limitHint}</small>
+                    </label>
+                    <label className="login-form__field">
+                      <span>{text.ipLimit}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder={text.noLimit}
+                        value={editFormState.ipLimit}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            ipLimit: event.target.value,
+                          }))
+                        }
+                      />
+                      <small className="form-hint">
+                        {text.limitHint} {text.ipLimitHint}
+                      </small>
+                    </label>
+                  </div>
+
+                  <label className="login-form__field">
+                    <span>{text.tagsComma}</span>
+                    <input
+                      value={editFormState.tags}
+                      onChange={(event) =>
+                        setEditFormState((current) => ({
+                          ...current,
+                          tags: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="login-form__field">
+                    <span>{text.note}</span>
+                    <input
+                      value={editFormState.note}
+                      onChange={(event) =>
+                        setEditFormState((current) => ({
+                          ...current,
+                          note: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={editFormState.isTrafficUnlimited}
+                      onChange={(event) =>
+                        setEditFormState((current) => ({
+                          ...current,
+                          isTrafficUnlimited: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{text.unlimitedTraffic}</span>
+                  </label>
+
+                  <div className="toolbar__actions">
+                    <button className="button button--primary" type="submit" disabled={isSavingClient}>
+                      <Save size={16} />
+                      {isSavingClient ? text.saving : text.saveChanges}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : null}
+
+            {subscriptionBundle ? (
+              <div className="workspace-panel workspace-panel--tight">
+                <div className="workspace-panel__header">
+                  <div>
+                    <strong>{text.deliveryKitTitle}</strong>
+                    <p>{text.deliveryKitSubtitle}</p>
+                  </div>
+                </div>
+
+                <div className="detail-stack">
+                  <div className="mono-card">
+                    <div className="mono-card__header">
+                      <strong>{text.subscriptionUrl}</strong>
+                      <div className="toolbar__actions">
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={() =>
+                            void copyText(
+                              subscriptionBundle.config.subscriptionUrl,
+                              text.copiedSubscription(selectedClient.displayName),
+                            )
+                          }
+                        >
+                          {text.copy}
+                        </button>
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={() =>
+                            void downloadText(
+                              `${selectedClient.displayName}-subscription.txt`,
+                              subscriptionBundle.config.subscriptionUrl,
+                            )
+                          }
+                        >
+                          {text.download}
+                        </button>
+                      </div>
+                    </div>
+                    <code>{subscriptionBundle.config.subscriptionUrl}</code>
+                  </div>
+
+                  <div className="mono-card">
+                    <div className="mono-card__header">
+                      <strong>{text.vlessLink}</strong>
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() =>
+                          void copyText(
+                            subscriptionBundle.config.uri,
+                            text.copiedVless(selectedClient.displayName),
+                          )
+                        }
+                      >
+                        {text.copy}
+                      </button>
+                    </div>
+                    <code>{subscriptionBundle.config.uri}</code>
+                  </div>
+
+                  <ul className="feature-list">
+                    {subscriptionBundle.instructions.map((item) => (
+                      <li key={item}>{translateSubscriptionInstruction(item, locale)}</li>
+                    ))}
+                  </ul>
+
+                  <div className="feature-list__card">
+                    <strong>{text.appGuides}</strong>
+                    <span>
+                      {text.appGuidesText}{' '}
+                      <Link to="/help">
+                        <strong>{text.help}</strong>
+                      </Link>
+                      .
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="workspace-panel workspace-panel--tight">
+              <div className="workspace-panel__header">
+                <div>
+                  <strong>{text.usageHistory}</strong>
+                  <p>{text.usageHistorySubtitle}</p>
+                </div>
+              </div>
+              <div className="history-list">
+                {usageHistory.length > 0 ? (
+                  usageHistory.map((bucket) => {
+                    const width =
+                      usageHistoryMax > 0
+                        ? `${Math.max(8, (Number(bucket.totalBytes) / usageHistoryMax) * 100)}%`
+                        : '8%';
+
+                    return (
+                      <div key={bucket.date} className="history-row">
+                        <div className="history-row__meta">
+                          <strong>{formatDateTime(bucket.date, text.notAvailable, locale)}</strong>
+                          <span>{formatBytes(Number(bucket.totalBytes), locale)}</span>
+                        </div>
+                        <div className="history-row__bar">
+                          <span style={{ width }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="empty-state">{text.historyEmpty}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="empty-state">{text.selectClientEmpty}</div>
+        )}
+      </Modal>
 
       <Modal
         isOpen={isQrOpen}

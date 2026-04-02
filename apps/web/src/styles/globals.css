@@ -471,7 +471,7 @@ a {
 
 .split-grid--clients {
   align-items: start;
-  grid-template-columns: minmax(0, 1.46fr) minmax(360px, 0.96fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .metric-card,
@@ -1750,6 +1750,14 @@ a {
   color: var(--text-soft);
 }
 
+.client-inspector__summary {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+}
+
 .client-inspector__meta-block {
   display: grid;
   gap: 4px;
@@ -1870,6 +1878,14 @@ a {
 .modal__body {
   display: grid;
   gap: 16px;
+}
+
+.modal--client {
+  width: min(100%, 1120px);
+}
+
+.modal__body--client {
+  gap: 18px;
 }
 
 .toast {
