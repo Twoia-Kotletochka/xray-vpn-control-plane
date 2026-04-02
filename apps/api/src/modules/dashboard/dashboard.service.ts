@@ -4,8 +4,13 @@ import { ClientStatus } from '@prisma/client';
 import { PrismaService } from '../../common/database/prisma.service';
 import { SystemService } from '../system/system.service';
 import { XrayService } from '../xray/xray.service';
+import {
+  DASHBOARD_ANALYTICS_WINDOWS,
+  DASHBOARD_DEFAULT_ANALYTICS_WINDOW,
+  type DashboardAnalyticsWindowDays,
+} from './dashboard.constants';
 
-const DASHBOARD_TREND_DAYS = 14;
+const DASHBOARD_TREND_DAYS = DASHBOARD_DEFAULT_ANALYTICS_WINDOW;
 const DASHBOARD_TREND_COMPARISON_DAYS = 7;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -93,11 +98,14 @@ function emptyTrafficTotals() {
   };
 }
 
-function buildTrendBuckets(rows: DailyUsageTrendRow[]) {
+function buildTrendBuckets(
+  rows: DailyUsageTrendRow[],
+  windowDays: DashboardAnalyticsWindowDays = DASHBOARD_TREND_DAYS,
+) {
   const today = startOfUtcDay(new Date());
   const buckets = new Map<string, DashboardTrendBucketSeed>();
 
-  for (let offset = DASHBOARD_TREND_DAYS - 1; offset >= 0; offset -= 1) {
+  for (let offset = windowDays - 1; offset >= 0; offset -= 1) {
     const bucketDate = new Date(today.getTime() - offset * DAY_IN_MS);
     const key = bucketDate.toISOString();
 
@@ -131,7 +139,7 @@ function buildTrendBuckets(rows: DailyUsageTrendRow[]) {
 }
 
 function buildDashboardTrends(rows: DailyUsageTrendRow[]) {
-  const buckets = buildTrendBuckets(rows);
+  const buckets = buildTrendBuckets(rows, DASHBOARD_TREND_DAYS);
   const recentBuckets = buckets.slice(-DASHBOARD_TREND_COMPARISON_DAYS);
   const previousBuckets = buckets.slice(
     -DASHBOARD_TREND_COMPARISON_DAYS * 2,
@@ -187,9 +195,10 @@ function buildDashboardAnalytics(
   allTimeUsageRows: DashboardClientUsageAggregateRow[],
   trendRows: DailyUsageTrendRow[],
   latestConnections: DashboardClientRuntimeRow[],
+  windowDays: DashboardAnalyticsWindowDays,
 ) {
   const todayKey = startOfUtcDay(new Date()).toISOString();
-  const trendBuckets = buildTrendBuckets(trendRows);
+  const trendBuckets = buildTrendBuckets(trendRows, windowDays);
   const totalTrafficBytes = sumBigInts(
     allTimeUsageRows.map((row) => row._sum.totalBytes ?? 0n),
   );
@@ -258,23 +267,29 @@ function buildDashboardAnalytics(
   }
 
   const orderedClients = Array.from(analyticsClients.values()).sort((left, right) => {
-    const totalTrafficDelta = compareBigInts(right.totalTrafficBytes, left.totalTrafficBytes);
-
-    if (totalTrafficDelta !== 0) {
-      return totalTrafficDelta;
-    }
-
     const windowTrafficDelta = compareBigInts(right.windowTrafficBytes, left.windowTrafficBytes);
 
     if (windowTrafficDelta !== 0) {
       return windowTrafficDelta;
     }
 
+    const todayTrafficDelta = compareBigInts(right.todayTrafficBytes, left.todayTrafficBytes);
+
+    if (todayTrafficDelta !== 0) {
+      return todayTrafficDelta;
+    }
+
+    const totalTrafficDelta = compareBigInts(right.totalTrafficBytes, left.totalTrafficBytes);
+
+    if (totalTrafficDelta !== 0) {
+      return totalTrafficDelta;
+    }
+
     return left.displayName.localeCompare(right.displayName);
   });
-  const topClient = orderedClients.find((client) => client.totalTrafficBytes > 0n) ?? null;
+  const topClient = orderedClients.find((client) => client.windowTrafficBytes > 0n) ?? null;
   const uniqueClientsWithTraffic = orderedClients.filter(
-    (client) => client.totalTrafficBytes > 0n,
+    (client) => client.windowTrafficBytes > 0n,
   ).length;
   const onlineNow = orderedClients.filter(
     (client) => client.activeConnections > 0 && client.status === ClientStatus.ACTIVE,
@@ -287,7 +302,8 @@ function buildDashboardAnalytics(
 
   return {
     generatedAt: new Date().toISOString(),
-    windowDays: DASHBOARD_TREND_DAYS,
+    availableWindows: [...DASHBOARD_ANALYTICS_WINDOWS],
+    windowDays,
     totals: {
       totalTrafficBytes: totalTrafficBytes.toString(),
       windowTrafficBytes: totalWindowTrafficBytes.toString(),
@@ -299,7 +315,7 @@ function buildDashboardAnalytics(
       uniqueClientsWithTraffic,
       onlineNow,
       topClientDisplayName: topClient?.displayName ?? null,
-      topClientTrafficBytes: topClient?.totalTrafficBytes.toString() ?? '0',
+      topClientTrafficBytes: topClient?.windowTrafficBytes.toString() ?? '0',
       todayTrafficBytes: trendBuckets.at(-1)?.totalTrafficBytes.toString() ?? '0',
     },
     timeline: trendBuckets.map((bucket) => ({
@@ -461,11 +477,11 @@ export class DashboardService {
     };
   }
 
-  async analytics() {
+  private async analyticsWithWindow(windowDays: DashboardAnalyticsWindowDays) {
     await this.primeDashboardData('dashboard-analytics');
 
     const trendStartDate = new Date(
-      startOfUtcDay(new Date()).getTime() - (DASHBOARD_TREND_DAYS - 1) * DAY_IN_MS,
+      startOfUtcDay(new Date()).getTime() - (windowDays - 1) * DAY_IN_MS,
     );
     const [clients, allTimeUsageRows, trendUsageRows, latestConnections] = await Promise.all([
       this.prisma.client.findMany({
@@ -514,6 +530,16 @@ export class DashboardService {
       }),
     ]);
 
-    return buildDashboardAnalytics(clients, allTimeUsageRows, trendUsageRows, latestConnections);
+    return buildDashboardAnalytics(
+      clients,
+      allTimeUsageRows,
+      trendUsageRows,
+      latestConnections,
+      windowDays,
+    );
+  }
+
+  async analytics(windowDays: DashboardAnalyticsWindowDays = DASHBOARD_DEFAULT_ANALYTICS_WINDOW) {
+    return this.analyticsWithWindow(windowDays);
   }
 }

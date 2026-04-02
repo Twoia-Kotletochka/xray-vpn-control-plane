@@ -1,7 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { AdminRole } from '@prisma/client';
 
 import { Roles } from '../../common/auth/roles.decorator';
+import { DashboardAnalyticsQueryDto } from './dto/dashboard-analytics-query.dto';
 import { DashboardService } from './dashboard.service';
 
 @Controller('dashboard')
@@ -15,7 +16,7 @@ export class DashboardController {
   }
 
   @Get('analytics')
-  analytics() {
-    return this.dashboardService.analytics();
+  analytics(@Query() query: DashboardAnalyticsQueryDto) {
+    return this.dashboardService.analytics(query.windowDays);
   }
 }

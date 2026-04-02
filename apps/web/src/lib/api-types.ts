@@ -166,6 +166,7 @@ export type DashboardSummary = {
 
 export type DashboardAnalyticsResponse = {
   generatedAt: string;
+  availableWindows: number[];
   windowDays: number;
   totals: {
     totalTrafficBytes: string;

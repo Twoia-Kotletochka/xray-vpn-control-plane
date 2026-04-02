@@ -204,7 +204,7 @@ describe('DashboardService', () => {
     expect(summary.message).toContain('список клиентов');
   });
 
-  it('returns analytics timeline and per-client traffic ranking', async () => {
+  it('returns analytics timeline and per-client traffic ranking for the requested window', async () => {
     const prisma = {
       client: {
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -300,7 +300,7 @@ describe('DashboardService', () => {
       xrayService as never,
     );
 
-    const analytics = await service.analytics();
+    const analytics = await service.analytics(30);
 
     expect(xrayService.captureUsageSnapshot).toHaveBeenCalledWith({
       reason: 'dashboard-analytics',
@@ -328,7 +328,7 @@ describe('DashboardService', () => {
     expect(prisma.dailyClientUsage.findMany).toHaveBeenNthCalledWith(1, {
       where: {
         bucketDate: {
-          gte: new Date('2026-03-19T00:00:00.000Z'),
+          gte: new Date('2026-03-03T00:00:00.000Z'),
         },
       },
       orderBy: [{ bucketDate: 'asc' }, { clientId: 'asc' }],
@@ -356,10 +356,13 @@ describe('DashboardService', () => {
       onlineNow: 1,
       uniqueClientsWithTraffic: 2,
       topClientDisplayName: 'Ann',
-      topClientTrafficBytes: '15360',
+      topClientTrafficBytes: '3072',
       activeClientsToday: 2,
       peakActiveClients: 2,
     });
+    expect(analytics.availableWindows).toEqual([7, 14, 30]);
+    expect(analytics.windowDays).toBe(30);
+    expect(analytics.timeline).toHaveLength(30);
     expect(analytics.timeline.at(-1)).toMatchObject({
       date: '2026-04-01T00:00:00.000Z',
       incomingTrafficBytes: '2560',
@@ -370,11 +373,15 @@ describe('DashboardService', () => {
     expect(analytics.clients[0]).toMatchObject({
       displayName: 'Ann',
       totalTrafficBytes: '15360',
-      windowTrafficBytes: '5120',
+      windowTrafficBytes: '3072',
       todayTrafficBytes: '3072',
       activeConnections: 1,
       activeDays: 2,
       peakActiveConnections: 2,
+    });
+    expect(analytics.clients[1]).toMatchObject({
+      displayName: 'Den',
+      windowTrafficBytes: '2048',
     });
   });
 });

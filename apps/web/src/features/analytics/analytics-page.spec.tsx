@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DashboardAnalyticsResponse } from '../../lib/api-types';
@@ -22,6 +22,7 @@ describe('AnalyticsPage', () => {
   it('renders traffic analytics with chart, leaders, and client table', async () => {
     const analytics: DashboardAnalyticsResponse = {
       generatedAt: '2026-04-02T10:15:00.000Z',
+      availableWindows: [7, 14, 30],
       windowDays: 14,
       totals: {
         totalTrafficBytes: '32768',
@@ -97,6 +98,43 @@ describe('AnalyticsPage', () => {
     expect(screen.getByText('Ann')).toBeTruthy();
     expect(screen.getByText('ann-27b6cd0c')).toBeTruthy();
     expect(screen.getByText('Весь трафик')).toBeTruthy();
-    expect(screen.getByText('Онлайн сейчас')).toBeTruthy();
+    expect(screen.getByText('Клиенты с трафиком')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '14 дн' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '30 дн' })).toBeTruthy();
+  });
+
+  it('reloads analytics when the window preset changes', async () => {
+    const analytics: DashboardAnalyticsResponse = {
+      generatedAt: '2026-04-02T10:15:00.000Z',
+      availableWindows: [7, 14, 30],
+      windowDays: 14,
+      totals: {
+        totalTrafficBytes: '32768',
+        windowTrafficBytes: '16384',
+        windowIncomingBytes: '9216',
+        windowOutgoingBytes: '7168',
+        averageDailyTrafficBytes: '1170',
+        activeClientsToday: 2,
+        peakActiveClients: 3,
+        uniqueClientsWithTraffic: 2,
+        onlineNow: 1,
+        topClientDisplayName: 'Ann',
+        topClientTrafficBytes: '8192',
+        todayTrafficBytes: '4096',
+      },
+      timeline: [],
+      clients: [],
+    };
+
+    mockApiFetch.mockResolvedValue(analytics);
+
+    render(<AnalyticsPage />);
+
+    await screen.findByText('График трафика');
+    fireEvent.click(screen.getByRole('button', { name: '30 дн' }));
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenLastCalledWith('/api/dashboard/analytics?windowDays=30');
+    });
   });
 });

@@ -479,6 +479,7 @@ a {
   grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.92fr);
 }
 
+.analytics-toolbar,
 .analytics-chart,
 .analytics-side-panel,
 .analytics-side-panel__stats,
@@ -488,16 +489,105 @@ a {
   gap: 18px;
 }
 
+.analytics-toolbar {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.analytics-toolbar__group {
+  display: grid;
+  gap: 10px;
+}
+
+.analytics-toolbar__group--chips {
+  justify-items: end;
+}
+
+.analytics-toolbar__label {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.analytics-window-switch,
+.analytics-sort-switch {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.analytics-window-switch__button,
+.analytics-sort-switch__button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--text-soft);
+  background: transparent;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.analytics-window-switch__button:hover,
+.analytics-sort-switch__button:hover {
+  transform: translateY(-1px);
+  color: var(--text);
+}
+
+.analytics-window-switch__button--active,
+.analytics-sort-switch__button--active {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .analytics-chart__surface {
   position: relative;
   overflow: hidden;
   min-height: 300px;
-  padding: 18px 18px 12px;
+  padding: 18px 18px 16px;
   border: 1px solid var(--border);
   border-radius: 24px;
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.09), transparent 38%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+}
+
+.analytics-chart__legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.analytics-chart__legend-item {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.analytics-chart__legend-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.analytics-chart__legend-swatch--total {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.analytics-chart__legend-swatch--incoming {
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.analytics-chart__legend-swatch--outgoing {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .analytics-chart__grid {
@@ -513,10 +603,23 @@ a {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.analytics-chart__y-axis {
+  position: absolute;
+  inset: 18px 18px 16px auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-end;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  pointer-events: none;
+}
+
 .analytics-chart__svg {
   position: relative;
   width: 100%;
-  height: 260px;
+  height: 280px;
   display: block;
 }
 
@@ -529,11 +632,21 @@ a {
   font-size: 0.78rem;
 }
 
+.analytics-chart__footer {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .analytics-direction-card {
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 20px;
   background: var(--bg-soft);
+}
+
+.analytics-side-panel__stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .analytics-direction-card__header {
@@ -606,6 +719,10 @@ a {
   width: 11%;
 }
 
+.analytics-table__col--connections {
+  width: 8%;
+}
+
 .analytics-table__col--active-days {
   width: 7%;
 }
@@ -618,6 +735,24 @@ a {
   display: grid;
   gap: 8px;
   min-width: 160px;
+}
+
+.analytics-connections-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 92px;
+}
+
+.analytics-connections-cell span {
+  color: var(--text-soft);
+}
+
+.analytics-table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
 }
 
 .toolbar {
@@ -1421,12 +1556,24 @@ a {
   .dashboard-trends__overview,
   .two-factor-grid,
   .field-grid,
-  .stat-grid {
+  .stat-grid,
+  .analytics-toolbar,
+  .analytics-side-panel__stats {
     grid-template-columns: 1fr;
   }
 
+  .analytics-toolbar__group--chips {
+    justify-items: stretch;
+  }
+
+  .analytics-table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .analytics-direction-card__meta,
-  .analytics-leaderboard__meta {
+  .analytics-leaderboard__meta,
+  .analytics-chart__footer {
     flex-direction: column;
     align-items: flex-start;
   }
