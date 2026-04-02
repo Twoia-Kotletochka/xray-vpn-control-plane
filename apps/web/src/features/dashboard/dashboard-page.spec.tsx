@@ -96,5 +96,6 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Открыть систему')).toBeTruthy();
     expect(screen.getByText('Состояние runtime')).toBeTruthy();
     expect(screen.getByText('Дельта тренда')).toBeTruthy();
+    expect(screen.getByText('Клиентов замечено: 1')).toBeTruthy();
   });
 });

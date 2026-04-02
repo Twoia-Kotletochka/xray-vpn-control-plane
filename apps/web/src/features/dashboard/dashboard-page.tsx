@@ -69,6 +69,7 @@ export function DashboardPage() {
           actionsSubtitle:
             'Jump straight into the main operational flows with minimal navigation friction.',
           onlineNow: 'Online now',
+          clientsSeen: 'Clients seen',
           onlineHint: 'live connections reported by the Xray runtime',
           activeProfiles: 'Active profiles',
           activeProfilesHint: 'clients with ACTIVE status and ready to connect',
@@ -123,6 +124,7 @@ export function DashboardPage() {
           actionsSubtitle:
             'Быстрые переходы в основные рабочие зоны без лишней навигации и потери контекста.',
           onlineNow: 'Онлайн сейчас',
+          clientsSeen: 'Клиентов замечено',
           onlineHint: 'live-подключения по данным Xray runtime',
           activeProfiles: 'Активные профили',
           activeProfilesHint: 'клиенты со статусом ACTIVE, готовые к подключению',
@@ -337,7 +339,7 @@ export function DashboardPage() {
                           {text.outgoing}: {formatBytes(Number(bucket.outgoingTrafficBytes), locale)}
                         </span>
                         <span>
-                          {text.onlineNow}: {bucket.activeClients}
+                          {text.clientsSeen}: {bucket.activeClients}
                         </span>
                       </div>
                     </div>
