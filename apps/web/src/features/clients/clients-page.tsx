@@ -987,86 +987,91 @@ export function ClientsPage() {
               ))}
             </div>
 
-            <div className="toolbar__actions">
-              <label className="toolbar-select">
-                <span>{text.sortBy}</span>
-                <select
-                  value={sortKey}
-                  onChange={(event) => setSortKey(event.target.value as ClientSortKey)}
+            <div className="toolbar__actions workspace-toolbar__actions">
+              <div className="workspace-toolbar__fields">
+                <label className="toolbar-select toolbar-select--wide">
+                  <span>{text.sortBy}</span>
+                  <select
+                    value={sortKey}
+                    onChange={(event) => setSortKey(event.target.value as ClientSortKey)}
+                  >
+                    {sortOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="button button--ghost button--compact"
+                  type="button"
+                  onClick={() =>
+                    setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
+                  }
                 >
-                  {sortOptions.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                className="button button--ghost button--compact"
-                type="button"
-                onClick={() =>
-                  setSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))
-                }
-              >
-                {sortDirection === 'desc' ? text.descending : text.ascending}
-              </button>
-              <label className="toolbar-select">
-                <span>{text.pageSize}</span>
-                <select
-                  value={pageSize}
-                  onChange={(event) => {
-                    setPageSize(Number(event.target.value));
+                  {sortDirection === 'desc' ? text.descending : text.ascending}
+                </button>
+                <label className="toolbar-select toolbar-select--narrow">
+                  <span>{text.pageSize}</span>
+                  <select
+                    value={pageSize}
+                    onChange={(event) => {
+                      setPageSize(Number(event.target.value));
+                      setPage(1);
+                    }}
+                  >
+                    {[25, 50, 100].map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="workspace-toolbar__bulk-actions">
+                <button
+                  className="button button--ghost"
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
                     setPage(1);
+                    setStatusFilter('ALL');
                   }}
                 >
-                  {[25, 50, 100].map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                className="button button--ghost"
-                type="button"
-                onClick={() => {
-                  setSearch('');
-                  setPage(1);
-                  setStatusFilter('ALL');
-                }}
-              >
-                <RotateCcw size={16} />
-                {text.reset}
-              </button>
-              <button
-                className="button"
-                type="button"
-                onClick={() => void handleExportClients()}
-                disabled={isExporting}
-              >
-                <Download size={16} />
-                {isExporting ? text.exporting : text.export}
-              </button>
-              {!isReadOnly ? (
-                <>
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={() => importFileRef.current?.click()}
-                  >
-                    <FileUp size={16} />
-                    {text.import}
-                  </button>
-                  <button
-                    className="button button--primary"
-                    type="button"
-                    onClick={() => setIsComposerOpen((value) => !value)}
-                  >
-                    <Plus size={16} />
-                    {isComposerOpen ? text.closeForm : text.addClient}
-                  </button>
-                </>
-              ) : null}
+                  <RotateCcw size={16} />
+                  {text.reset}
+                </button>
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => void handleExportClients()}
+                  disabled={isExporting}
+                >
+                  <Download size={16} />
+                  {isExporting ? text.exporting : text.export}
+                </button>
+                {!isReadOnly ? (
+                  <>
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() => importFileRef.current?.click()}
+                    >
+                      <FileUp size={16} />
+                      {text.import}
+                    </button>
+                    <button
+                      className="button button--primary"
+                      type="button"
+                      onClick={() => setIsComposerOpen((value) => !value)}
+                    >
+                      <Plus size={16} />
+                      {isComposerOpen ? text.closeForm : text.addClient}
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
           </div>
           <input
