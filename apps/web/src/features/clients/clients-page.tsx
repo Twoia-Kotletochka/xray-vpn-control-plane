@@ -1920,6 +1920,7 @@ export function ClientsPage() {
             )}
           </SectionCard>
         </div>
+      </div>
       </SectionCard>
 
       <Toast
