@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DashboardSummary } from '../../lib/api-types';
@@ -10,6 +11,9 @@ const mockApiFetch = vi.fn();
 
 vi.mock('../auth/auth-context', () => ({
   useAuth: () => ({
+    admin: {
+      role: 'SUPER_ADMIN',
+    },
     apiFetch: mockApiFetch,
   }),
 }));
@@ -19,7 +23,7 @@ describe('DashboardPage', () => {
     mockApiFetch.mockReset();
   });
 
-  it('shows separate cards for online and available clients with traffic trends', async () => {
+  it('shows the new operational overview with traffic pulse and workspaces', async () => {
     const summary: DashboardSummary = {
       totals: {
         clients: 9,
@@ -77,15 +81,20 @@ describe('DashboardPage', () => {
 
     mockApiFetch.mockResolvedValue(summary);
 
-    render(<DashboardPage />);
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
 
-    await screen.findByText('Онлайн сейчас');
+    await screen.findByText('Пульс трафика');
     expect(screen.getByText('Активные профили')).toBeTruthy();
     expect(screen.getByText('реальные live-подключения по данным Xray runtime')).toBeTruthy();
     expect(screen.getByText('клиенты со статусом ACTIVE, готовые к подключению')).toBeTruthy();
-    expect(screen.getByText('Клиентов онлайн сейчас: 2')).toBeTruthy();
-    expect(screen.getByText('Активные профили: 6')).toBeTruthy();
-    expect(screen.getByText('Аналитика вынесена в отдельную вкладку')).toBeTruthy();
-    expect(screen.getByText('Используй Дашборд для состояния системы и операций, а Аналитику для разбора нагрузки.')).toBeTruthy();
+    expect(screen.getByText('Рабочие разделы')).toBeTruthy();
+    expect(screen.getByText('Открыть трафик')).toBeTruthy();
+    expect(screen.getByText('Открыть систему')).toBeTruthy();
+    expect(screen.getByText('Состояние runtime')).toBeTruthy();
+    expect(screen.getByText('Дельта тренда')).toBeTruthy();
   });
 });

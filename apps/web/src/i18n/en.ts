@@ -6,8 +6,12 @@ export const en: DeepTranslate<typeof ru> = {
     operations: 'operations',
     protectedAccess: 'Protected access',
     transportProfile: 'Transport profile',
-    globalSearchPlaceholder: 'Search clients, tags, and audit events',
-    operationsConsole: 'Operations Console',
+    globalSearchPlaceholder: 'Find a client or jump to a workspace',
+    operationsConsole: 'Control Plane',
+    workspaceGroup: 'Workspace',
+    platformGroup: 'Platform',
+    accessGroup: 'Access',
+    fixedControlPlane: 'single-node control plane',
     notAvailable: 'N/A',
     languageLabel: 'Language',
     languageRussian: 'RU',
@@ -23,12 +27,13 @@ export const en: DeepTranslate<typeof ru> = {
   },
   navigation: {
     dashboard: 'Dashboard',
-    analytics: 'Analytics',
+    analytics: 'Traffic',
     clients: 'Clients',
-    subscriptions: 'Subscriptions',
-    serverStatus: 'Server status',
+    subscriptions: 'Connections',
+    serverStatus: 'System',
     logs: 'Logs',
     backups: 'Backups',
+    settings: 'Settings',
     help: 'Help',
     adminUsers: 'Admin users',
     auditLog: 'Audit log',
@@ -87,7 +92,7 @@ export const en: DeepTranslate<typeof ru> = {
     },
   },
   analytics: {
-    title: 'Analytics',
+    title: 'Traffic & analytics',
     description:
       'Traffic charts, activity trends, and per-client usage visibility without turning the dashboard into noise.',
   },
@@ -119,7 +124,7 @@ export const en: DeepTranslate<typeof ru> = {
     moreActions: 'More actions',
   },
   subscriptions: {
-    title: 'Subscriptions',
+    title: 'Connections & configs',
     description:
       'Config delivery with templates for the main VLESS/Xray clients on desktop and mobile.',
     outputTitle: 'Planned formats',
@@ -132,7 +137,7 @@ export const en: DeepTranslate<typeof ru> = {
     ],
   },
   serverStatus: {
-    title: 'Server status',
+    title: 'System & runtime',
     description:
       'A dedicated area for Xray, API, database, disk, RAM, CPU, and safe runtime actions.',
     healthTitle: 'Service health',

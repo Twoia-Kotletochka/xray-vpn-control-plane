@@ -9,6 +9,7 @@ import { ClientsPage } from '../features/clients/clients-page';
 import { DashboardPage } from '../features/dashboard/dashboard-page';
 import { HelpPage } from '../features/help/help-page';
 import { LogsPage } from '../features/logs/logs-page';
+import { SettingsPage } from '../features/settings/settings-page';
 import { SubscriptionsPage } from '../features/subscriptions/subscriptions-page';
 import { ServerStatusPage } from '../features/system/server-status-page';
 import { ProtectedShell } from './protected-shell';
@@ -53,6 +54,10 @@ export const router = createBrowserRouter([
       {
         path: 'backups',
         element: <BackupsPage />,
+      },
+      {
+        path: 'settings',
+        element: <SettingsPage />,
       },
       {
         path: 'help',

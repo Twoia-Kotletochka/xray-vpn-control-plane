@@ -60,7 +60,7 @@ export function AppShell() {
       ) : null}
       <div className="app-shell__content">
         <Topbar onOpenNavigation={() => setIsSidebarOpen(true)} />
-        <main className="app-shell__main">
+        <main className="app-shell__main" id="main-content">
           <Outlet />
         </main>
       </div>

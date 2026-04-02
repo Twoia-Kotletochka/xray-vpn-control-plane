@@ -16,6 +16,9 @@ const mockApiFetch = vi.fn();
 
 vi.mock('../auth/auth-context', () => ({
   useAuth: () => ({
+    admin: {
+      role: 'SUPER_ADMIN',
+    },
     apiFetch: mockApiFetch,
   }),
 }));
@@ -102,7 +105,7 @@ describe('ClientsPage', () => {
       items: [firstClient, secondClient],
       pagination: {
         page: 1,
-        pageSize: 50,
+        pageSize: 25,
         total: 2,
       },
       filters: {
@@ -119,7 +122,7 @@ describe('ClientsPage', () => {
     };
 
     mockApiFetch.mockImplementation(async (path: string) => {
-      if (path === '/api/clients?page=1&pageSize=50&search=') {
+      if (path === '/api/clients?page=1&pageSize=25&search=') {
         return listResponse;
       }
 
@@ -141,29 +144,24 @@ describe('ClientsPage', () => {
     );
 
     await screen.findByText(selectedClientStatusText(firstClient));
-    expect(screen.getByRole('button', { name: /Client One/i }).getAttribute('aria-pressed')).toBe(
-      'true',
-    );
-    expect(screen.getByRole('button', { name: /Client Two/i }).getAttribute('aria-pressed')).toBe(
-      'false',
-    );
+    const firstRow = screen.getByText('Client One').closest('tr');
+    const secondRow = screen.getByText('Client Two').closest('tr');
+
+    expect(firstRow?.getAttribute('aria-selected')).toBe('true');
+    expect(secondRow?.getAttribute('aria-selected')).toBe('false');
 
     const listCalls = () =>
       mockApiFetch.mock.calls.filter(([path]) =>
-        String(path).startsWith('/api/clients?page=1&pageSize=50&search='),
+        String(path).startsWith('/api/clients?page=1&pageSize=25&search='),
       ).length;
 
     expect(listCalls()).toBe(1);
 
-    fireEvent.click(screen.getByRole('button', { name: /Client Two/i }));
+    fireEvent.click(secondRow as HTMLTableRowElement);
 
     await screen.findByText(selectedClientStatusText(secondClient));
-    expect(screen.getByRole('button', { name: /Client One/i }).getAttribute('aria-pressed')).toBe(
-      'false',
-    );
-    expect(screen.getByRole('button', { name: /Client Two/i }).getAttribute('aria-pressed')).toBe(
-      'true',
-    );
+    expect(screen.getByText('Client One').closest('tr')?.getAttribute('aria-selected')).toBe('false');
+    expect(screen.getByText('Client Two').closest('tr')?.getAttribute('aria-selected')).toBe('true');
 
     await waitFor(() => {
       expect(listCalls()).toBe(1);
@@ -181,7 +179,7 @@ describe('ClientsPage', () => {
       items: [client],
       pagination: {
         page: 1,
-        pageSize: 50,
+        pageSize: 25,
         total: 1,
       },
       filters: {
@@ -190,7 +188,7 @@ describe('ClientsPage', () => {
     };
 
     mockApiFetch.mockImplementation(async (path: string) => {
-      if (path === '/api/clients?page=1&pageSize=50&search=') {
+      if (path === '/api/clients?page=1&pageSize=25&search=') {
         return listResponse;
       }
 
@@ -225,12 +223,12 @@ describe('ClientsPage', () => {
     );
 
     mockApiFetch.mockImplementation(async (path: string, options?: RequestInit) => {
-      if (path === '/api/clients?page=1&pageSize=50&search=') {
+      if (path === '/api/clients?page=1&pageSize=25&search=') {
         return {
           items: createdClient ? [createdClient] : [],
           pagination: {
             page: 1,
-            pageSize: 50,
+            pageSize: 25,
             total: createdClient ? 1 : 0,
           },
           filters: {
@@ -296,12 +294,12 @@ describe('ClientsPage', () => {
     } satisfies ClientRecord;
 
     mockApiFetch.mockImplementation(async (path: string, options?: RequestInit) => {
-      if (path === '/api/clients?page=1&pageSize=50&search=') {
+      if (path === '/api/clients?page=1&pageSize=25&search=') {
         return {
           items: [client],
           pagination: {
             page: 1,
-            pageSize: 50,
+            pageSize: 25,
             total: 1,
           },
           filters: {

@@ -3,8 +3,12 @@ export const ru = {
     operations: 'операции',
     protectedAccess: 'Защищённый доступ',
     transportProfile: 'Transport profile',
-    globalSearchPlaceholder: 'Поиск по клиентам, тегам и событиям аудита',
-    operationsConsole: 'Operations Console',
+    globalSearchPlaceholder: 'Найти клиента или перейти в нужный раздел',
+    operationsConsole: 'Контур управления',
+    workspaceGroup: 'Рабочее место',
+    platformGroup: 'Платформа',
+    accessGroup: 'Доступ',
+    fixedControlPlane: 'single-node control plane',
     notAvailable: 'Н/Д',
     languageLabel: 'Язык',
     languageRussian: 'RU',
@@ -20,12 +24,13 @@ export const ru = {
   },
   navigation: {
     dashboard: 'Дашборд',
-    analytics: 'Аналитика',
+    analytics: 'Трафик',
     clients: 'Клиенты',
-    subscriptions: 'Подписки',
-    serverStatus: 'Состояние сервера',
+    subscriptions: 'Подключения',
+    serverStatus: 'Система',
     logs: 'Логи',
     backups: 'Резервные копии',
+    settings: 'Настройки',
     help: 'Помощь',
     adminUsers: 'Администраторы',
     auditLog: 'Аудит',
@@ -84,7 +89,7 @@ export const ru = {
     },
   },
   analytics: {
-    title: 'Аналитика',
+    title: 'Трафик и аналитика',
     description:
       'Графики нагрузки, динамика трафика и разрез по каждому клиенту без операционного шума дашборда.',
   },
@@ -116,7 +121,7 @@ export const ru = {
     moreActions: 'Другие действия',
   },
   subscriptions: {
-    title: 'Подписки',
+    title: 'Подключения и конфиги',
     description:
       'Доставка конфигов с шаблонами для основных VLESS/Xray-клиентов на компьютерах и телефонах.',
     outputTitle: 'Планируемые форматы',
@@ -129,7 +134,7 @@ export const ru = {
     ],
   },
   serverStatus: {
-    title: 'Состояние сервера',
+    title: 'Система и runtime',
     description:
       'Отдельный раздел для Xray, API, базы данных, диска, RAM, CPU и безопасных действий по рестарту.',
     healthTitle: 'Состояние сервисов',
