@@ -933,8 +933,13 @@ export function ClientsPage() {
       return;
     }
 
-    if (!selectedClient || !sortedClients.some((client) => client.id === selectedClient.id)) {
-      void loadClientDetails(sortedClients[0].id);
+    const firstVisibleClient = sortedClients[0];
+
+    if (
+      firstVisibleClient &&
+      (!selectedClient || !sortedClients.some((client) => client.id === selectedClient.id))
+    ) {
+      void loadClientDetails(firstVisibleClient.id);
     }
   }, [clearSelectedClient, loadClientDetails, selectedClient, sortedClients]);
 
