@@ -959,11 +959,11 @@ export function ClientsPage() {
 
   return (
     <div className="page">
-      <PageHeader title={ui.clients.title} description={text.description} />
+      <PageHeader title={ui.clients.title} />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
 
-      <SectionCard title={text.managementTitle} subtitle={text.managementSubtitle}>
+      <SectionCard>
         <div className="workspace-toolbar">
           <label className="toolbar__search workspace-toolbar__search">
             <Search size={16} />

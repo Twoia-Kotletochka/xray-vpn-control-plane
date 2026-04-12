@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
 
-import { useI18n } from '../../i18n';
-
 type PageHeaderProps = {
   title: string;
   description?: string;
@@ -14,21 +12,15 @@ type PageHeaderProps = {
 
 export function PageHeader({
   title,
-  description,
-  eyebrow,
   actionLabel,
   actionDisabled,
   onAction,
   actions,
 }: PageHeaderProps) {
-  const { ui } = useI18n();
-
   return (
     <div className="page-header">
       <div>
-        <p className="page-header__eyebrow">{eyebrow ?? ui.common.operations}</p>
         <h2>{title}</h2>
-        {description ? <p>{description}</p> : null}
       </div>
 
       {actions ?? (

@@ -1,19 +1,18 @@
 import type { PropsWithChildren } from 'react';
 
 type SectionCardProps = PropsWithChildren<{
-  title: string;
+  title?: string;
   subtitle?: string;
 }>;
 
-export function SectionCard({ title, subtitle, children }: SectionCardProps) {
+export function SectionCard({ title, children }: SectionCardProps) {
   return (
     <section className="section-card">
-      <div className="section-card__header">
-        <div>
-          <h3>{title}</h3>
-          {subtitle ? <p>{subtitle}</p> : null}
+      {title ? (
+        <div className="section-card__header">
+          <div>{title ? <h3>{title}</h3> : null}</div>
         </div>
-      </div>
+      ) : null}
       {children}
     </section>
   );
