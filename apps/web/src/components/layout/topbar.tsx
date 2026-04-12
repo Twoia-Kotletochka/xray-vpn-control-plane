@@ -89,21 +89,28 @@ export function Topbar({ onOpenNavigation }: TopbarProps) {
           <button
             className="button button--primary topbar__quick-action"
             type="button"
+            aria-label={ui.clients.actionLabel}
             onClick={() => navigate('/clients?composer=1')}
           >
             <Plus size={16} />
-            {ui.clients.actionLabel}
+            <span className="topbar__quick-action-label">{ui.clients.actionLabel}</span>
           </button>
         ) : null}
-        <LanguageSwitch />
-        <div className="topbar__chip">
+        <div className="topbar__mobile-hidden">
+          <LanguageSwitch />
+        </div>
+        <div className="topbar__chip topbar__mobile-hidden">
           <ShieldCheck size={16} />
           <div>
             <strong>{admin?.username ?? 'admin'}</strong>
             <span>{roleLabel}</span>
           </div>
         </div>
-        <button className="button button--ghost" type="button" onClick={() => void logout()}>
+        <button
+          className="button button--ghost topbar__mobile-hidden"
+          type="button"
+          onClick={() => void logout()}
+        >
           {ui.common.logout}
         </button>
       </div>

@@ -1,8 +1,10 @@
-import { Shield, X } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { LogOut, Plus, Shield, ShieldCheck, X } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 import { useNavigationSections } from '../../app/navigation';
+import { useAuth } from '../../features/auth/auth-context';
 import { useI18n } from '../../i18n';
+import { LanguageSwitch } from '../ui/language-switch';
 
 type SidebarProps = {
   isOpen: boolean;
@@ -11,7 +13,22 @@ type SidebarProps = {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigationSections = useNavigationSections();
-  const { ui } = useI18n();
+  const navigate = useNavigate();
+  const { admin, logout } = useAuth();
+  const { locale, ui } = useI18n();
+  const roleLabel =
+    admin?.role === 'READ_ONLY'
+      ? locale === 'en'
+        ? 'Read-only'
+        : 'Только чтение'
+      : admin?.role === 'OPERATOR'
+        ? locale === 'en'
+          ? 'Operator'
+          : 'Оператор'
+        : locale === 'en'
+          ? 'Super admin'
+          : 'Супер-админ';
+  const isReadOnly = admin?.role === 'READ_ONLY';
 
   return (
     <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
@@ -60,6 +77,41 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
           </nav>
         ))}
+      </div>
+
+      <div className="sidebar__utility">
+        {!isReadOnly ? (
+          <button
+            className="button button--primary sidebar__utility-action"
+            type="button"
+            onClick={() => {
+              onClose();
+              navigate('/clients?composer=1');
+            }}
+          >
+            <Plus size={16} />
+            <span>{ui.clients.actionLabel}</span>
+          </button>
+        ) : null}
+        <LanguageSwitch />
+        <div className="topbar__chip sidebar__account-chip">
+          <ShieldCheck size={16} />
+          <div>
+            <strong>{admin?.username ?? 'admin'}</strong>
+            <span>{roleLabel}</span>
+          </div>
+        </div>
+        <button
+          className="button button--ghost sidebar__logout"
+          type="button"
+          onClick={() => {
+            onClose();
+            void logout();
+          }}
+        >
+          <LogOut size={16} />
+          <span>{ui.common.logout}</span>
+        </button>
       </div>
 
       <div className="sidebar__footer">
