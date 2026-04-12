@@ -1,4 +1,4 @@
-import { LogOut, ShieldCheck, X } from 'lucide-react';
+import { LogOut, Shield, ShieldCheck, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 import { useNavigationSections } from '../../app/navigation';
