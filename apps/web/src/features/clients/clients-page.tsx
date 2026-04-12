@@ -278,7 +278,6 @@ export function ClientsPage() {
       ? 'Client registry with quotas, expirations, access management, and ready-to-use configs.'
       : 'Реестр клиентов с лимитами, сроками действия, управлением доступом и готовыми конфигами.',
     hideForm: isEnglish ? 'Hide form' : 'Скрыть форму',
-    newClient: isEnglish ? 'New client' : 'Новый клиент',
     managementTitle: isEnglish ? 'Client management' : 'Управление клиентами',
     managementSubtitle: isEnglish
       ? 'Search, create, and edit quotas or access without reissuing the client UUID.'
@@ -958,18 +957,9 @@ export function ClientsPage() {
     }
   }, [clearSelectedClient, selectedClient, sortedClients]);
 
-  const headerActionLabel = !isReadOnly ? (isComposerOpen ? text.hideForm : text.newClient) : undefined;
-
   return (
     <div className="page">
-      <PageHeader
-        title={ui.clients.title}
-        description={text.description}
-        actionLabel={headerActionLabel}
-        onAction={() =>
-          !isReadOnly ? setIsComposerOpen((value) => !value) : undefined
-        }
-      />
+      <PageHeader title={ui.clients.title} description={text.description} />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
 
