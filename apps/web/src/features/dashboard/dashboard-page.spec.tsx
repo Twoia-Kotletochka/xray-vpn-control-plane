@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DashboardAnalyticsResponse, DashboardSummary } from '../../lib/api-types';
+import type { DashboardSummary } from '../../lib/api-types';
 import { DashboardPage } from './dashboard-page';
 
 const mockApiFetch = vi.fn();
@@ -78,66 +78,10 @@ describe('DashboardPage', () => {
       },
       message: 'dashboard payload',
     };
-    const analytics: DashboardAnalyticsResponse = {
-      generatedAt: '2026-04-02T10:15:00.000Z',
-      availableWindows: [7, 14, 30],
-      windowDays: 14,
-      totals: {
-        totalTrafficBytes: '32768',
-        windowTrafficBytes: '16384',
-        windowIncomingBytes: '9216',
-        windowOutgoingBytes: '7168',
-        averageDailyTrafficBytes: '1170',
-        activeClientsToday: 2,
-        peakActiveClients: 3,
-        uniqueClientsWithTraffic: 2,
-        onlineNow: 1,
-        topClientDisplayName: 'Ann',
-        topClientTrafficBytes: '12288',
-        todayTrafficBytes: '4096',
-      },
-      timeline: [
-        {
-          date: '2026-04-01T00:00:00.000Z',
-          incomingTrafficBytes: '2048',
-          outgoingTrafficBytes: '1024',
-          totalTrafficBytes: '3072',
-          activeClients: 1,
-        },
-        {
-          date: '2026-04-02T00:00:00.000Z',
-          incomingTrafficBytes: '3072',
-          outgoingTrafficBytes: '1024',
-          totalTrafficBytes: '4096',
-          activeClients: 2,
-        },
-      ],
-      clients: [
-        {
-          id: 'client-ann',
-          displayName: 'Ann',
-          emailTag: 'ann-27b6cd0c',
-          status: 'ACTIVE',
-          lastSeenAt: '2026-04-02T10:10:00.000Z',
-          activeConnections: 1,
-          activeDays: 5,
-          incomingBytes: '10240',
-          outgoingBytes: '10240',
-          peakActiveConnections: 2,
-          todayTrafficBytes: '3072',
-          totalTrafficBytes: '20480',
-          windowTrafficBytes: '12288',
-        },
-      ],
-    };
 
     mockApiFetch.mockImplementation(async (path: string) => {
       if (path === '/api/dashboard/summary') {
         return summary;
-      }
-
-      if (path === '/api/dashboard/analytics?windowDays=14') {
-        return analytics;
       }
 
       throw new Error(`Unexpected path: ${path}`);
@@ -149,12 +93,15 @@ describe('DashboardPage', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText('Лидеры по трафику');
+    await screen.findByText('Состояние runtime');
     expect(screen.getByText('Активные профили')).toBeTruthy();
     expect(screen.getByText('Состояние runtime')).toBeTruthy();
-    expect(screen.getByText('Последние 14 дней')).toBeTruthy();
-    expect(screen.getByText('Ann')).toBeTruthy();
     expect(screen.queryByText('Пульс трафика')).toBeNull();
+    expect(screen.queryByText('Лидеры по трафику')).toBeNull();
+    expect(screen.queryByText('Последние 14 дней')).toBeNull();
+    expect(screen.queryByText('Сегодня')).toBeNull();
+    expect(screen.queryByText('Пиковый день')).toBeNull();
+    expect(screen.queryByText('Лидер')).toBeNull();
     expect(screen.queryByText('Рабочие разделы')).toBeNull();
   });
 });
