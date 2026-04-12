@@ -1,25 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import { MetricCard } from '../../components/ui/metric-card';
 import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
 import { useI18n } from '../../i18n';
-import type { DashboardSummary } from '../../lib/api-types';
+import type { DashboardAnalyticsResponse, DashboardSummary } from '../../lib/api-types';
 import { formatBytes, formatDateTime } from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
 
+const DASHBOARD_TRAFFIC_WINDOW_DAYS = 14;
+
 function formatPercent(value: number | null) {
   return value === null ? '—' : `${value.toFixed(1)}%`;
-}
-
-function formatDelta(value: number | null) {
-  if (value === null) {
-    return '—';
-  }
-
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
 function formatBucketDate(value: string | null, locale: 'ru' | 'en') {
@@ -50,49 +43,33 @@ function runtimeTone(status: string | null | undefined) {
 }
 
 export function DashboardPage() {
-  const { admin, apiFetch } = useAuth();
+  const { apiFetch } = useAuth();
   const { locale, ui } = useI18n();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [analytics, setAnalytics] = useState<DashboardAnalyticsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const isReadOnly = admin?.role === 'READ_ONLY';
   const text =
     locale === 'en'
       ? {
           loadError: 'Failed to load the dashboard.',
-          overviewTitle: 'Traffic pulse',
-          overviewSubtitle:
-            'Recent traffic, active clients, and current load without drilling into the analytics workspace.',
+          trafficTitle: 'Traffic',
+          trafficWindow: `Last ${DASHBOARD_TRAFFIC_WINDOW_DAYS} days`,
+          trafficToday: 'Today',
+          trafficLeader: 'Top client',
           runtimeTitle: 'Runtime status',
-          runtimeSubtitle:
-            'The live Xray contour, snapshots, and host pressure for quick operational checks.',
-          actionsTitle: 'Workspaces',
-          actionsSubtitle:
-            'Jump straight into the main operational flows with minimal navigation friction.',
           onlineNow: 'Online now',
-          clientsSeen: 'Clients seen',
-          onlineHint: 'live connections reported by the Xray runtime',
           activeProfiles: 'Active profiles',
-          activeProfilesHint: 'clients with ACTIVE status and ready to connect',
           expiredClients: 'Expired clients',
-          expiredHint: 'updated automatically from the expiry date',
           totalTraffic: 'Total traffic',
-          totalTrafficHint: 'aggregated from daily usage buckets',
           totalClients: 'Total clients',
-          totalClientsHint: 'active, expired, disabled, and blocked clients',
-          cpuHint: 'approximate current environment load',
-          ramHint: 'runtime memory usage',
-          diskHint: 'available container filesystem capacity',
           peakDay: 'Peak day',
-          peakDayHint: 'the busiest traffic bucket inside the current trend window',
           averageDay: 'Average day',
-          averageDayHint: 'mean traffic across the current trend window',
-          trafficDelta: 'Trend delta',
-          trafficDeltaHint: 'comparison of the last 7 days versus the previous 7 days',
-          peakClients: 'Peak clients',
-          peakClientsHint: 'highest number of clients seen inside one daily bucket',
-          recentTrafficEmpty: 'Traffic history will appear after the next usage snapshots.',
+          trafficMix: 'Window composition',
+          topClients: 'Traffic leaders',
+          topClientsEmpty: 'Traffic leaders will appear after the first snapshots.',
           incoming: 'Incoming',
           outgoing: 'Outgoing',
+          refreshedAt: 'Refreshed',
           runtimeHealth: 'Xray runtime',
           runtimeUsers: 'Xray online users',
           lastSnapshot: 'Last traffic snapshot',
@@ -101,53 +78,27 @@ export function DashboardPage() {
           ram: 'RAM',
           disk: 'Disk',
           notYet: 'not performed yet',
-          createClient: 'Create client',
-          createClientHint: 'Open the composer directly in the client workspace.',
-          openClients: 'Open clients',
-          openClientsHint: 'Search, filter, and manage client access inline.',
-          openConnections: 'Open connections',
-          openConnectionsHint: 'Inspect config delivery templates and connection outputs.',
-          openTraffic: 'Open traffic',
-          openTrafficHint: 'Move to the analytics tab for charts and per-client usage.',
-          openSystem: 'Open system',
-          openSystemHint: 'Review runtime status, health signals, and manual actions.',
         }
       : {
           loadError: 'Не удалось загрузить дашборд.',
-          overviewTitle: 'Пульс трафика',
-          overviewSubtitle:
-            'Последняя нагрузка, активные клиенты и текущее состояние без перехода в аналитику.',
+          trafficTitle: 'Трафик',
+          trafficWindow: `Последние ${DASHBOARD_TRAFFIC_WINDOW_DAYS} дней`,
+          trafficToday: 'Сегодня',
+          trafficLeader: 'Лидер',
           runtimeTitle: 'Состояние runtime',
-          runtimeSubtitle:
-            'Живой контур Xray, снимки трафика и давление на хост для быстрых операционных проверок.',
-          actionsTitle: 'Рабочие разделы',
-          actionsSubtitle:
-            'Быстрые переходы в основные рабочие зоны без лишней навигации и потери контекста.',
           onlineNow: 'Онлайн сейчас',
-          clientsSeen: 'Клиентов замечено',
-          onlineHint: 'live-подключения по данным Xray runtime',
           activeProfiles: 'Активные профили',
-          activeProfilesHint: 'клиенты со статусом ACTIVE, готовые к подключению',
           expiredClients: 'Истекшие клиенты',
-          expiredHint: 'автоматически обновляется по сроку действия',
           totalTraffic: 'Суммарный трафик',
-          totalTrafficHint: 'агрегировано по daily usage buckets',
           totalClients: 'Всего клиентов',
-          totalClientsHint: 'активные, истекшие, отключенные и заблокированные клиенты',
-          cpuHint: 'приблизительная текущая загрузка окружения',
-          ramHint: 'использование памяти по данным рантайма',
-          diskHint: 'доступная ёмкость файловой системы контейнера',
           peakDay: 'Пиковый день',
-          peakDayHint: 'самый загруженный бакет в текущем окне трендов',
           averageDay: 'Средний день',
-          averageDayHint: 'средний трафик по текущему окну трендов',
-          trafficDelta: 'Дельта тренда',
-          trafficDeltaHint: 'сравнение последних 7 дней с предыдущими 7 днями',
-          peakClients: 'Пик клиентов',
-          peakClientsHint: 'максимум клиентов, замеченных в одном дневном бакете',
-          recentTrafficEmpty: 'История появится после следующих usage snapshots.',
+          trafficMix: 'Состав окна',
+          topClients: 'Лидеры по трафику',
+          topClientsEmpty: 'Лидеры появятся после первых снимков трафика.',
           incoming: 'Входящий',
           outgoing: 'Исходящий',
+          refreshedAt: 'Обновлено',
           runtimeHealth: 'Xray runtime',
           runtimeUsers: 'Онлайн пользователей Xray',
           lastSnapshot: 'Последний snapshot трафика',
@@ -156,27 +107,23 @@ export function DashboardPage() {
           ram: 'RAM',
           disk: 'Disk',
           notYet: 'ещё не выполнялся',
-          createClient: 'Создать клиента',
-          createClientHint: 'Открыть composer прямо в рабочем разделе клиентов.',
-          openClients: 'Открыть клиентов',
-          openClientsHint: 'Искать, фильтровать и управлять доступом прямо из таблицы.',
-          openConnections: 'Открыть подключения',
-          openConnectionsHint: 'Проверить шаблоны выдачи конфигов и connection outputs.',
-          openTraffic: 'Открыть трафик',
-          openTrafficHint: 'Перейти в аналитику за графиками и детализацией по клиентам.',
-          openSystem: 'Открыть систему',
-          openSystemHint: 'Посмотреть runtime, health-сигналы и ручные действия.',
         };
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadSummary = async () => {
+    const loadDashboard = async () => {
       try {
-        const nextSummary = await apiFetch<DashboardSummary>('/api/dashboard/summary');
+        const [nextSummary, nextAnalytics] = await Promise.all([
+          apiFetch<DashboardSummary>('/api/dashboard/summary'),
+          apiFetch<DashboardAnalyticsResponse>(
+            `/api/dashboard/analytics?windowDays=${DASHBOARD_TRAFFIC_WINDOW_DAYS}`,
+          ),
+        ]);
 
         if (isMounted) {
           setSummary(nextSummary);
+          setAnalytics(nextAnalytics);
           setError(null);
         }
       } catch (loadError) {
@@ -186,7 +133,7 @@ export function DashboardPage() {
       }
     };
 
-    void loadSummary();
+    void loadDashboard();
 
     return () => {
       isMounted = false;
@@ -228,42 +175,54 @@ export function DashboardPage() {
     },
   ];
 
-  const comparison = summary?.trends.comparisons;
-  const recentBuckets = useMemo(() => (summary?.trends.buckets ?? []).slice(-6), [summary?.trends.buckets]);
-  const maxRecentTraffic = useMemo(
-    () => recentBuckets.reduce((currentMax, bucket) => Math.max(currentMax, Number(bucket.totalTrafficBytes)), 0),
-    [recentBuckets],
+  const topClients = useMemo(
+    () =>
+      [...(analytics?.clients ?? [])]
+        .filter((client) => Number(client.windowTrafficBytes) > 0)
+        .sort((left, right) => Number(right.windowTrafficBytes) - Number(left.windowTrafficBytes))
+        .slice(0, 5),
+    [analytics?.clients],
   );
+  const peakBucket = useMemo(
+    () =>
+      (analytics?.timeline ?? []).reduce<DashboardAnalyticsResponse['timeline'][number] | null>(
+        (currentPeak, bucket) => {
+          if (!currentPeak || Number(bucket.totalTrafficBytes) > Number(currentPeak.totalTrafficBytes)) {
+            return bucket;
+          }
+
+          return currentPeak;
+        },
+        null,
+      ),
+    [analytics?.timeline],
+  );
+  const windowTrafficBytes = Number(analytics?.totals.windowTrafficBytes ?? '0');
+  const incomingWindowBytes = Number(analytics?.totals.windowIncomingBytes ?? '0');
+  const outgoingWindowBytes = Number(analytics?.totals.windowOutgoingBytes ?? '0');
+  const topLeaderBytes = Number(topClients[0]?.windowTrafficBytes ?? '0');
 
   return (
     <div className="page">
       <PageHeader
         title={ui.dashboard.title}
-        actions={
-          <div className="page-header__actions">
-            {!isReadOnly ? (
-              <Link className="button button--primary" to="/clients?composer=1">
-                {text.createClient}
-              </Link>
-            ) : null}
-            <button
-              className="button button--ghost"
-              type="button"
-              onClick={() => {
-                void apiFetch<DashboardSummary>('/api/dashboard/summary')
-                  .then((nextSummary) => {
-                    setSummary(nextSummary);
-                    setError(null);
-                  })
-                  .catch((loadError) => {
-                    setError(loadError instanceof Error ? loadError.message : text.loadError);
-                  });
-              }}
-            >
-              {ui.common.refresh}
-            </button>
-          </div>
-        }
+        actionLabel={ui.common.refresh}
+        onAction={() => {
+          void Promise.all([
+            apiFetch<DashboardSummary>('/api/dashboard/summary'),
+            apiFetch<DashboardAnalyticsResponse>(
+              `/api/dashboard/analytics?windowDays=${DASHBOARD_TRAFFIC_WINDOW_DAYS}`,
+            ),
+          ])
+            .then(([nextSummary, nextAnalytics]) => {
+              setSummary(nextSummary);
+              setAnalytics(nextAnalytics);
+              setError(null);
+            })
+            .catch((loadError) => {
+              setError(loadError instanceof Error ? loadError.message : text.loadError);
+            });
+        }}
       />
 
       {error ? <div className="banner banner--danger">{error}</div> : null}
@@ -275,62 +234,88 @@ export function DashboardPage() {
       </div>
 
       <div className="split-grid">
-        <SectionCard title={text.overviewTitle}>
+        <SectionCard title={text.trafficTitle}>
           <div className="dashboard-trends">
             <div className="dashboard-trends__overview">
               <div className="insight-card">
+                <span>{text.trafficWindow}</span>
+                <strong>{formatBytes(windowTrafficBytes, locale)}</strong>
+              </div>
+              <div className="insight-card">
+                <span>{text.trafficToday}</span>
+                <strong>{formatBytes(Number(analytics?.totals.todayTrafficBytes ?? '0'), locale)}</strong>
+              </div>
+              <div className="insight-card">
                 <span>{text.peakDay}</span>
-                <strong>{formatBucketDate(comparison?.busiestDayDate ?? null, locale)}</strong>
+                <strong>{peakBucket ? formatBucketDate(peakBucket.date, locale) : text.notYet}</strong>
               </div>
               <div className="insight-card">
-                <span>{text.averageDay}</span>
-                <strong>{formatBytes(Number(comparison?.averageDailyTrafficBytes ?? '0'), locale)}</strong>
-              </div>
-              <div className="insight-card">
-                <span>{text.trafficDelta}</span>
-                <strong>{formatDelta(comparison?.trafficDeltaPercent ?? null)}</strong>
-              </div>
-              <div className="insight-card">
-                <span>{text.peakClients}</span>
-                <strong>{String(comparison?.peakActiveClients ?? 0)}</strong>
+                <span>{text.trafficLeader}</span>
+                <strong>{analytics?.totals.topClientDisplayName ?? text.notYet}</strong>
               </div>
             </div>
 
-            {recentBuckets.length > 0 ? (
-              <div className="history-list">
-                {recentBuckets.map((bucket) => {
+            <div className="analytics-direction-card">
+              <div className="analytics-direction-card__rows">
+                {[
+                  { label: text.incoming, value: incomingWindowBytes },
+                  { label: text.outgoing, value: outgoingWindowBytes },
+                ].map((item) => {
                   const width =
-                    maxRecentTraffic > 0
-                      ? `${Math.max(10, (Number(bucket.totalTrafficBytes) / maxRecentTraffic) * 100)}%`
-                      : '10%';
+                    item.value > 0 && windowTrafficBytes > 0
+                      ? `${Math.max(8, (item.value / windowTrafficBytes) * 100)}%`
+                      : '0%';
 
                   return (
-                    <div key={bucket.date} className="history-row">
-                      <div className="history-row__meta">
-                        <strong>{formatBucketDate(bucket.date, locale)}</strong>
-                        <span>{formatBytes(Number(bucket.totalTrafficBytes), locale)}</span>
+                    <div key={item.label} className="analytics-direction-card__row">
+                      <div className="analytics-direction-card__meta">
+                        <strong>{item.label}</strong>
+                        <span>{formatBytes(item.value, locale)}</span>
                       </div>
-                      <div className="history-row__bar">
+                      <div className="analytics-share">
                         <span style={{ width }} />
-                      </div>
-                      <div className="history-row__details">
-                        <span>
-                          {text.incoming}: {formatBytes(Number(bucket.incomingTrafficBytes), locale)}
-                        </span>
-                        <span>
-                          {text.outgoing}: {formatBytes(Number(bucket.outgoingTrafficBytes), locale)}
-                        </span>
-                        <span>
-                          {text.clientsSeen}: {bucket.activeClients}
-                        </span>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <div className="empty-state">{text.recentTrafficEmpty}</div>
-            )}
+
+              <p className="analytics-direction-card__timestamp">
+                {text.refreshedAt}: {formatDateTime(analytics?.generatedAt ?? null, text.notYet, locale)}
+              </p>
+            </div>
+
+            <div className="analytics-leaderboard">
+              <strong>{text.topClients}</strong>
+              {topClients.length > 0 ? (
+                topClients.map((client, index) => {
+                  const clientBytes = Number(client.windowTrafficBytes);
+                  const width =
+                    clientBytes > 0 && topLeaderBytes > 0
+                      ? `${Math.max(12, (clientBytes / topLeaderBytes) * 100)}%`
+                      : '0%';
+
+                  return (
+                    <article key={client.id} className="analytics-leaderboard__item">
+                      <div className="analytics-leaderboard__meta">
+                        <div>
+                          <strong>
+                            {index + 1}. {client.displayName}
+                          </strong>
+                          <span>{client.emailTag}</span>
+                        </div>
+                        <strong>{formatBytes(clientBytes, locale)}</strong>
+                      </div>
+                      <div className="analytics-share analytics-share--leaderboard">
+                        <span style={{ width }} />
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="empty-state">{text.topClientsEmpty}</div>
+              )}
+            </div>
           </div>
         </SectionCard>
 

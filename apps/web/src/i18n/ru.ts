@@ -37,7 +37,7 @@ export const ru = {
   },
   auth: {
     eyebrow: 'безопасный вход администратора',
-    title: 'Вход в server-vpn',
+    title: 'Вход в VPN',
     description: 'Авторизуйтесь под администратором, чтобы перейти в панель управления.',
     username: 'Логин',
     usernamePlaceholder: 'admin',

@@ -13,7 +13,7 @@ export function ProtectedShell() {
       <main className="login-page">
         <section className="login-panel">
           <p className="page-header__eyebrow">{ui.common.operations}</p>
-          <h1>server-vpn</h1>
+          <h1>VPN</h1>
           <p>{ui.common.checkingSession}</p>
         </section>
       </main>

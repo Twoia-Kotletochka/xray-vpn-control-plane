@@ -40,7 +40,7 @@ export const en: DeepTranslate<typeof ru> = {
   },
   auth: {
     eyebrow: 'secure administrator access',
-    title: 'Sign in to server-vpn',
+    title: 'Sign in to VPN',
     description: 'Sign in with an administrator account to open the control panel.',
     username: 'Username',
     usernamePlaceholder: 'admin',

@@ -1,7 +1,6 @@
 import {
   Activity,
   ArchiveRestore,
-  BarChart3,
   Cable,
   CircleHelp,
   FileText,
@@ -53,12 +52,6 @@ export function useNavigationSections(): NavigationSection[] {
           path: '/subscriptions',
           icon: KeyRound,
           keywords: ['connections', 'configs', 'subscriptions', 'подключения', 'конфиги'],
-        },
-        {
-          label: ui.navigation.analytics,
-          path: '/analytics',
-          icon: BarChart3,
-          keywords: ['traffic', 'analytics', 'usage', 'трафик', 'аналитика'],
         },
       ],
     },

@@ -1,7 +1,6 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom';
 
 import { AdminUsersPage } from '../features/admin-users/admin-users-page';
-import { AnalyticsPage } from '../features/analytics/analytics-page';
 import { AuditLogPage } from '../features/audit-log/audit-log-page';
 import { LoginPage } from '../features/auth/login-page';
 import { BackupsPage } from '../features/backups/backups-page';
@@ -33,7 +32,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'analytics',
-        element: <AnalyticsPage />,
+        element: <Navigate replace to="/dashboard" />,
       },
       {
         path: 'clients',

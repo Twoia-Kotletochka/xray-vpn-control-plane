@@ -1,5 +1,5 @@
-import { LogOut, Plus, Shield, ShieldCheck, X } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { LogOut, ShieldCheck, X } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 import { useNavigationSections } from '../../app/navigation';
 import { useAuth } from '../../features/auth/auth-context';
@@ -13,22 +13,8 @@ type SidebarProps = {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigationSections = useNavigationSections();
-  const navigate = useNavigate();
   const { admin, logout } = useAuth();
-  const { locale, ui } = useI18n();
-  const roleLabel =
-    admin?.role === 'READ_ONLY'
-      ? locale === 'en'
-        ? 'Read-only'
-        : 'Только чтение'
-      : admin?.role === 'OPERATOR'
-        ? locale === 'en'
-          ? 'Operator'
-          : 'Оператор'
-        : locale === 'en'
-          ? 'Super admin'
-          : 'Супер-админ';
-  const isReadOnly = admin?.role === 'READ_ONLY';
+  const { ui } = useI18n();
 
   return (
     <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
@@ -38,8 +24,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Shield size={18} />
           </div>
           <div>
-            <p className="sidebar__eyebrow">{ui.common.operationsConsole}</p>
-            <h1>server-vpn</h1>
+            <h1>VPN</h1>
           </div>
         </div>
         <button
@@ -80,25 +65,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       <div className="sidebar__utility">
-        {!isReadOnly ? (
-          <button
-            className="button button--primary sidebar__utility-action"
-            type="button"
-            onClick={() => {
-              onClose();
-              navigate('/clients?composer=1');
-            }}
-          >
-            <Plus size={16} />
-            <span>{ui.clients.actionLabel}</span>
-          </button>
-        ) : null}
         <LanguageSwitch />
         <div className="topbar__chip sidebar__account-chip">
           <ShieldCheck size={16} />
           <div>
             <strong>{admin?.username ?? 'admin'}</strong>
-            <span>{roleLabel}</span>
           </div>
         </div>
         <button
@@ -112,12 +83,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <LogOut size={16} />
           <span>{ui.common.logout}</span>
         </button>
-      </div>
-
-      <div className="sidebar__footer">
-        <p>{ui.common.transportProfile}</p>
-        <strong>VLESS + REALITY</strong>
-        <span>{ui.common.fixedControlPlane}</span>
       </div>
     </aside>
   );
