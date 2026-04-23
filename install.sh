@@ -219,6 +219,46 @@ Initial admin password: ${summary_password}
 EOF
 }
 
+print_install_summary() {
+  local summary_password="$1"
+
+  cat <<EOF
+
+============================================================
+INSTALL COMPLETE
+============================================================
+
+Panel URL:
+  ${panel_url}
+
+Admin access:
+  Username: ${initial_admin_username}
+  Email:    ${initial_admin_email}
+  Password: ${summary_password}
+
+Saved locally:
+  ${INSTALL_SUMMARY_FILE}
+
+Copy/paste login block:
+------------------------------------------------------------
+URL: ${panel_url}
+USERNAME: ${initial_admin_username}
+PASSWORD: ${summary_password}
+------------------------------------------------------------
+
+Next steps:
+  1. Open ${panel_url}
+  2. Log in with the credentials above
+  3. Create one test client and verify a real connection
+
+Note:
+  The default panel certificate is issued by Caddy internal CA,
+  so the browser may show a warning on first access.
+
+============================================================
+EOF
+}
+
 generate_reality_keys() {
   local xray_image="$1"
   local output
@@ -358,16 +398,4 @@ set_env_var INITIAL_ADMIN_PASSWORD "${initial_admin_password}"
 log "Running deploy.sh"
 bash "${ROOT_DIR}/infra/scripts/deploy.sh"
 write_install_summary "${initial_admin_password}"
-
-printf '\nInstall complete.\n'
-printf 'Panel URL: %s\n' "${panel_url}"
-printf 'Initial admin username: %s\n' "${initial_admin_username}"
-printf 'Initial admin email: %s\n' "${initial_admin_email}"
-printf 'Credentials file: %s\n' "${INSTALL_SUMMARY_FILE}"
-
-if [[ -n "${generated_admin_password}" ]]; then
-  printf 'Generated admin password: %s\n' "${generated_admin_password}"
-  printf 'Store it securely and rotate it after the first login if needed.\n'
-fi
-
-printf 'Note: the default panel certificate is issued by Caddy internal CA, so browsers may show a warning on first access.\n'
+print_install_summary "${initial_admin_password}"
