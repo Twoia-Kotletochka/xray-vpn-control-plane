@@ -19,21 +19,31 @@ Recommended baseline:
 
 ## Fastest First Install
 
-Use the guided installer if you want the smallest number of manual steps:
+Use the guided installer if you want the smallest number of manual steps. In the normal interactive flow it asks only for the server IP or panel host.
 
 ```bash
-sudo git clone https://github.com/Twoia-Kotletochka/server-vpn.git /opt/server-vpn
-cd /opt/server-vpn
+sudo git clone https://github.com/Twoia-Kotletochka/xray-vpn-control-plane.git /opt/xray-vpn-control-plane
+cd /opt/xray-vpn-control-plane
 sudo bash install.sh
 ```
 
-`install.sh` runs host bootstrap, creates `.env` from `.env.example` when needed, generates missing secrets and REALITY keys, and then executes `infra/scripts/deploy.sh`.
+`install.sh` runs host bootstrap, creates `.env` from `.env.example`, generates every missing secret automatically, provisions REALITY keys, deploys the stack, and stores the initial admin credentials in `/root/.server-vpn-install.txt`.
 
-## Manual Fresh VPS Flow
+For non-interactive automation:
 
 ```bash
-sudo git clone https://github.com/Twoia-Kotletochka/server-vpn.git /opt/server-vpn
-cd /opt/server-vpn
+sudo bash install.sh --host 203.0.113.10 --non-interactive
+```
+
+Optional advanced overrides still exist for `--admin-username`, `--admin-email`, and `--admin-password`, but they are no longer required for the standard install path.
+
+## Advanced Manual Fresh VPS Flow
+
+Use this path only if you explicitly want to manage `.env` and the secrets yourself.
+
+```bash
+sudo git clone https://github.com/Twoia-Kotletochka/xray-vpn-control-plane.git /opt/xray-vpn-control-plane
+cd /opt/xray-vpn-control-plane
 sudo bash infra/scripts/bootstrap-server.sh
 cp .env.example .env
 ```
@@ -97,7 +107,7 @@ curl -k https://YOUR_HOST:8443/readyz
 
 Then:
 
-1. log in with `INITIAL_ADMIN_USERNAME` and `INITIAL_ADMIN_PASSWORD`
+1. log in with the generated `INITIAL_ADMIN_USERNAME` and `INITIAL_ADMIN_PASSWORD`
 2. create a test client
 3. verify a real connection from a supported Xray client
 

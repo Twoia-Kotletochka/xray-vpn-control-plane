@@ -19,21 +19,31 @@
 
 ## Самый Быстрый Первый Запуск
 
-Если нужен минимальный ручной ввод, используй guided installer:
+Если нужен минимальный ручной ввод, используй guided installer. В обычном interactive-сценарии он попросит только IP или host сервера.
 
 ```bash
-sudo git clone https://github.com/Twoia-Kotletochka/server-vpn.git /opt/server-vpn
-cd /opt/server-vpn
+sudo git clone https://github.com/Twoia-Kotletochka/xray-vpn-control-plane.git /opt/xray-vpn-control-plane
+cd /opt/xray-vpn-control-plane
 sudo bash install.sh
 ```
 
-`install.sh` запускает host bootstrap, создаёт `.env` из `.env.example`, генерирует недостающие секреты и REALITY keys, а затем выполняет `infra/scripts/deploy.sh`.
+`install.sh` запускает host bootstrap, создаёт `.env` из `.env.example`, автоматически генерирует все недостающие секреты, REALITY keys, выполняет деплой и сохраняет стартовые admin-данные в `/root/.server-vpn-install.txt`.
 
-## Ручное Развёртывание На Чистом VPS
+Для non-interactive automation:
 
 ```bash
-sudo git clone https://github.com/Twoia-Kotletochka/server-vpn.git /opt/server-vpn
-cd /opt/server-vpn
+sudo bash install.sh --host 203.0.113.10 --non-interactive
+```
+
+Флаги `--admin-username`, `--admin-email`, `--admin-password` остаются только как advanced override, но для обычной установки они больше не нужны.
+
+## Advanced Ручное Развёртывание На Чистом VPS
+
+Этот путь нужен только если ты сознательно хочешь руками управлять `.env` и всеми секретами.
+
+```bash
+sudo git clone https://github.com/Twoia-Kotletochka/xray-vpn-control-plane.git /opt/xray-vpn-control-plane
+cd /opt/xray-vpn-control-plane
 sudo bash infra/scripts/bootstrap-server.sh
 cp .env.example .env
 ```

@@ -76,4 +76,4 @@ configure_firewall
 configure_fail2ban
 prepare_runtime_dirs
 
-echo "Bootstrap completed. Run install.sh for guided setup, or fill .env manually and then run infra/scripts/deploy.sh."
+echo "Bootstrap completed. Run install.sh for one-prompt setup, or fill .env manually and then run infra/scripts/deploy.sh."

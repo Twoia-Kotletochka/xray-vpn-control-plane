@@ -13,6 +13,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${ROOT_DIR}/.env"
 ENV_EXAMPLE_FILE="${ROOT_DIR}/.env.example"
+INSTALL_SUMMARY_FILE="/root/.server-vpn-install.txt"
 
 HOST_OVERRIDE=""
 ADMIN_USERNAME_OVERRIDE=""
@@ -27,9 +28,9 @@ Usage: sudo bash install.sh [options]
 
 Options:
   --host <domain-or-ip>           Panel host or public IP for panel URLs
-  --admin-username <username>     Initial admin username
-  --admin-email <email>           Initial admin email
-  --admin-password <password>     Initial admin password
+  --admin-username <username>     Optional override for the initial admin username
+  --admin-email <email>           Optional override for the initial admin email
+  --admin-password <password>     Optional override for the initial admin password
   --skip-bootstrap                Skip infra/scripts/bootstrap-server.sh
   --non-interactive               Do not prompt; fail if required input is missing
   -h, --help                      Show this help
@@ -191,35 +192,6 @@ prompt_value() {
   fi
 }
 
-prompt_password() {
-  local password
-  local confirmation
-
-  if [[ "${NON_INTERACTIVE}" == true ]]; then
-    return 1
-  fi
-
-  while true; do
-    read -r -s -p "Initial admin password: " password
-    printf '\n'
-    read -r -s -p "Repeat admin password: " confirmation
-    printf '\n'
-
-    if [[ "${password}" != "${confirmation}" ]]; then
-      printf 'Passwords do not match. Try again.\n' >&2
-      continue
-    fi
-
-    if [[ "${#password}" -lt 12 ]]; then
-      printf 'Password must be at least 12 characters.\n' >&2
-      continue
-    fi
-
-    printf '%s' "${password}"
-    return 0
-  done
-}
-
 generate_hex() {
   local bytes="$1"
 
@@ -230,6 +202,21 @@ generate_hex() {
 generate_admin_password() {
   command_exists openssl || error "openssl is required. Run bootstrap first or install openssl."
   openssl rand -base64 24 | tr -d '\n' | tr '/+=' 'XYZ' | cut -c1-20
+}
+
+write_install_summary() {
+  local summary_password="$1"
+
+  umask 077
+
+  cat > "${INSTALL_SUMMARY_FILE}" <<EOF
+Installed at: $(date -Is)
+Project path: ${ROOT_DIR}
+Panel URL: ${panel_url}
+Initial admin username: ${initial_admin_username}
+Initial admin email: ${initial_admin_email}
+Initial admin password: ${summary_password}
+EOF
 }
 
 generate_reality_keys() {
@@ -274,7 +261,7 @@ if [[ -n "${HOST_OVERRIDE}" ]]; then
   panel_host="$(normalize_host "${HOST_OVERRIDE}")"
 elif is_blank_or_placeholder "${current_host}"; then
   detected_host="$(detect_public_host || true)"
-  panel_host="$(normalize_host "$(prompt_value "Panel host or public IP" "${detected_host}")")"
+  panel_host="$(normalize_host "$(prompt_value "Server public IP or panel host" "${detected_host}")")"
 else
   panel_host="$(normalize_host "${current_host}")"
 fi
@@ -337,16 +324,11 @@ if is_blank_or_placeholder "$(get_env_var XRAY_REALITY_PRIVATE_KEY)" || is_blank
   set_env_var XRAY_REALITY_PUBLIC_KEY "${reality_keypair[1]}"
 fi
 
-default_admin_email="admin@panel.local"
-if [[ "${panel_host}" == *.* ]]; then
-  default_admin_email="admin@${panel_host}.local"
-fi
-
 initial_admin_username="$(get_env_var INITIAL_ADMIN_USERNAME)"
 if [[ -n "${ADMIN_USERNAME_OVERRIDE}" ]]; then
   initial_admin_username="${ADMIN_USERNAME_OVERRIDE}"
 elif is_blank_or_placeholder "${initial_admin_username}"; then
-  initial_admin_username="$(prompt_value "Initial admin username" "admin")"
+  initial_admin_username="admin"
 fi
 set_env_var INITIAL_ADMIN_USERNAME "${initial_admin_username}"
 
@@ -354,7 +336,7 @@ initial_admin_email="$(get_env_var INITIAL_ADMIN_EMAIL)"
 if [[ -n "${ADMIN_EMAIL_OVERRIDE}" ]]; then
   initial_admin_email="${ADMIN_EMAIL_OVERRIDE}"
 elif is_blank_or_placeholder "${initial_admin_email}"; then
-  initial_admin_email="$(prompt_value "Initial admin email" "${default_admin_email}")"
+  initial_admin_email="admin@vpn.local"
 fi
 set_env_var INITIAL_ADMIN_EMAIL "${initial_admin_email}"
 
@@ -363,12 +345,8 @@ initial_admin_password="$(get_env_var INITIAL_ADMIN_PASSWORD)"
 if [[ -n "${ADMIN_PASSWORD_OVERRIDE}" ]]; then
   initial_admin_password="${ADMIN_PASSWORD_OVERRIDE}"
 elif is_blank_or_placeholder "${initial_admin_password}" || [[ "${#initial_admin_password}" -lt 12 ]]; then
-  if prompted_password="$(prompt_password)"; then
-    initial_admin_password="${prompted_password}"
-  else
-    generated_admin_password="$(generate_admin_password)"
-    initial_admin_password="${generated_admin_password}"
-  fi
+  generated_admin_password="$(generate_admin_password)"
+  initial_admin_password="${generated_admin_password}"
 fi
 
 if [[ "${#initial_admin_password}" -lt 12 ]]; then
@@ -379,10 +357,13 @@ set_env_var INITIAL_ADMIN_PASSWORD "${initial_admin_password}"
 
 log "Running deploy.sh"
 bash "${ROOT_DIR}/infra/scripts/deploy.sh"
+write_install_summary "${initial_admin_password}"
 
 printf '\nInstall complete.\n'
 printf 'Panel URL: %s\n' "${panel_url}"
 printf 'Initial admin username: %s\n' "${initial_admin_username}"
+printf 'Initial admin email: %s\n' "${initial_admin_email}"
+printf 'Credentials file: %s\n' "${INSTALL_SUMMARY_FILE}"
 
 if [[ -n "${generated_admin_password}" ]]; then
   printf 'Generated admin password: %s\n' "${generated_admin_password}"
