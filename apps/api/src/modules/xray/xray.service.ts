@@ -29,6 +29,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
   private readonly usageSnapshotIntervalMs: number;
   private readonly controlSyncIntervalMs: number;
   private readonly apiTarget: string;
+  private readonly grpcReadyTimeoutMs = 5_000;
 
   private grpcBundle:
     | {
@@ -70,20 +71,26 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.statsInterval = setInterval(() => {
-      void this.captureUsageSnapshot({
-        force: true,
-        reason: 'interval',
+      this.runBackgroundTask('usage snapshot interval', async () => {
+        await this.captureUsageSnapshot({
+          force: true,
+          reason: 'interval',
+        });
       });
     }, this.usageSnapshotIntervalMs);
     this.statsInterval.unref();
 
     this.syncInterval = setInterval(() => {
-      void this.ensureRuntimeProvisioned('interval');
+      this.runBackgroundTask('runtime sync interval', async () => {
+        await this.ensureRuntimeProvisioned('interval');
+      });
     }, this.controlSyncIntervalMs);
     this.syncInterval.unref();
 
     setTimeout(() => {
-      void this.ensureRuntimeProvisioned('bootstrap');
+      this.runBackgroundTask('runtime bootstrap', async () => {
+        await this.ensureRuntimeProvisioned('bootstrap');
+      });
     }, 3_000).unref();
   }
 
@@ -758,27 +765,43 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
   }
 
   private callGrpcMethod<T>(client: grpc.Client, method: string, request: unknown): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const callable = (client as unknown as Record<string, unknown>)[method];
+    return this.waitForGrpcClientReady(client).then(
+      () =>
+        new Promise<T>((resolve, reject) => {
+          const callable = (client as unknown as Record<string, unknown>)[method];
 
-      if (typeof callable !== 'function') {
-        reject(new Error(`gRPC method ${method} is not available.`));
-        return;
-      }
+          if (typeof callable !== 'function') {
+            reject(new Error(`gRPC method ${method} is not available.`));
+            return;
+          }
 
-      (
-        callable as (
-          this: grpc.Client,
-          request: unknown,
-          callback: (error: grpc.ServiceError | null, response: T) => void,
-        ) => void
-      ).call(client, request, (error, response) => {
+          (
+            callable as (
+              this: grpc.Client,
+              request: unknown,
+              callback: (error: grpc.ServiceError | null, response: T) => void,
+            ) => void
+          ).call(client, request, (error, response) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve(response);
+          });
+        }),
+    );
+  }
+
+  private waitForGrpcClientReady(client: grpc.Client): Promise<void> {
+    return new Promise((resolve, reject) => {
+      client.waitForReady(Date.now() + this.grpcReadyTimeoutMs, (error) => {
         if (error) {
           reject(error);
           return;
         }
 
-        resolve(response);
+        resolve();
       });
     });
   }
@@ -799,6 +822,27 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
   private isMissingUserError(error: unknown): boolean {
     const message = this.describeGrpcError(error).toLowerCase();
     return message.includes('not found') || message.includes('notfound');
+  }
+
+  private isGrpcUnavailableError(error: unknown): boolean {
+    const message = this.describeGrpcError(error).toLowerCase();
+
+    return (
+      message.includes('unavailable') ||
+      message.includes('econnrefused') ||
+      message.includes('failed to connect') ||
+      message.includes('no connection established')
+    );
+  }
+
+  private runBackgroundTask(taskName: string, operation: () => Promise<void>) {
+    void operation().catch((error) => {
+      if (this.isGrpcUnavailableError(error)) {
+        return;
+      }
+
+      this.logger.error(`${taskName} failed: ${this.describeGrpcError(error)}`);
+    });
   }
 
   private closeGrpcClient(client: grpc.Client): Promise<void> {
