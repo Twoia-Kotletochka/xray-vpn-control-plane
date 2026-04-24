@@ -149,6 +149,7 @@ export class BackupsService implements OnModuleInit, OnModuleDestroy {
     });
     const hostArchivePath = this.buildHostArchivePath(snapshot.fileName);
     const restoreScope = preflight.files.xrayConfig ? 'FULL' : 'DATABASE_ONLY';
+    const panelPublicUrl = this.configService.get('PANEL_PUBLIC_URL', { infer: true });
 
     return {
       backup: this.serializeBackup(snapshot),
@@ -166,11 +167,11 @@ export class BackupsService implements OnModuleInit, OnModuleDestroy {
           },
           {
             id: 'apiHealthz',
-            command: 'curl -sk https://127.0.0.1:8443/healthz',
+            command: `curl -sk ${this.quoteShellArg(`${panelPublicUrl}/healthz`)}`,
           },
           {
             id: 'apiReadyz',
-            command: 'curl -sk https://127.0.0.1:8443/readyz',
+            command: `curl -sk ${this.quoteShellArg(`${panelPublicUrl}/readyz`)}`,
           },
           {
             id: 'recentLogs',

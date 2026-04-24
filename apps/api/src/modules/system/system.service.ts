@@ -17,11 +17,13 @@ export class SystemService {
   ) {}
 
   async status() {
+    const panelTlsMode = this.configService.get('PANEL_TLS_MODE', { infer: true });
+    const caddyPort = panelTlsMode === 'domain' ? 443 : 8443;
     const [host, xrayRuntime, postgres, caddy, xrayTcp] = await Promise.all([
       this.getHostMetrics(),
       this.xrayService.getRuntimeSummary(),
       this.probeDatabase(),
-      this.probeTcpTarget('caddy', 8443),
+      this.probeTcpTarget('caddy', caddyPort),
       this.probeTcpTarget('xray', this.configService.get('XRAY_VLESS_PORT', { infer: true })),
     ]);
 

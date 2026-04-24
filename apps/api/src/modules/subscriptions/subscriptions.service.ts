@@ -138,7 +138,8 @@ export class SubscriptionsService {
     }
 
     const baseUrl = new URL(this.configService.get('XRAY_SUBSCRIPTION_BASE_URL', { infer: true }));
-    const serverHost = baseUrl.hostname;
+    const serverHost =
+      this.configService.get('XRAY_PUBLIC_HOST', { infer: true })?.trim() || baseUrl.hostname;
     const port = this.configService.get('XRAY_VLESS_PORT', { infer: true });
     const publicKey = this.configService.get('XRAY_REALITY_PUBLIC_KEY', { infer: true });
     const sni = this.configService.get('XRAY_DEFAULT_SNI', { infer: true });

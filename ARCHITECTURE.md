@@ -12,7 +12,7 @@
 ### Runtime Topology
 
 - `xray` container
-  - Public VPN entrypoint on `443/tcp`
+  - Public VPN entrypoint on `443/tcp` in IP-only mode or the internal Xray backend behind HAProxy in domain mode
   - Default inbound profile: `VLESS + REALITY + XTLS Vision`
   - Xray gRPC API bound internally for stats and user lifecycle operations
 - `api` container
@@ -23,7 +23,11 @@
 - `caddy` container
   - Serves built admin panel assets
   - Reverse proxies `/api/*` to NestJS
-  - Terminates panel TLS on `8443` in the MVP
+  - Terminates panel TLS on `8443` in IP-only mode or on a DNS name with Let's Encrypt in domain mode
+- `haproxy` container
+  - Enabled only in domain mode
+  - Accepts `80/tcp` and `443/tcp`
+  - Routes panel-domain SNI to Caddy and all other TLS traffic on `443` to Xray
 - Host-level services
   - Firewall (`ufw` or `nftables`)
   - Fail2ban
@@ -168,7 +172,8 @@ This split avoids unnecessary restarts for common client CRUD actions while keep
 
 ### Panel Exposure
 
-- Panel served behind Caddy on `8443` until a real panel domain exists
+- IP-only mode serves the panel behind Caddy on `8443`
+- Domain mode serves the panel on `443` through HAProxy SNI routing and Caddy-managed public TLS
 - Caddy adds secure headers
 - API enforces rate limits and CSRF-safe cookie strategy
 - Host firewall should allow panel access only from trusted IP ranges whenever feasible
@@ -191,9 +196,8 @@ This split avoids unnecessary restarts for common client CRUD actions while keep
 
 ## Known Constraints
 
-- A public CA-signed HTTPS certificate for the panel is not possible without a domain.
-- For the MVP, panel TLS is still enabled, but production-grade public trust requires a domain or externally provided certificate.
-- Port `443` is intentionally reserved for Xray. The panel remains on `8443` to avoid transport compromises.
+- Without a domain, the panel uses internal TLS on `8443` and browsers will warn.
+- With a domain, HAProxy routes panel-domain SNI to Caddy while preserving Xray on `443` for existing clients.
 - Restore UI is not complete yet; restore currently remains a host-side operator action.
 - Logs UX and analytics are still lighter than the rest of the control plane.
 

@@ -13,6 +13,7 @@ describe('validateEnv', () => {
       INITIAL_ADMIN_USERNAME: 'admin',
       INITIAL_ADMIN_PASSWORD: 'super-secure-password',
       API_LOG_FILE: '/var/log/server-vpn/api.log',
+      PANEL_TLS_MODE: 'domain',
       PANEL_PUBLIC_URL: 'https://panel.example.com:8443',
       XRAY_API_TARGET: 'xray:10085',
       XRAY_REALITY_PUBLIC_KEY: 'public-key',
@@ -34,6 +35,7 @@ describe('validateEnv', () => {
     expect(env.BCRYPT_ROUNDS).toBe(12);
     expect(env.XRAY_API_TARGET).toBe('xray:10085');
     expect(env.XRAY_VLESS_PORT).toBe(443);
+    expect(env.PANEL_TLS_MODE).toBe('domain');
     expect(env.BACKUP_HOST_DIR).toBe('/opt/server-vpn/infra/backup/output');
     expect(env.BACKUP_AUTO_CREATE_ENABLED).toBe(true);
     expect(env.BACKUP_AUTO_CREATE_INTERVAL_DAYS).toBe(5);
@@ -58,5 +60,6 @@ describe('validateEnv', () => {
     });
 
     expect(env.BACKUP_AUTO_CREATE_ENABLED).toBe(false);
+    expect(env.PANEL_TLS_MODE).toBe('ip');
   });
 });

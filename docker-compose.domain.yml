@@ -1,0 +1,29 @@
+services:
+  haproxy:
+    image: haproxy:3.1-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      caddy:
+        condition: service_healthy
+      xray:
+        condition: service_healthy
+    ports:
+      - '80:80/tcp'
+      - '443:443/tcp'
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./infra/haproxy/haproxy.cfg.template:/usr/local/etc/haproxy/haproxy.cfg.template:ro
+      - ./infra/haproxy/render-and-run.sh:/usr/local/bin/render-and-run-haproxy.sh:ro
+    command: ['sh', '/usr/local/bin/render-and-run-haproxy.sh']
+    healthcheck:
+      test: ['CMD-SHELL', 'haproxy -c -f /tmp/haproxy.cfg >/dev/null']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+      - control

@@ -13,8 +13,7 @@ RUN npm run build -w apps/web
 
 FROM caddy:2.10-alpine
 
-COPY infra/caddy/Caddyfile /etc/caddy/Caddyfile
+COPY infra/caddy /etc/caddy
 COPY --from=build /app/apps/web/dist /srv/web
 
-EXPOSE 8443
-
+EXPOSE 80 443

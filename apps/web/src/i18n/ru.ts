@@ -84,7 +84,7 @@ export const ru = {
       panelTls: 'TLS панели',
       persistence: 'Хранение',
       transportValue: 'VLESS + REALITY',
-      panelTlsValue: 'HTTPS на 8443',
+      panelTlsValue: 'HTTPS',
       persistenceValue: 'PostgreSQL + Prisma',
     },
   },

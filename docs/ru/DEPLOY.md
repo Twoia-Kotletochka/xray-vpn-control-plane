@@ -9,17 +9,18 @@
 - Debian 12 или Ubuntu 24.04 LTS
 - публичный IPv4
 - root или sudo доступ
-- открытые `443/tcp` и `8443/tcp`
+- открытые `443/tcp` и `8443/tcp` для IP-only режима
+- открытые `80/tcp` и `443/tcp` для режима с доменом
 
 ## Сетевые Порты
 
-- `443/tcp` -> `Xray-core`
-- `8443/tcp` -> web panel через `Caddy`
+- IP-only режим: `443/tcp` -> `Xray-core`, `8443/tcp` -> web panel через `Caddy`
+- Domain режим: `80/tcp` и `443/tcp` -> `HAProxy`; SNI домена панели идёт в `Caddy`, остальной `443` идёт в `Xray-core`
 - SSH остаётся на выбранном оператором порту
 
 ## Самый Быстрый Первый Запуск
 
-Если нужен минимальный ручной ввод, используй guided installer. В обычном interactive-сценарии он попросит только IP или host сервера.
+Если нужен минимальный ручной ввод, используй guided installer. В обычном interactive-сценарии он попросит только IP или домен сервера.
 
 ```bash
 sudo git clone https://github.com/Twoia-Kotletochka/xray-vpn-control-plane.git /opt/xray-vpn-control-plane
@@ -36,6 +37,11 @@ sudo bash install.sh --host 203.0.113.10 --non-interactive
 ```
 
 Флаги `--admin-username`, `--admin-email`, `--admin-password` остаются только как advanced override, но для обычной установки они больше не нужны.
+
+Выбор режима в installer:
+
+- введи IP адрес для IP-only режима. Панель будет работать на `https://IP:8443` с internal TLS;
+- введи DNS-имя для domain режима. Панель будет работать на `https://DOMAIN` с Let's Encrypt, а VPN-клиенты продолжат ходить в Xray на `443/tcp`.
 
 ## Advanced Ручное Развёртывание На Чистом VPS
 
@@ -65,14 +71,16 @@ docker run --rm ghcr.io/xtls/xray-core:26.2.6 x25519
 
 ## Что Важно Настроить Перед Первым Стартом
 
-- `PANEL_HOST`, `PANEL_PUBLIC_URL`, `XRAY_SUBSCRIPTION_BASE_URL`
+- `PANEL_HOST`, `PANEL_TLS_MODE`, `PANEL_PUBLIC_URL`, `XRAY_PUBLIC_HOST`, `XRAY_SUBSCRIPTION_BASE_URL`
 - `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `TOTP_ENCRYPTION_SECRET`
 - `INITIAL_ADMIN_*`
 - `XRAY_REALITY_PRIVATE_KEY`, `XRAY_REALITY_PUBLIC_KEY`, `XRAY_SHORT_IDS`
 
 Примечания:
 
-- Если домена пока нет, укажи публичный IP VPS в `PANEL_HOST`, `PANEL_PUBLIC_URL`, `XRAY_SUBSCRIPTION_BASE_URL` и `API_CORS_ORIGIN` с портом `:8443`.
+- Если домена пока нет, поставь `PANEL_TLS_MODE=ip` и используй публичный IP VPS с портом `:8443` в `PANEL_PUBLIC_URL`, `XRAY_SUBSCRIPTION_BASE_URL` и `API_CORS_ORIGIN`.
+- Если домен есть, поставь `PANEL_TLS_MODE=domain`, направь домен на VPS и используй `https://DOMAIN` без порта в `PANEL_PUBLIC_URL`, `XRAY_SUBSCRIPTION_BASE_URL` и `API_CORS_ORIGIN`.
+- `XRAY_PUBLIC_HOST` задаёт host, который попадёт в новые VLESS-ссылки. Это может быть IP VPS или домен.
 - `INITIAL_ADMIN_*` создаёт первый аккаунт панели на этапе seed.
 - `XRAY_SHORT_IDS` принимает один или несколько 16-символьных hex-идентификаторов через запятую.
 - `BACKUP_HOST_DIR` на первом запуске можно оставить пустым; `deploy.sh` сам нормализует его в `<repo>/infra/backup/output`.
@@ -80,9 +88,9 @@ docker run --rm ghcr.io/xtls/xray-core:26.2.6 x25519
 ## TLS И Домен
 
 - VPN transport не требует отдельного panel-domain.
-- По умолчанию панель отдаётся на `8443` с внутренним сертификатом Caddy.
-- Браузер будет показывать предупреждение, пока ты не доверишь этой CA или не поставишь собственную схему с публичным сертификатом.
-- Поскольку `443` занят под `Xray`, панель в текущем профиле работает на `8443`.
+- IP-only режим отдаёт панель на `8443` с внутренним сертификатом Caddy, поэтому браузер показывает предупреждение.
+- Domain режим использует HAProxy SNI routing на `443`: браузерный SNI домена панели идёт в Caddy, весь остальной TLS-трафик на `443` идёт в Xray.
+- Старые VLESS-ссылки с IP сервера и портом `443` продолжают работать в domain режиме, если REALITY SNI в них не менялся.
 
 ## Первый Деплой
 
@@ -96,6 +104,14 @@ bash infra/scripts/deploy.sh
 docker compose ps
 curl -k https://YOUR_HOST:8443/healthz
 curl -k https://YOUR_HOST:8443/readyz
+```
+
+Для domain режима:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.domain.yml ps
+curl -fsS https://YOUR_DOMAIN/healthz
+curl -fsS https://YOUR_DOMAIN/readyz
 ```
 
 После этого:

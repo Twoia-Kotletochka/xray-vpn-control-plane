@@ -1,9 +1,12 @@
 {
 	admin off
+	auto_https disable_redirects
 	default_sni {$PANEL_HOST}
+	skip_install_trust
 }
 
-{$PANEL_HOST} {
+{$PANEL_HOST}:8443 {
+	tls internal
 	encode zstd gzip
 	log {
 		output file {$CADDY_ACCESS_LOG_FILE} {

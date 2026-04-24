@@ -137,7 +137,7 @@ is_blank_or_placeholder() {
   local value="$1"
 
   case "${value}" in
-    ""|"change-me"|"replace-me"|"replace-with-"*|"panel.example.com"|"admin@example.com"|"https://panel.example.com:8443"|"/absolute/path/to/project/infra/backup/output")
+    ""|"change-me"|"replace-me"|"replace-with-"*|"panel.example.com"|"admin@example.com"|"https://panel.example.com"|"https://panel.example.com:8443"|"/absolute/path/to/project/infra/backup/output")
       return 0
       ;;
     *)
@@ -163,6 +163,12 @@ normalize_host() {
   fi
 
   printf '%s' "${value}"
+}
+
+is_ipv4_address() {
+  local value="$1"
+
+  [[ "${value}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
 }
 
 detect_public_host() {
@@ -221,6 +227,13 @@ EOF
 
 print_install_summary() {
   local summary_password="$1"
+  local tls_note
+
+  if [[ "${panel_tls_mode}" == "domain" ]]; then
+    tls_note="Caddy will request and renew a public Let's Encrypt certificate for ${panel_host}."
+  else
+    tls_note="IP-only mode uses Caddy internal TLS on :8443, so the browser may show a certificate warning."
+  fi
 
   cat <<EOF
 
@@ -252,8 +265,7 @@ Next steps:
   3. Create one test client and verify a real connection
 
 Note:
-  The default panel certificate is issued by Caddy internal CA,
-  so the browser may show a warning on first access.
+  ${tls_note}
 
 ============================================================
 EOF
@@ -308,9 +320,18 @@ fi
 
 [[ -n "${panel_host}" ]] || error "PANEL_HOST is required. Pass --host or edit ${ENV_FILE}."
 
-panel_url="https://${panel_host}:8443"
+if is_ipv4_address "${panel_host}"; then
+  panel_tls_mode="ip"
+  panel_url="https://${panel_host}:8443"
+else
+  panel_tls_mode="domain"
+  panel_url="https://${panel_host}"
+fi
 
+set_env_var PANEL_TLS_MODE "${panel_tls_mode}"
 set_env_var PANEL_HOST "${panel_host}"
+set_env_var PANEL_HTTPS_PORT "8443"
+set_env_var XRAY_PUBLIC_HOST "${panel_host}"
 
 if is_blank_or_placeholder "$(get_env_var PANEL_PUBLIC_URL)"; then
   set_env_var PANEL_PUBLIC_URL "${panel_url}"

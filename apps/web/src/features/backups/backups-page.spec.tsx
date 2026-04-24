@@ -69,11 +69,11 @@ describe('BackupsPage', () => {
           },
           {
             id: 'apiHealthz',
-            command: 'curl -sk https://127.0.0.1:8443/healthz',
+            command: "curl -sk 'https://panel.example.com/healthz'",
           },
           {
             id: 'apiReadyz',
-            command: 'curl -sk https://127.0.0.1:8443/readyz',
+            command: "curl -sk 'https://panel.example.com/readyz'",
           },
           {
             id: 'recentLogs',

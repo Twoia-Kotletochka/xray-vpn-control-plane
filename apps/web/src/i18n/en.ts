@@ -87,7 +87,7 @@ export const en: DeepTranslate<typeof ru> = {
       panelTls: 'Panel TLS',
       persistence: 'Persistence',
       transportValue: 'VLESS + REALITY',
-      panelTlsValue: 'HTTPS on 8443',
+      panelTlsValue: 'HTTPS',
       persistenceValue: 'PostgreSQL + Prisma',
     },
   },

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${ROOT_DIR}/.env"
+PANEL_TLS_MODE_VALUE=""
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   echo "Missing .env. Copy .env.example to .env first." >&2
@@ -53,15 +54,43 @@ prepare_runtime_dirs() {
   chmod 0666 "${log_dir}/xray-access.log" "${log_dir}/xray-error.log"
 }
 
+compose_files() {
+  PANEL_TLS_MODE_VALUE="$(grep '^PANEL_TLS_MODE=' "${ENV_FILE}" | cut -d'=' -f2- || true)"
+  PANEL_TLS_MODE_VALUE="${PANEL_TLS_MODE_VALUE:-ip}"
+
+  printf '%s\n' -f "${ROOT_DIR}/docker-compose.yml"
+
+  case "${PANEL_TLS_MODE_VALUE}" in
+    domain)
+      printf '%s\n' -f "${ROOT_DIR}/docker-compose.domain.yml"
+      ;;
+    ip)
+      printf '%s\n' -f "${ROOT_DIR}/docker-compose.ip.yml"
+      ;;
+    *)
+      echo "Unsupported PANEL_TLS_MODE=${PANEL_TLS_MODE_VALUE}. Use ip or domain." >&2
+      exit 1
+      ;;
+  esac
+}
+
 normalize_legacy_env_paths
 prepare_runtime_dirs
 bash "${ROOT_DIR}/infra/scripts/render-xray-config.sh"
 bash "${ROOT_DIR}/infra/scripts/ensure-ssh-access.sh"
 
-docker compose -f "${ROOT_DIR}/docker-compose.yml" build api caddy
-docker compose -f "${ROOT_DIR}/docker-compose.yml" up -d postgres
-docker compose -f "${ROOT_DIR}/docker-compose.yml" run --rm api npm run prisma:deploy
-docker compose -f "${ROOT_DIR}/docker-compose.yml" run --rm api npm run prisma:seed
-docker compose -f "${ROOT_DIR}/docker-compose.yml" up -d api xray caddy
+mapfile -t compose_args < <(compose_files)
+
+docker compose "${compose_args[@]}" build api caddy
+docker compose "${compose_args[@]}" up -d postgres
+docker compose "${compose_args[@]}" run --rm api npm run prisma:deploy
+docker compose "${compose_args[@]}" run --rm api npm run prisma:seed
+docker compose "${compose_args[@]}" up -d --remove-orphans api xray caddy
+
+if [[ "${PANEL_TLS_MODE_VALUE}" == "domain" ]]; then
+  docker compose "${compose_args[@]}" up -d --remove-orphans haproxy
+else
+  docker compose "${compose_args[@]}" rm -sf haproxy >/dev/null 2>&1 || true
+fi
 
 echo "Deployment finished. Verify /healthz, /readyz, and panel reachability."

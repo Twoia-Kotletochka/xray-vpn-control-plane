@@ -66,8 +66,6 @@ services:
     volumes:
       - ./infra/xray/generated/config.json:/etc/xray/config.json:ro
       - ./infra/runtime/logs:/var/log/server-vpn
-    ports:
-      - '${XRAY_VLESS_PORT}:${XRAY_VLESS_PORT}/tcp'
     healthcheck:
       test: ['CMD', '/usr/local/bin/xray', 'run', '-test', '-config', '/etc/xray/config.json']
       interval: 30s
@@ -83,18 +81,22 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    command:
+      [
+        'sh',
+        '-c',
+        'caddy run --config /etc/caddy/Caddyfile.${PANEL_TLS_MODE:-ip} --adapter caddyfile',
+      ]
     depends_on:
       api:
         condition: service_healthy
-    ports:
-      - '${PANEL_HTTPS_PORT}:8443/tcp'
     read_only: true
     tmpfs:
       - /tmp
-      - /data
-      - /config
     volumes:
       - ./infra/runtime/logs:/var/log/server-vpn
+      - caddy_data:/data
+      - caddy_config:/config
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://api:3000/healthz >/dev/null || exit 1']
       interval: 15s
@@ -111,3 +113,5 @@ networks:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

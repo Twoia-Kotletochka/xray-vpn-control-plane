@@ -13,13 +13,13 @@ Recommended baseline:
 
 ## Network Layout
 
-- `443/tcp` -> `Xray-core`
-- `8443/tcp` -> admin panel via `Caddy`
+- IP-only mode: `443/tcp` -> `Xray-core`, `8443/tcp` -> admin panel via `Caddy`
+- Domain mode: `80/tcp` and `443/tcp` -> `HAProxy`; panel-domain SNI goes to `Caddy`, everything else on `443` goes to `Xray-core`
 - SSH remains on the operator-chosen port
 
 ## Fastest First Install
 
-Use the guided installer if you want the smallest number of manual steps. In the normal interactive flow it asks only for the server IP or panel host.
+Use the guided installer if you want the smallest number of manual steps. In the normal interactive flow it asks only for the server IP or panel domain.
 
 ```bash
 sudo git clone https://github.com/Twoia-Kotletochka/xray-vpn-control-plane.git /opt/xray-vpn-control-plane
@@ -36,6 +36,11 @@ sudo bash install.sh --host 203.0.113.10 --non-interactive
 ```
 
 Optional advanced overrides still exist for `--admin-username`, `--admin-email`, and `--admin-password`, but they are no longer required for the standard install path.
+
+Installer mode selection:
+
+- Enter an IP address for IP-only mode. The panel will use `https://IP:8443` with Caddy internal TLS.
+- Enter a DNS name for domain mode. The panel will use `https://DOMAIN` with Let's Encrypt, while VPN clients still reach Xray on `443/tcp`.
 
 ## Advanced Manual Fresh VPS Flow
 
@@ -66,7 +71,9 @@ The `x25519` command prints a private/public key pair for:
 ## Values You Must Set
 
 - `PANEL_HOST`
+- `PANEL_TLS_MODE`
 - `PANEL_PUBLIC_URL`
+- `XRAY_PUBLIC_HOST`
 - `XRAY_SUBSCRIPTION_BASE_URL`
 - `POSTGRES_PASSWORD`
 - `JWT_ACCESS_SECRET`
@@ -79,7 +86,9 @@ The `x25519` command prints a private/public key pair for:
 
 Notes:
 
-- If you do not have a domain yet, set `PANEL_HOST`, `PANEL_PUBLIC_URL`, `XRAY_SUBSCRIPTION_BASE_URL`, and `API_CORS_ORIGIN` to the VPS public IP with `:8443`.
+- Without a domain, set `PANEL_TLS_MODE=ip` and use the VPS public IP with `:8443` for `PANEL_PUBLIC_URL`, `XRAY_SUBSCRIPTION_BASE_URL`, and `API_CORS_ORIGIN`.
+- With a domain, set `PANEL_TLS_MODE=domain`, point the domain to the VPS, and use `https://DOMAIN` without a port for `PANEL_PUBLIC_URL`, `XRAY_SUBSCRIPTION_BASE_URL`, and `API_CORS_ORIGIN`.
+- `XRAY_PUBLIC_HOST` controls what host appears in generated VLESS links. It can be the VPS IP or your domain.
 - `INITIAL_ADMIN_*` becomes the first panel account created by the seed step.
 - `XRAY_SHORT_IDS` accepts one or more 16-character hex values separated by commas.
 - `BACKUP_HOST_DIR` can stay empty on first install; `deploy.sh` will normalize it to `<repo>/infra/backup/output`.
@@ -87,9 +96,9 @@ Notes:
 ## TLS and DNS
 
 - The VPN transport itself does not require a panel domain.
-- The default panel deployment serves HTTPS on `8443` with Caddy's internal certificate.
-- Browsers will show a warning until you trust that CA or place the panel behind your own public certificate setup.
-- Port `443` is intentionally reserved for `Xray`, so the panel stays on `8443` in the default layout.
+- IP-only mode serves the panel on `8443` with Caddy's internal certificate, so browsers show a warning.
+- Domain mode uses HAProxy SNI routing on `443`: browser SNI for the panel domain goes to Caddy and all other TLS traffic goes to Xray.
+- Existing VLESS links that use the server IP on `443` keep working in domain mode as long as their REALITY SNI stays unchanged.
 
 ## First Deploy
 
@@ -103,6 +112,14 @@ bash infra/scripts/deploy.sh
 docker compose ps
 curl -k https://YOUR_HOST:8443/healthz
 curl -k https://YOUR_HOST:8443/readyz
+```
+
+For domain mode:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.domain.yml ps
+curl -fsS https://YOUR_DOMAIN/healthz
+curl -fsS https://YOUR_DOMAIN/readyz
 ```
 
 Then:
