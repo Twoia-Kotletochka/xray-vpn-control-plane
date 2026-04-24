@@ -55,9 +55,6 @@ prepare_runtime_dirs() {
 }
 
 compose_files() {
-  PANEL_TLS_MODE_VALUE="$(grep '^PANEL_TLS_MODE=' "${ENV_FILE}" | cut -d'=' -f2- || true)"
-  PANEL_TLS_MODE_VALUE="${PANEL_TLS_MODE_VALUE:-ip}"
-
   printf '%s\n' -f "${ROOT_DIR}/docker-compose.yml"
 
   case "${PANEL_TLS_MODE_VALUE}" in
@@ -79,6 +76,8 @@ prepare_runtime_dirs
 bash "${ROOT_DIR}/infra/scripts/render-xray-config.sh"
 bash "${ROOT_DIR}/infra/scripts/ensure-ssh-access.sh"
 
+PANEL_TLS_MODE_VALUE="$(grep '^PANEL_TLS_MODE=' "${ENV_FILE}" | cut -d'=' -f2- || true)"
+PANEL_TLS_MODE_VALUE="${PANEL_TLS_MODE_VALUE:-ip}"
 mapfile -t compose_args < <(compose_files)
 
 docker compose "${compose_args[@]}" build api caddy
