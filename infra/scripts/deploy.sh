@@ -88,6 +88,7 @@ docker compose "${compose_args[@]}" run --rm api npm run prisma:seed
 docker compose "${compose_args[@]}" up -d --remove-orphans api xray caddy
 
 if [[ "${PANEL_TLS_MODE_VALUE}" == "domain" ]]; then
+  docker compose "${compose_args[@]}" pull haproxy
   docker compose "${compose_args[@]}" up -d --remove-orphans haproxy
 else
   docker compose "${compose_args[@]}" rm -sf haproxy >/dev/null 2>&1 || true
