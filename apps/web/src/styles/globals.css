@@ -386,6 +386,15 @@ a {
   flex-shrink: 0;
 }
 
+.topbar__logout {
+  min-height: 44px;
+  color: var(--text-soft);
+}
+
+.topbar__logout:hover {
+  color: var(--text);
+}
+
 .topbar__mobile-hidden {
   display: contents;
 }
@@ -2310,6 +2319,11 @@ a {
   }
 
   .topbar__quick-action {
+    width: 44px;
+    padding: 0;
+  }
+
+  .topbar__actions .topbar__logout {
     width: 44px;
     padding: 0;
   }

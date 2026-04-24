@@ -1,8 +1,9 @@
-import { Menu, Search } from 'lucide-react';
+import { LogOut, Menu, Search } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useNavigationItems } from '../../app/navigation';
+import { useAuth } from '../../features/auth/auth-context';
 import { useI18n } from '../../i18n';
 
 type TopbarProps = {
@@ -11,6 +12,7 @@ type TopbarProps = {
 
 export function Topbar({ onOpenNavigation }: TopbarProps) {
   const { ui } = useI18n();
+  const { logout } = useAuth();
   const navigationItems = useNavigationItems();
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,7 +69,19 @@ export function Topbar({ onOpenNavigation }: TopbarProps) {
           onChange={(event) => setQuery(event.target.value)}
         />
       </form>
-      <div className="topbar__actions" aria-hidden="true" />
+      <div className="topbar__actions">
+        <button
+          className="button button--ghost topbar__logout"
+          type="button"
+          aria-label={ui.common.logout}
+          onClick={() => {
+            void logout();
+          }}
+        >
+          <LogOut size={16} />
+          <span className="topbar__quick-action-label">{ui.common.logout}</span>
+        </button>
+      </div>
     </header>
   );
 }
