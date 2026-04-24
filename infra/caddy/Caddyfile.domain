@@ -3,7 +3,7 @@
 	default_sni {$PANEL_HOST}
 }
 
-{$PANEL_HOST} {
+(panel_app) {
 	encode zstd gzip
 	log {
 		output file {$CADDY_ACCESS_LOG_FILE} {
@@ -67,4 +67,13 @@
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+{$PANEL_HOST} {
+	import panel_app
+}
+
+:8443 {
+	tls internal
+	import panel_app
 }

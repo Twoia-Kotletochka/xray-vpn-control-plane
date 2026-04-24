@@ -15,7 +15,7 @@
 ## Сетевые Порты
 
 - IP-only режим: `443/tcp` -> `Xray-core`, `8443/tcp` -> web panel через `Caddy`
-- Domain режим: `80/tcp` и `443/tcp` -> `HAProxy`; SNI домена панели идёт в `Caddy`, остальной `443` идёт в `Xray-core`
+- Domain режим: `80/tcp` и `443/tcp` -> `HAProxy`; SNI домена панели идёт в `Caddy`, остальной `443` идёт в `Xray-core`; `8443/tcp` остаётся legacy fallback для старой панели/подписок
 - SSH остаётся на выбранном оператором порту
 
 ## Самый Быстрый Первый Запуск
@@ -41,7 +41,7 @@ sudo bash install.sh --host 203.0.113.10 --non-interactive
 Выбор режима в installer:
 
 - введи IP адрес для IP-only режима. Панель будет работать на `https://IP:8443` с internal TLS;
-- введи DNS-имя для domain режима. Панель будет работать на `https://DOMAIN` с Let's Encrypt, а VPN-клиенты продолжат ходить в Xray на `443/tcp`.
+- введи DNS-имя для domain режима. Панель будет работать на `https://DOMAIN` с Let's Encrypt, а VPN-клиенты продолжат ходить в Xray на `443/tcp`. `https://IP:8443` остаётся доступен для старых subscription URL.
 
 ## Advanced Ручное Развёртывание На Чистом VPS
 
@@ -90,6 +90,7 @@ docker run --rm ghcr.io/xtls/xray-core:26.2.6 x25519
 - VPN transport не требует отдельного panel-domain.
 - IP-only режим отдаёт панель на `8443` с внутренним сертификатом Caddy, поэтому браузер показывает предупреждение.
 - Domain режим использует HAProxy SNI routing на `443`: браузерный SNI домена панели идёт в Caddy, весь остальной TLS-трафик на `443` идёт в Xray.
+- Domain режим также публикует `8443` в Caddy с internal TLS, поэтому старые subscription URL вида `https://IP:8443` могут продолжать обновляться.
 - Старые VLESS-ссылки с IP сервера и портом `443` продолжают работать в domain режиме, если REALITY SNI в них не менялся.
 
 ## Первый Деплой

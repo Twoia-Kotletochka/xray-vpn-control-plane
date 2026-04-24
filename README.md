@@ -33,7 +33,7 @@ sudo bash install.sh
 
 The installer bootstraps the host, generates every required secret automatically, provisions REALITY keys, deploys the stack, and stores the generated admin credentials in `/root/.server-vpn-install.txt`.
 
-If you enter an IP address, the panel runs on `https://IP:8443` with internal TLS. If you enter a real domain, the panel runs on `https://DOMAIN` with a public Let's Encrypt certificate while Xray keeps `443/tcp` through SNI routing.
+If you enter an IP address, the panel runs on `https://IP:8443` with internal TLS. If you enter a real domain, the panel runs on `https://DOMAIN` with a public Let's Encrypt certificate while Xray keeps `443/tcp` through SNI routing. Domain mode also keeps `https://IP:8443` available for old subscription URLs and emergency panel access.
 
 Non-interactive install for automation:
 
@@ -94,7 +94,7 @@ sudo bash install.sh
 
 `install.sh` сам подготовит хост, создаст `.env`, сгенерирует все секреты, REALITY keypair, выполнит деплой и сохранит стартовые admin-данные в `/root/.server-vpn-install.txt`.
 
-Если указать IP, панель будет доступна на `https://IP:8443` с internal TLS. Если указать настоящий домен, панель будет доступна на `https://DOMAIN` с публичным Let's Encrypt сертификатом, а Xray сохранит `443/tcp` через SNI routing.
+Если указать IP, панель будет доступна на `https://IP:8443` с internal TLS. Если указать настоящий домен, панель будет доступна на `https://DOMAIN` с публичным Let's Encrypt сертификатом, а Xray сохранит `443/tcp` через SNI routing. В domain mode старый `https://IP:8443` остаётся доступен для старых subscription URL и аварийного входа в панель.
 
 Non-interactive установка для automation/provisioning:
 

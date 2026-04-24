@@ -14,7 +14,7 @@ Recommended baseline:
 ## Network Layout
 
 - IP-only mode: `443/tcp` -> `Xray-core`, `8443/tcp` -> admin panel via `Caddy`
-- Domain mode: `80/tcp` and `443/tcp` -> `HAProxy`; panel-domain SNI goes to `Caddy`, everything else on `443` goes to `Xray-core`
+- Domain mode: `80/tcp` and `443/tcp` -> `HAProxy`; panel-domain SNI goes to `Caddy`, everything else on `443` goes to `Xray-core`; `8443/tcp` remains a legacy direct panel/subscription fallback
 - SSH remains on the operator-chosen port
 
 ## Fastest First Install
@@ -40,7 +40,7 @@ Optional advanced overrides still exist for `--admin-username`, `--admin-email`,
 Installer mode selection:
 
 - Enter an IP address for IP-only mode. The panel will use `https://IP:8443` with Caddy internal TLS.
-- Enter a DNS name for domain mode. The panel will use `https://DOMAIN` with Let's Encrypt, while VPN clients still reach Xray on `443/tcp`.
+- Enter a DNS name for domain mode. The panel will use `https://DOMAIN` with Let's Encrypt, while VPN clients still reach Xray on `443/tcp`. `https://IP:8443` remains available for old subscription URLs.
 
 ## Advanced Manual Fresh VPS Flow
 
@@ -98,6 +98,7 @@ Notes:
 - The VPN transport itself does not require a panel domain.
 - IP-only mode serves the panel on `8443` with Caddy's internal certificate, so browsers show a warning.
 - Domain mode uses HAProxy SNI routing on `443`: browser SNI for the panel domain goes to Caddy and all other TLS traffic goes to Xray.
+- Domain mode also keeps `8443` published to Caddy with internal TLS, so older subscription URLs using `https://IP:8443` can still refresh.
 - Existing VLESS links that use the server IP on `443` keep working in domain mode as long as their REALITY SNI stays unchanged.
 
 ## First Deploy
