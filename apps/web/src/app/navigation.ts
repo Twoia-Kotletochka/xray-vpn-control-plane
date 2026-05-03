@@ -6,13 +6,15 @@ import {
   FileText,
   Gauge,
   KeyRound,
-  type LucideIcon,
   Logs,
+  type LucideIcon,
   Settings2,
   ShieldUser,
 } from 'lucide-react';
 
+import { useAuth } from '../features/auth/auth-context';
 import { useI18n } from '../i18n';
+import { canAccessPath } from '../lib/admin-access';
 
 export type NavigationItem = {
   keywords: string[];
@@ -29,6 +31,7 @@ export type NavigationSection = {
 
 export function useNavigationSections(): NavigationSection[] {
   const { ui } = useI18n();
+  const { admin } = useAuth();
 
   return [
     {
@@ -109,7 +112,12 @@ export function useNavigationSections(): NavigationSection[] {
         },
       ],
     },
-  ];
+  ]
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => canAccessPath(admin?.role, item.path)),
+    }))
+    .filter((section) => section.items.length > 0);
 }
 
 export function useNavigationItems() {

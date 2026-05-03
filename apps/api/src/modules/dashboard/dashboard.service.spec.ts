@@ -1,9 +1,16 @@
-import { ClientStatus } from '@prisma/client';
+import { AdminRole, ClientStatus } from '@prisma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DashboardService } from './dashboard.service';
 
 describe('DashboardService', () => {
+  const superAdmin = {
+    id: 'admin-root',
+    email: 'root@example.com',
+    username: 'root',
+    role: AdminRole.SUPER_ADMIN,
+  } as const;
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-01T12:00:00.000Z'));
@@ -127,7 +134,7 @@ describe('DashboardService', () => {
       xrayService as never,
     );
 
-    const summary = await service.summary();
+    const summary = await service.summary(superAdmin);
 
     expect(xrayService.captureUsageSnapshot).toHaveBeenCalledWith({
       reason: 'dashboard-summary',
@@ -200,7 +207,8 @@ describe('DashboardService', () => {
       activeClientsToday: 1,
       peakActiveClients: 1,
     });
-    expect(summary.runtime.onlineUsers).toBe(2);
+    expect(summary.runtime?.onlineUsers).toBe(2);
+    expect(summary.capabilities.canViewInfrastructure).toBe(true);
     expect(summary.message).toContain('список клиентов');
   });
 

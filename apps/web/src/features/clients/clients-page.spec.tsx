@@ -23,7 +23,12 @@ vi.mock('../auth/auth-context', () => ({
   }),
 }));
 
-function createClient(id: string, displayName: string, emailTag: string, uuid: string): ClientRecord {
+function createClient(
+  id: string,
+  displayName: string,
+  emailTag: string,
+  uuid: string,
+): ClientRecord {
   return {
     id,
     uuid,
@@ -56,6 +61,14 @@ function createClient(id: string, displayName: string, emailTag: string, uuid: s
     wireguardIpv4Address: '10.44.0.2',
     wireguardLastHandshakeAt: null,
     hasWireguardProfile: true,
+    capabilities: {
+      canDelete: true,
+      canEdit: true,
+      canExtend: true,
+      canManage: true,
+      canResetTraffic: true,
+      canViewSensitiveConfig: true,
+    },
   };
 }
 
@@ -315,12 +328,33 @@ describe('ClientsPage', () => {
       </MemoryRouter>,
     );
 
-    const addClientButton = (await screen.findAllByRole('button', { name: /Добавить клиента/i }))[0]!;
+    const [addClientButton] = await screen.findAllByRole('button', {
+      name: /\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u0430/i,
+    });
+
+    if (!addClientButton) {
+      throw new Error('Expected add client button to be rendered.');
+    }
+
     fireEvent.click(addClientButton);
 
-    fireEvent.change(screen.getAllByLabelText(/Имя клиента/i)[0]!, { target: { value: 'Shared plan' } });
-    fireEvent.change(screen.getAllByLabelText(/Лимит устройств/i)[0]!, { target: { value: '3' } });
-    fireEvent.change(screen.getAllByLabelText(/Лимит IP/i)[0]!, { target: { value: '2' } });
+    const [clientNameInput] = screen.getAllByLabelText(
+      /\u0418\u043c\u044f \u043a\u043b\u0438\u0435\u043d\u0442\u0430/i,
+    );
+    const [deviceLimitInput] = screen.getAllByLabelText(
+      /\u041b\u0438\u043c\u0438\u0442 \u0443\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432/i,
+    );
+    const [ipLimitInput] = screen.getAllByLabelText(/\u041b\u0438\u043c\u0438\u0442 IP/i);
+
+    if (!clientNameInput || !deviceLimitInput || !ipLimitInput) {
+      throw new Error('Expected client form inputs to be rendered.');
+    }
+
+    fireEvent.change(clientNameInput, {
+      target: { value: 'Shared plan' },
+    });
+    fireEvent.change(deviceLimitInput, { target: { value: '3' } });
+    fireEvent.change(ipLimitInput, { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: /Создать клиента/i }));
 
     await waitFor(() => {
@@ -398,7 +432,8 @@ describe('ClientsPage', () => {
       expect(
         mockApiFetch.mock.calls.some(
           ([path, options]) =>
-            path === '/api/clients/client-4' && (options as RequestInit | undefined)?.method === 'PATCH',
+            path === '/api/clients/client-4' &&
+            (options as RequestInit | undefined)?.method === 'PATCH',
         ),
       ).toBe(true);
     });

@@ -5,6 +5,7 @@ import { PageHeader } from '../../components/ui/page-header';
 import { SectionCard } from '../../components/ui/section-card';
 import { StatusPill } from '../../components/ui/status-pill';
 import { useI18n } from '../../i18n';
+import { canViewInfrastructureRole } from '../../lib/admin-access';
 import type { DashboardSummary } from '../../lib/api-types';
 import { formatBytes, formatDateTime } from '../../lib/format';
 import { useAuth } from '../auth/auth-context';
@@ -30,7 +31,7 @@ function runtimeTone(status: string | null | undefined) {
 }
 
 export function DashboardPage() {
-  const { apiFetch } = useAuth();
+  const { admin, apiFetch } = useAuth();
   const { locale, ui } = useI18n();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export function DashboardPage() {
           ram: 'RAM',
           disk: 'Disk',
           notYet: 'not performed yet',
+          infrastructureRestricted: 'Infrastructure metrics are available only to the super admin.',
         }
       : {
           loadError: 'Не удалось загрузить дашборд.',
@@ -112,6 +114,10 @@ export function DashboardPage() {
     };
   }, [apiFetch, text.loadError]);
 
+  const canViewInfrastructure =
+    summary?.capabilities.canViewInfrastructure ?? canViewInfrastructureRole(admin?.role);
+  const infrastructureRestrictedText =
+    'Infrastructure metrics are available only to the super admin.';
   const metrics = [
     {
       label: text.activeProfiles,
@@ -119,7 +125,7 @@ export function DashboardPage() {
     },
     {
       label: text.onlineNow,
-      value: String(summary?.totals.onlineNow ?? summary?.runtime.onlineUsers ?? 0),
+      value: String(summary?.totals.onlineNow ?? summary?.runtime?.onlineUsers ?? 0),
     },
     {
       label: text.expiredClients,
@@ -133,18 +139,22 @@ export function DashboardPage() {
       label: text.totalClients,
       value: String(summary?.totals.clients ?? 0),
     },
-    {
-      label: text.cpu,
-      value: formatPercent(summary?.host.cpuPercent ?? null),
-    },
-    {
-      label: text.ram,
-      value: formatPercent(summary?.host.ramPercent ?? null),
-    },
-    {
-      label: text.disk,
-      value: formatPercent(summary?.host.diskPercent ?? null),
-    },
+    ...(canViewInfrastructure
+      ? [
+          {
+            label: text.cpu,
+            value: formatPercent(summary?.host?.cpuPercent ?? null),
+          },
+          {
+            label: text.ram,
+            value: formatPercent(summary?.host?.ramPercent ?? null),
+          },
+          {
+            label: text.disk,
+            value: formatPercent(summary?.host?.diskPercent ?? null),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -173,61 +183,79 @@ export function DashboardPage() {
       </div>
 
       <SectionCard title={text.runtimeTitle}>
-        <div className="status-list">
-          <div className="status-row">
-            <div className="status-row__content">
-              <strong>{text.runtimeHealth}</strong>
+        {canViewInfrastructure ? (
+          <div className="status-list">
+            <div className="status-row">
+              <div className="status-row__content">
+                <strong>{text.runtimeHealth}</strong>
+              </div>
+              <div className="status-row__meta">
+                <span>
+                  {text.runtimeUsers}: {summary?.runtime?.onlineUsers ?? 0}
+                </span>
+                <StatusPill tone={runtimeTone(summary?.runtime?.xrayStatus)}>
+                  {summary?.runtime?.xrayStatus ?? 'unknown'}
+                </StatusPill>
+              </div>
             </div>
-            <div className="status-row__meta">
-              <span>{text.runtimeUsers}: {summary?.runtime.onlineUsers ?? 0}</span>
-              <StatusPill tone={runtimeTone(summary?.runtime.xrayStatus)}>
-                {summary?.runtime.xrayStatus ?? 'unknown'}
-              </StatusPill>
+            <div className="status-row">
+              <div className="status-row__content">
+                <strong>{text.lastSnapshot}</strong>
+              </div>
+              <div className="status-row__meta">
+                <span>
+                  {formatDateTime(
+                    summary?.runtime?.lastStatsSnapshotAt ?? null,
+                    text.notYet,
+                    locale,
+                  )}
+                </span>
+                <span>
+                  {text.onlineNow}: {summary?.totals.onlineNow ?? 0}
+                </span>
+              </div>
+            </div>
+            <div className="status-row">
+              <div className="status-row__content">
+                <strong>{text.lastSync}</strong>
+              </div>
+              <div className="status-row__meta">
+                <span>
+                  {formatDateTime(summary?.runtime?.lastConfigSyncAt ?? null, text.notYet, locale)}
+                </span>
+                <span>
+                  {text.activeProfiles}: {summary?.totals.available ?? summary?.totals.active ?? 0}
+                </span>
+              </div>
+            </div>
+            <div className="status-row">
+              <div className="status-row__content">
+                <strong>{text.cpu}</strong>
+              </div>
+              <div className="status-row__meta">
+                <span>{formatPercent(summary?.host?.cpuPercent ?? null)}</span>
+              </div>
+            </div>
+            <div className="status-row">
+              <div className="status-row__content">
+                <strong>{text.ram}</strong>
+              </div>
+              <div className="status-row__meta">
+                <span>{formatPercent(summary?.host?.ramPercent ?? null)}</span>
+              </div>
+            </div>
+            <div className="status-row">
+              <div className="status-row__content">
+                <strong>{text.disk}</strong>
+              </div>
+              <div className="status-row__meta">
+                <span>{formatPercent(summary?.host?.diskPercent ?? null)}</span>
+              </div>
             </div>
           </div>
-          <div className="status-row">
-            <div className="status-row__content">
-              <strong>{text.lastSnapshot}</strong>
-            </div>
-            <div className="status-row__meta">
-              <span>{formatDateTime(summary?.runtime.lastStatsSnapshotAt ?? null, text.notYet, locale)}</span>
-              <span>{text.onlineNow}: {summary?.totals.onlineNow ?? 0}</span>
-            </div>
-          </div>
-          <div className="status-row">
-            <div className="status-row__content">
-              <strong>{text.lastSync}</strong>
-            </div>
-            <div className="status-row__meta">
-              <span>{formatDateTime(summary?.runtime.lastConfigSyncAt ?? null, text.notYet, locale)}</span>
-              <span>{text.activeProfiles}: {summary?.totals.available ?? summary?.totals.active ?? 0}</span>
-            </div>
-          </div>
-          <div className="status-row">
-            <div className="status-row__content">
-              <strong>{text.cpu}</strong>
-            </div>
-            <div className="status-row__meta">
-              <span>{formatPercent(summary?.host.cpuPercent ?? null)}</span>
-            </div>
-          </div>
-          <div className="status-row">
-            <div className="status-row__content">
-              <strong>{text.ram}</strong>
-            </div>
-            <div className="status-row__meta">
-              <span>{formatPercent(summary?.host.ramPercent ?? null)}</span>
-            </div>
-          </div>
-          <div className="status-row">
-            <div className="status-row__content">
-              <strong>{text.disk}</strong>
-            </div>
-            <div className="status-row__meta">
-              <span>{formatPercent(summary?.host.diskPercent ?? null)}</span>
-            </div>
-          </div>
-        </div>
+        ) : (
+          <div className="empty-state">{infrastructureRestrictedText}</div>
+        )}
       </SectionCard>
     </div>
   );

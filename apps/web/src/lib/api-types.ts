@@ -40,7 +40,7 @@ export type CurrentAdminResponse = {
 
 export type ClientRecord = {
   id: string;
-  uuid: string;
+  uuid: string | null;
   emailTag: string;
   displayName: string;
   note: string | null;
@@ -61,7 +61,7 @@ export type ClientRecord = {
   ipLimit: number | null;
   vlessEnabled: boolean;
   wireguardEnabled: boolean;
-  subscriptionToken: string;
+  subscriptionToken: string | null;
   transportProfile: string;
   xrayInboundTag: string;
   activeConnections: number;
@@ -70,6 +70,14 @@ export type ClientRecord = {
   wireguardIpv4Address: string | null;
   wireguardLastHandshakeAt: string | null;
   hasWireguardProfile: boolean;
+  capabilities: {
+    canDelete: boolean;
+    canEdit: boolean;
+    canExtend: boolean;
+    canManage: boolean;
+    canResetTraffic: boolean;
+    canViewSensitiveConfig: boolean;
+  };
 };
 
 export type ClientListResponse = {
@@ -209,12 +217,15 @@ export type DashboardSummary = {
     cpuPercent: number | null;
     ramPercent: number | null;
     diskPercent: number | null;
-  };
+  } | null;
   runtime: {
     lastConfigSyncAt: string | null;
     lastStatsSnapshotAt: string | null;
     onlineUsers: number;
     xrayStatus: string;
+  } | null;
+  capabilities: {
+    canViewInfrastructure: boolean;
   };
   message: string;
 };

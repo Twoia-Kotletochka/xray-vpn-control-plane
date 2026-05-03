@@ -5,8 +5,8 @@ import { AdminRole } from '@prisma/client';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { CurrentAdmin } from '../../common/auth/current-admin.decorator';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Roles } from '../../common/auth/roles.decorator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { ExtendClientDto } from './dto/extend-client.dto';
@@ -18,17 +18,18 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Get()
-  list(@Query() query: PaginationQueryDto) {
-    return this.clientsService.list(query);
+  list(@Query() query: PaginationQueryDto, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.clientsService.list(query, admin);
   }
 
   @Get('export')
-  exportClients() {
-    return this.clientsService.exportClients();
+  @Roles(AdminRole.SUPER_ADMIN)
+  exportClients(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.clientsService.exportClients(admin);
   }
 
   @Post('import')
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR)
+  @Roles(AdminRole.SUPER_ADMIN)
   importClients(
     @Body() payload: unknown,
     @CurrentAdmin() admin: AuthenticatedAdmin,
@@ -38,8 +39,8 @@ export class ClientsController {
   }
 
   @Get(':clientId')
-  getById(@Param('clientId') clientId: string) {
-    return this.clientsService.getById(clientId);
+  getById(@Param('clientId') clientId: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.clientsService.getById(clientId, admin);
   }
 
   @Post()

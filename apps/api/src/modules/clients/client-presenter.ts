@@ -1,5 +1,8 @@
 import { type Client, ClientStatus, type Prisma, type WireguardPeer } from '@prisma/client';
 
+import { canManageClient, canViewSensitiveClientConfig } from '../../common/auth/admin-role.utils';
+import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
+
 type ClientUsageAggregate = {
   activeConnections: number;
   incomingBytes: bigint;
@@ -65,10 +68,20 @@ export function emptyClientUsage(): ClientUsageAggregate {
 }
 
 export function serializeClient(client: ClientRecord, usage: ClientUsageAggregate) {
+  return serializeClientForAdmin(client, usage);
+}
+
+export function serializeClientForAdmin(
+  client: ClientRecord,
+  usage: ClientUsageAggregate,
+  admin?: AuthenticatedAdmin | null,
+) {
   const status = resolveEffectiveClientStatus({
     ...client,
     trafficUsedBytes: usage.totalBytes,
   });
+  const canManage = canManageClient(admin, client.createdByAdminUserId);
+  const canViewSensitiveConfig = canViewSensitiveClientConfig(admin, client.createdByAdminUserId);
   const remainingTrafficBytes =
     client.isTrafficUnlimited || client.trafficLimitBytes === null
       ? null
@@ -78,7 +91,7 @@ export function serializeClient(client: ClientRecord, usage: ClientUsageAggregat
 
   return {
     id: client.id,
-    uuid: client.uuid,
+    uuid: canViewSensitiveConfig ? client.uuid : null,
     emailTag: client.emailTag,
     displayName: client.displayName,
     note: client.note,
@@ -99,14 +112,24 @@ export function serializeClient(client: ClientRecord, usage: ClientUsageAggregat
     ipLimit: client.ipLimit,
     vlessEnabled: client.vlessEnabled,
     wireguardEnabled: client.wireguardEnabled,
-    subscriptionToken: client.subscriptionToken,
+    subscriptionToken: canViewSensitiveConfig ? client.subscriptionToken : null,
     transportProfile: client.transportProfile,
     xrayInboundTag: client.xrayInboundTag,
     activeConnections: usage.activeConnections,
     lastActivatedAt: asIsoString(client.lastActivatedAt),
     lastSeenAt: asIsoString(client.lastSeenAt),
-    wireguardIpv4Address: client.wireguardPeer?.assignedIpv4 ?? null,
+    wireguardIpv4Address: canViewSensitiveConfig
+      ? (client.wireguardPeer?.assignedIpv4 ?? null)
+      : null,
     wireguardLastHandshakeAt: asIsoString(client.wireguardPeer?.lastHandshakeAt ?? null),
     hasWireguardProfile: Boolean(client.wireguardPeer),
+    capabilities: {
+      canDelete: canManage,
+      canEdit: canManage,
+      canExtend: canManage,
+      canManage,
+      canResetTraffic: canManage,
+      canViewSensitiveConfig,
+    },
   };
 }

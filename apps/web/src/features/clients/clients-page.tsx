@@ -24,6 +24,11 @@ import { Skeleton } from '../../components/ui/skeleton';
 import { StatusPill } from '../../components/ui/status-pill';
 import { Toast } from '../../components/ui/toast';
 import { useI18n } from '../../i18n';
+import {
+  canImportOrExportClients,
+  canManageClientsRole,
+  isReadOnlyRole,
+} from '../../lib/admin-access';
 import type {
   ClientDetailResponse,
   ClientExportBundle,
@@ -70,7 +75,12 @@ type EditClientFormState = {
 };
 
 type ClientStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
-type ClientSortKey = 'displayName' | 'trafficUsedBytes' | 'expiresAt' | 'lastSeenAt' | 'activeConnections';
+type ClientSortKey =
+  | 'displayName'
+  | 'trafficUsedBytes'
+  | 'expiresAt'
+  | 'lastSeenAt'
+  | 'activeConnections';
 type SortDirection = 'asc' | 'desc';
 type SubscriptionTransport = ClientSubscriptionBundle['transports'][number];
 type SubscriptionVariant = SubscriptionTransport['variants'][number];
@@ -105,6 +115,7 @@ const emptyEditFormState: EditClientFormState = {
   vlessEnabled: true,
   wireguardEnabled: true,
 };
+const CLIENT_SKELETON_KEYS = ['one', 'two', 'three', 'four', 'five', 'six'] as const;
 
 function isClientManuallyBlocked(status: ClientRecord['status']) {
   return status === 'DISABLED';
@@ -174,7 +185,12 @@ function resolveTrafficProgress(client: ClientRecord) {
 
   return {
     percent,
-    tone: percent >= 90 ? ('danger' as const) : percent >= 75 ? ('warning' as const) : ('success' as const),
+    tone:
+      percent >= 90
+        ? ('danger' as const)
+        : percent >= 75
+          ? ('warning' as const)
+          : ('success' as const),
     remainingBytes: client.remainingTrafficBytes ? Number(client.remainingTrafficBytes) : null,
   };
 }
@@ -184,15 +200,11 @@ function compareValues(left: string | number, right: string | number, direction:
   return direction === 'asc' ? comparison : comparison * -1;
 }
 
-function isVlessTransport(
-  transport: SubscriptionTransport,
-): transport is VlessTransport {
+function isVlessTransport(transport: SubscriptionTransport): transport is VlessTransport {
   return transport.id === 'vless';
 }
 
-function isWireguardTransport(
-  transport: SubscriptionTransport,
-): transport is WireguardTransport {
+function isWireguardTransport(transport: SubscriptionTransport): transport is WireguardTransport {
   return transport.id === 'wireguard';
 }
 
@@ -208,9 +220,7 @@ function resolveDefaultTransport(bundle: ClientSubscriptionBundle | null) {
   );
 }
 
-function resolveDefaultAddressMode(
-  transport: SubscriptionTransport | null,
-): 'domain' | 'ip' {
+function resolveDefaultAddressMode(transport: SubscriptionTransport | null): 'domain' | 'ip' {
   return transport?.defaultVariant ?? 'domain';
 }
 
@@ -309,7 +319,9 @@ export function ClientsPage() {
     null,
   );
   const [search, setSearch] = useState(initialSearch);
-  const [page, setPage] = useState(Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1);
+  const [page, setPage] = useState(
+    Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1,
+  );
   const [pageSize, setPageSize] = useState(25);
   const [totalClients, setTotalClients] = useState(0);
   const [statusFilter, setStatusFilter] = useState<ClientStatusFilter>('ALL');
@@ -317,9 +329,10 @@ export function ClientsPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'danger' | 'info' } | null>(
-    null,
-  );
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: 'success' | 'danger' | 'info';
+  } | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingClient, setIsSavingClient] = useState(false);
@@ -340,7 +353,14 @@ export function ClientsPage() {
   const deferredSearch = useDeferredValue(search);
   const totalPages = Math.max(1, Math.ceil(totalClients / pageSize));
   const isEnglish = locale === 'en';
-  const isReadOnly = admin?.role === 'READ_ONLY';
+  const isReadOnly = isReadOnlyRole(admin?.role);
+  const canManageClients = canManageClientsRole(admin?.role);
+  const canImportExport = canImportOrExportClients(admin?.role);
+  const canManageSelectedClient = Boolean(selectedClient?.capabilities.canManage);
+  const canEditSelectedClient = Boolean(selectedClient?.capabilities.canEdit);
+  const canViewSelectedSensitiveConfig = Boolean(
+    selectedClient?.capabilities.canViewSensitiveConfig,
+  );
   const activeTransport = useMemo(() => {
     if (!subscriptionBundle) {
       return null;
@@ -386,9 +406,7 @@ export function ClientsPage() {
       isEnglish
         ? `Import completed: created ${created}, updated ${updated}, skipped ${skipped}.`
         : `Импорт завершён: создано ${created}, обновлено ${updated}, пропущено ${skipped}.`,
-    importError: isEnglish
-      ? 'Failed to import clients.'
-      : 'Не удалось импортировать клиентов.',
+    importError: isEnglish ? 'Failed to import clients.' : 'Не удалось импортировать клиентов.',
     copyError: isEnglish ? 'Failed to copy the value.' : 'Не удалось скопировать значение.',
     description: isEnglish
       ? 'Client registry with quotas, expirations, access management, and ready-to-use configs.'
@@ -422,7 +440,9 @@ export function ClientsPage() {
     traffic: isEnglish ? 'Traffic' : 'Трафик',
     expiry: isEnglish ? 'Expiry' : 'Срок',
     actions: isEnglish ? 'Actions' : 'Действия',
-    noClients: isEnglish ? 'No clients match the current filter yet.' : 'По текущему фильтру клиентов пока нет.',
+    noClients: isEnglish
+      ? 'No clients match the current filter yet.'
+      : 'По текущему фильтру клиентов пока нет.',
     loadingClients: isEnglish ? 'Loading clients...' : 'Загружаем клиентов...',
     clientCard: isEnglish ? 'Client card' : 'Карточка клиента',
     selectClient: isEnglish
@@ -463,7 +483,9 @@ export function ClientsPage() {
     expiryDate: isEnglish ? 'Expiry date' : 'Дата окончания',
     deviceLimit: isEnglish ? 'Device limit' : 'Лимит устройств',
     ipLimit: isEnglish ? 'IP limit' : 'Лимит IP',
-    limitHint: isEnglish ? 'Leave empty for unlimited access.' : 'Оставьте пустым для режима без ограничений.',
+    limitHint: isEnglish
+      ? 'Leave empty for unlimited access.'
+      : 'Оставьте пустым для режима без ограничений.',
     ipLimitHint: isEnglish
       ? 'Counts simultaneous external IPs for one config.'
       : 'Считает одновременные внешние IP для одного конфига.',
@@ -512,7 +534,9 @@ export function ClientsPage() {
     filterBlocked: isEnglish ? 'Blocked' : 'Заблокированные',
     results: (shown: number, total: number) =>
       isEnglish ? `Showing ${shown} of ${total}` : `Показано ${shown} из ${total}`,
-    currentPageScope: isEnglish ? 'Filtered on the current page' : 'Фильтр применён к текущей странице',
+    currentPageScope: isEnglish
+      ? 'Filtered on the current page'
+      : 'Фильтр применён к текущей странице',
     pageOf: (current: number, total: number) =>
       isEnglish ? `Page ${current} of ${total}` : `Страница ${current} из ${total}`,
     previousPage: isEnglish ? 'Previous page' : 'Предыдущая страница',
@@ -572,10 +596,15 @@ export function ClientsPage() {
       const requestId = ++detailRequestIdRef.current;
       selectedClientIdRef.current = clientId;
 
-      const [client, bundle] = await Promise.all([
-        apiFetch<ClientDetailResponse>(`/api/clients/${clientId}`),
-        apiFetch<ClientSubscriptionBundle>(`/api/subscriptions/client/${clientId}`),
-      ]);
+      const client = await apiFetch<ClientDetailResponse>(`/api/clients/${clientId}`);
+
+      if (requestId !== detailRequestIdRef.current || selectedClientIdRef.current !== clientId) {
+        return null;
+      }
+
+      const bundle = client.capabilities.canViewSensitiveConfig
+        ? await apiFetch<ClientSubscriptionBundle>(`/api/subscriptions/client/${clientId}`)
+        : null;
 
       if (requestId !== detailRequestIdRef.current || selectedClientIdRef.current !== clientId) {
         return null;
@@ -635,7 +664,8 @@ export function ClientsPage() {
 
         const currentSelectedId = preferredSelectedId ?? selectedClientIdRef.current;
         const hasSelectedClient =
-          currentSelectedId !== null && response.items.some((item) => item.id === currentSelectedId);
+          currentSelectedId !== null &&
+          response.items.some((item) => item.id === currentSelectedId);
 
         if (isClientCardOpenRef.current && currentSelectedId && hasSelectedClient) {
           await loadClientDetails(currentSelectedId);
@@ -690,12 +720,12 @@ export function ClientsPage() {
       nextSearchParams.set('page', String(page));
     }
 
-    if (isComposerOpen && !isReadOnly) {
+    if (isComposerOpen && canManageClients) {
       nextSearchParams.set('composer', '1');
     }
 
     setSearchParams(nextSearchParams, { replace: true });
-  }, [isComposerOpen, isReadOnly, page, search, setSearchParams]);
+  }, [canManageClients, isComposerOpen, page, search, setSearchParams]);
 
   useEffect(() => {
     const nextSearch = searchParams.get('search') ?? '';
@@ -709,10 +739,10 @@ export function ClientsPage() {
       setPage(nextPage);
     }
 
-    if (searchParams.get('composer') === '1' && !isReadOnly) {
+    if (searchParams.get('composer') === '1' && canManageClients) {
       setIsComposerOpen(true);
     }
-  }, [isReadOnly, page, search, searchParams]);
+  }, [canManageClients, page, search, searchParams]);
 
   useEffect(() => {
     if (!toast) {
@@ -890,7 +920,7 @@ export function ClientsPage() {
     const targetName =
       selectedClient?.id === clientId
         ? selectedClient.displayName
-        : clients.find((item) => item.id === clientId)?.displayName ?? clientId;
+        : (clients.find((item) => item.id === clientId)?.displayName ?? clientId);
     showToast(text.clientExtended(targetName));
     await loadClients(search, page, clientId);
   };
@@ -903,7 +933,7 @@ export function ClientsPage() {
     const targetName =
       selectedClient?.id === clientId
         ? selectedClient.displayName
-        : clients.find((item) => item.id === clientId)?.displayName ?? clientId;
+        : (clients.find((item) => item.id === clientId)?.displayName ?? clientId);
     showToast(text.trafficResetDone(targetName));
     await loadClients(search, page, clientId);
   };
@@ -912,7 +942,7 @@ export function ClientsPage() {
     const targetName =
       selectedClient?.id === clientId
         ? selectedClient.displayName
-        : clients.find((item) => item.id === clientId)?.displayName ?? clientId;
+        : (clients.find((item) => item.id === clientId)?.displayName ?? clientId);
 
     if (!window.confirm(text.deleteConfirm)) {
       return;
@@ -1136,7 +1166,7 @@ export function ClientsPage() {
           </label>
 
           <div className="workspace-toolbar__controls">
-            <div className="filter-chip-group" role="group" aria-label={text.status}>
+            <fieldset className="filter-chip-group" aria-label={text.status}>
               {statusOptions.map((option) => (
                 <button
                   key={option.key}
@@ -1148,7 +1178,7 @@ export function ClientsPage() {
                   {option.label}
                 </button>
               ))}
-            </div>
+            </fieldset>
 
             <div className="toolbar__actions workspace-toolbar__actions">
               <div className="workspace-toolbar__fields">
@@ -1205,16 +1235,18 @@ export function ClientsPage() {
                   <RotateCcw size={16} />
                   {text.reset}
                 </button>
-                <button
-                  className="button"
-                  type="button"
-                  onClick={() => void handleExportClients()}
-                  disabled={isExporting}
-                >
-                  <Download size={16} />
-                  {isExporting ? text.exporting : text.export}
-                </button>
-                {!isReadOnly ? (
+                {canImportExport ? (
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => void handleExportClients()}
+                    disabled={isExporting}
+                  >
+                    <Download size={16} />
+                    {isExporting ? text.exporting : text.export}
+                  </button>
+                ) : null}
+                {canImportExport ? (
                   <>
                     <button
                       className="button"
@@ -1224,6 +1256,10 @@ export function ClientsPage() {
                       <FileUp size={16} />
                       {text.import}
                     </button>
+                  </>
+                ) : null}
+                {canManageClients ? (
+                  <>
                     <button
                       className="button button--primary"
                       type="button"
@@ -1274,7 +1310,7 @@ export function ClientsPage() {
           </div>
         </div>
 
-        {!isReadOnly && isComposerOpen ? (
+        {canManageClients && isComposerOpen ? (
           <div className="workspace-panel workspace-panel--composer">
             <div className="workspace-panel__header">
               <div>
@@ -1313,7 +1349,10 @@ export function ClientsPage() {
                     min="1"
                     value={formState.trafficLimitGb}
                     onChange={(event) =>
-                      setFormState((current) => ({ ...current, trafficLimitGb: event.target.value }))
+                      setFormState((current) => ({
+                        ...current,
+                        trafficLimitGb: event.target.value,
+                      }))
                     }
                     disabled={formState.isTrafficUnlimited}
                   />
@@ -1435,9 +1474,7 @@ export function ClientsPage() {
               <div>
                 <strong>{text.results(sortedClients.length, resultsBaseline)}</strong>
                 <span>
-                  {statusFilter === 'ALL'
-                    ? text.pageOf(page, totalPages)
-                    : text.currentPageScope}
+                  {statusFilter === 'ALL' ? text.pageOf(page, totalPages) : text.currentPageScope}
                 </span>
                 <span>{text.tableSubtitle}</span>
               </div>
@@ -1488,8 +1525,8 @@ export function ClientsPage() {
                 </thead>
                 <tbody>
                   {isLoading && clients.length === 0
-                    ? Array.from({ length: 6 }).map((_, index) => (
-                        <tr key={`client-skeleton-${index}`}>
+                    ? CLIENT_SKELETON_KEYS.map((skeletonKey) => (
+                        <tr key={`client-skeleton-${skeletonKey}`}>
                           <td colSpan={6}>
                             <Skeleton className="skeleton--table" />
                           </td>
@@ -1503,7 +1540,9 @@ export function ClientsPage() {
                           <tr
                             key={client.id}
                             className={`table-row--interactive ${
-                              isClientCardOpen && selectedClient?.id === client.id ? 'table-row--selected' : ''
+                              isClientCardOpen && selectedClient?.id === client.id
+                                ? 'table-row--selected'
+                                : ''
                             }`}
                             tabIndex={0}
                             aria-selected={isClientCardOpen && selectedClient?.id === client.id}
@@ -1534,7 +1573,9 @@ export function ClientsPage() {
                             <td className="clients-table__cell clients-table__cell--traffic">
                               <div className="traffic-meter">
                                 <div className="traffic-meter__meta">
-                                  <strong>{formatBytes(Number(client.trafficUsedBytes), locale)}</strong>
+                                  <strong>
+                                    {formatBytes(Number(client.trafficUsedBytes), locale)}
+                                  </strong>
                                   <span>
                                     {client.isTrafficUnlimited || !client.trafficLimitBytes
                                       ? text.unlimited
@@ -1567,42 +1608,46 @@ export function ClientsPage() {
                             </td>
                             <td className="clients-table__cell clients-table__cell--actions">
                               <div className="table-actions table-actions--clients">
-                                <button
-                                  className="icon-button"
-                                  type="button"
-                                  title={text.rowCopyConfig}
-                                  aria-label={text.rowCopyConfig}
-                                  onClick={async (event) => {
-                                    event.stopPropagation();
-                                    const details = await loadClientDetails(client.id);
+                                {client.capabilities.canViewSensitiveConfig ? (
+                                  <>
+                                    <button
+                                      className="icon-button"
+                                      type="button"
+                                      title={text.rowCopyConfig}
+                                      aria-label={text.rowCopyConfig}
+                                      onClick={async (event) => {
+                                        event.stopPropagation();
+                                        const details = await loadClientDetails(client.id);
 
-                                    if (details) {
-                                      await copyText(
-                                        details.bundle.config.uri,
-                                        text.copiedVless(details.client.displayName),
-                                      );
-                                    }
-                                  }}
-                                >
-                                  <Copy size={16} />
-                                </button>
-                                <button
-                                  className="icon-button"
-                                  type="button"
-                                  title={text.qrConfig}
-                                  aria-label={text.qrConfigAria}
-                                  onClick={async (event) => {
-                                    event.stopPropagation();
-                                    const details = await loadClientDetails(client.id);
+                                        if (details?.bundle) {
+                                          await copyText(
+                                            details.bundle.config.uri,
+                                            text.copiedVless(details.client.displayName),
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      <Copy size={16} />
+                                    </button>
+                                    <button
+                                      className="icon-button"
+                                      type="button"
+                                      title={text.qrConfig}
+                                      aria-label={text.qrConfigAria}
+                                      onClick={async (event) => {
+                                        event.stopPropagation();
+                                        const details = await loadClientDetails(client.id);
 
-                                    if (details) {
-                                      setIsQrOpen(true);
-                                    }
-                                  }}
-                                >
-                                  <QrCode size={16} />
-                                </button>
-                                {!isReadOnly ? (
+                                        if (details?.bundle) {
+                                          setIsQrOpen(true);
+                                        }
+                                      }}
+                                    >
+                                      <QrCode size={16} />
+                                    </button>
+                                  </>
+                                ) : null}
+                                {client.capabilities.canManage && !isReadOnly ? (
                                   <>
                                     <button
                                       className="icon-button icon-button--danger"
@@ -1618,7 +1663,9 @@ export function ClientsPage() {
                                     </button>
                                     <button
                                       className={`button button--compact ${
-                                        isClientManuallyBlocked(client.status) ? '' : 'button--danger'
+                                        isClientManuallyBlocked(client.status)
+                                          ? ''
+                                          : 'button--danger'
                                       } table-actions__toggle`}
                                       type="button"
                                       aria-label={
@@ -1637,7 +1684,9 @@ export function ClientsPage() {
                                         <Lock size={16} />
                                       )}
                                       <span className="table-actions__label">
-                                        {isClientManuallyBlocked(client.status) ? text.unblock : text.block}
+                                        {isClientManuallyBlocked(client.status)
+                                          ? text.unblock
+                                          : text.block}
                                       </span>
                                     </button>
                                   </>
@@ -1678,7 +1727,8 @@ export function ClientsPage() {
         {selectedClient ? (
           <div className="detail-stack">
             <p className="client-inspector__summary">
-              {formatClientLiveStatus(resolveClientLiveStatus(selectedClient), locale)} • {selectedClient.uuid}
+              {formatClientLiveStatus(resolveClientLiveStatus(selectedClient), locale)} •{' '}
+              {selectedClient.uuid}
             </p>
 
             <div className="client-inspector__hero">
@@ -1690,7 +1740,9 @@ export function ClientsPage() {
               </div>
               <div className="client-inspector__meta-block">
                 <span>{text.lastSeen}</span>
-                <strong>{formatDateTime(selectedClient.lastSeenAt, text.notAvailable, locale)}</strong>
+                <strong>
+                  {formatDateTime(selectedClient.lastSeenAt, text.notAvailable, locale)}
+                </strong>
               </div>
             </div>
 
@@ -1713,11 +1765,15 @@ export function ClientsPage() {
               </div>
               <div className="stat-card">
                 <span>{text.deviceLimit}</span>
-                <strong>{selectedClient.deviceLimit === null ? text.noLimit : selectedClient.deviceLimit}</strong>
+                <strong>
+                  {selectedClient.deviceLimit === null ? text.noLimit : selectedClient.deviceLimit}
+                </strong>
               </div>
               <div className="stat-card">
                 <span>{text.ipLimit}</span>
-                <strong>{selectedClient.ipLimit === null ? text.noLimit : selectedClient.ipLimit}</strong>
+                <strong>
+                  {selectedClient.ipLimit === null ? text.noLimit : selectedClient.ipLimit}
+                </strong>
               </div>
             </div>
 
@@ -1751,13 +1807,21 @@ export function ClientsPage() {
                 </div>
                 <div>
                   <dt>{isEnglish ? 'VLESS + REALITY' : 'VLESS + REALITY'}</dt>
-                  <dd>{selectedClient.vlessEnabled ? (isEnglish ? 'Enabled' : 'Включён') : isEnglish ? 'Disabled' : 'Отключён'}</dd>
+                  <dd>
+                    {selectedClient.vlessEnabled
+                      ? isEnglish
+                        ? 'Enabled'
+                        : 'Включён'
+                      : isEnglish
+                        ? 'Disabled'
+                        : 'Отключён'}
+                  </dd>
                 </div>
                 <div>
                   <dt>{isEnglish ? 'WireGuard' : 'WireGuard'}</dt>
                   <dd>
                     {selectedClient.wireguardEnabled
-                      ? selectedClient.wireguardIpv4Address ?? (isEnglish ? 'Enabled' : 'Включён')
+                      ? (selectedClient.wireguardIpv4Address ?? (isEnglish ? 'Enabled' : 'Включён'))
                       : isEnglish
                         ? 'Disabled'
                         : 'Отключён'}
@@ -1788,7 +1852,9 @@ export function ClientsPage() {
                       : `${Math.round(selectedTrafficProgress.percent)}%`}
                   </strong>
                 </div>
-                <div className={`traffic-meter__bar traffic-meter__bar--${selectedTrafficProgress.tone}`}>
+                <div
+                  className={`traffic-meter__bar traffic-meter__bar--${selectedTrafficProgress.tone}`}
+                >
                   <span
                     style={{
                       width: `${Math.max(
@@ -1808,12 +1874,34 @@ export function ClientsPage() {
                   <p>{text.quickActionsHint}</p>
                 </div>
               </div>
+              {!canViewSelectedSensitiveConfig ? (
+                <div className="feature-list__card">
+                  <strong>{text.manualAccess}</strong>
+                  <span>
+                    {isEnglish
+                      ? 'Sensitive configs are available only to the client owner or the super admin.'
+                      : 'Чувствительные конфиги доступны только владельцу клиента или супер-админу.'}
+                  </span>
+                </div>
+              ) : null}
+              {!canManageSelectedClient && !isReadOnly ? (
+                <div className="feature-list__card">
+                  <strong>{text.access}</strong>
+                  <span>
+                    {isEnglish
+                      ? 'This client belongs to another administrator. You can view status and usage, but not change access or delete it.'
+                      : 'Этот клиент принадлежит другому администратору. Можно смотреть статус и трафик, но нельзя менять доступ или удалять его.'}
+                  </span>
+                </div>
+              ) : null}
               <div className="workspace-actions-grid">
-                <button className="button" type="button" onClick={() => setIsQrOpen(true)}>
-                  <QrCode size={16} />
-                  {text.showQr}
-                </button>
-                {activeTransport && activeVariant ? (
+                {canViewSelectedSensitiveConfig ? (
+                  <button className="button" type="button" onClick={() => setIsQrOpen(true)}>
+                    <QrCode size={16} />
+                    {text.showQr}
+                  </button>
+                ) : null}
+                {canViewSelectedSensitiveConfig && activeTransport && activeVariant ? (
                   <>
                     {isVlessTransport(activeTransport) ? (
                       <button
@@ -1866,12 +1954,20 @@ export function ClientsPage() {
                     </button>
                   </>
                 ) : null}
-                {!isReadOnly ? (
+                {canManageSelectedClient && !isReadOnly ? (
                   <>
-                    <button className="button" type="button" onClick={() => void handleExtendClient(selectedClient.id)}>
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() => void handleExtendClient(selectedClient.id)}
+                    >
                       {text.extend30}
                     </button>
-                    <button className="button" type="button" onClick={() => void handleResetTraffic(selectedClient.id)}>
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() => void handleResetTraffic(selectedClient.id)}
+                    >
                       {text.resetTraffic}
                     </button>
                     <button
@@ -1893,8 +1989,11 @@ export function ClientsPage() {
               </div>
             </div>
 
-            {!isReadOnly ? (
-              <form className="inline-form inline-form--details" onSubmit={(event) => void handleSaveClient(event)}>
+            {canEditSelectedClient && !isReadOnly ? (
+              <form
+                className="inline-form inline-form--details"
+                onSubmit={(event) => void handleSaveClient(event)}
+              >
                 <div className="workspace-panel workspace-panel--tight">
                   <div className="workspace-panel__header">
                     <div>
@@ -1928,7 +2027,9 @@ export function ClientsPage() {
                         }
                       >
                         <option value="ACTIVE">{formatClientAccessStatus('ACTIVE', locale)}</option>
-                        <option value="DISABLED">{formatClientAccessStatus('DISABLED', locale)}</option>
+                        <option value="DISABLED">
+                          {formatClientAccessStatus('DISABLED', locale)}
+                        </option>
                       </select>
                     </label>
                     <label className="login-form__field">
@@ -2043,7 +2144,9 @@ export function ClientsPage() {
                           }))
                         }
                       />
-                      <span>{isEnglish ? 'Enable VLESS + REALITY' : 'Включить VLESS + REALITY'}</span>
+                      <span>
+                        {isEnglish ? 'Enable VLESS + REALITY' : 'Включить VLESS + REALITY'}
+                      </span>
                     </label>
                     <label className="checkbox-row">
                       <input
@@ -2075,7 +2178,11 @@ export function ClientsPage() {
                   </label>
 
                   <div className="toolbar__actions">
-                    <button className="button button--primary" type="submit" disabled={isSavingClient}>
+                    <button
+                      className="button button--primary"
+                      type="submit"
+                      disabled={isSavingClient}
+                    >
                       <Save size={16} />
                       {isSavingClient ? text.saving : text.saveChanges}
                     </button>
@@ -2084,7 +2191,7 @@ export function ClientsPage() {
               </form>
             ) : null}
 
-            {subscriptionBundle ? (
+            {canViewSelectedSensitiveConfig && subscriptionBundle ? (
               <div className="workspace-panel workspace-panel--tight">
                 <div className="workspace-panel__header">
                   <div>
@@ -2120,7 +2227,9 @@ export function ClientsPage() {
                             <button
                               key={`${activeTransport.id}-${variant.addressMode}`}
                               className={`button ${
-                                activeVariant?.addressMode === variant.addressMode ? 'button--primary' : ''
+                                activeVariant?.addressMode === variant.addressMode
+                                  ? 'button--primary'
+                                  : ''
                               }`}
                               type="button"
                               onClick={() => setSelectedAddressMode(variant.addressMode)}
@@ -2147,7 +2256,10 @@ export function ClientsPage() {
                                     type="button"
                                     onClick={() =>
                                       void copyText(
-                                        resolveVariantSubscriptionUrl(activeTransport, activeVariant),
+                                        resolveVariantSubscriptionUrl(
+                                          activeTransport,
+                                          activeVariant,
+                                        ),
                                         text.copiedSubscription(selectedClient.displayName),
                                       )
                                     }
@@ -2160,7 +2272,10 @@ export function ClientsPage() {
                                     onClick={() =>
                                       void downloadText(
                                         `${selectedClient.displayName}-subscription.txt`,
-                                        resolveVariantSubscriptionUrl(activeTransport, activeVariant),
+                                        resolveVariantSubscriptionUrl(
+                                          activeTransport,
+                                          activeVariant,
+                                        ),
                                       )
                                     }
                                   >
@@ -2168,7 +2283,9 @@ export function ClientsPage() {
                                   </button>
                                 </div>
                               </div>
-                              <code>{resolveVariantSubscriptionUrl(activeTransport, activeVariant)}</code>
+                              <code>
+                                {resolveVariantSubscriptionUrl(activeTransport, activeVariant)}
+                              </code>
                             </div>
                           ) : (
                             <div className="feature-list__card">
@@ -2221,9 +2338,7 @@ export function ClientsPage() {
                                 </button>
                               </div>
                             </div>
-                            <code>
-                              {resolveVariantConfigText(activeTransport, activeVariant)}
-                            </code>
+                            <code>{resolveVariantConfigText(activeTransport, activeVariant)}</code>
                           </div>
 
                           <div className="feature-list__card">
@@ -2265,7 +2380,21 @@ export function ClientsPage() {
                   )}
                 </div>
               </div>
-            ) : null}
+            ) : selectedClient.capabilities.canViewSensitiveConfig ? null : (
+              <div className="workspace-panel workspace-panel--tight">
+                <div className="workspace-panel__header">
+                  <div>
+                    <strong>{text.deliveryKitTitle}</strong>
+                    <p>{text.deliveryKitSubtitle}</p>
+                  </div>
+                </div>
+                <div className="empty-state">
+                  {isEnglish
+                    ? 'Sensitive configs are available only to the client owner or the super admin.'
+                    : 'Чувствительные конфиги доступны только владельцу клиента или супер-админу.'}
+                </div>
+              </div>
+            )}
 
             <div className="workspace-panel workspace-panel--tight">
               <div className="workspace-panel__header">
@@ -2338,11 +2467,7 @@ export function ClientsPage() {
                   type="button"
                   onClick={() => setSelectedAddressMode(variant.addressMode)}
                 >
-                  {variant.addressMode === 'domain'
-                    ? isEnglish
-                      ? 'Domain'
-                      : 'Домен'
-                    : 'IP'}
+                  {variant.addressMode === 'domain' ? (isEnglish ? 'Domain' : 'Домен') : 'IP'}
                 </button>
               ))}
             </div>
@@ -2406,7 +2531,11 @@ export function ClientsPage() {
         )}
       </Modal>
 
-      <Modal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} title={text.importClients}>
+      <Modal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        title={text.importClients}
+      >
         <div className="detail-stack">
           <p>{text.importHint}</p>
 

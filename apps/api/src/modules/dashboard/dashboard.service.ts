@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ClientStatus } from '@prisma/client';
 
+import { isSuperAdmin } from '../../common/auth/admin-role.utils';
+import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { PrismaService } from '../../common/database/prisma.service';
 import { SystemService } from '../system/system.service';
 import { XrayService } from '../xray/xray.service';
@@ -146,10 +148,11 @@ function buildDashboardTrends(rows: DailyUsageTrendRow[]) {
     -DASHBOARD_TREND_COMPARISON_DAYS,
   );
   const last7DaysTraffic = sumBigInts(recentBuckets.map((bucket) => bucket.totalTrafficBytes));
-  const previous7DaysTraffic = sumBigInts(previousBuckets.map((bucket) => bucket.totalTrafficBytes));
+  const previous7DaysTraffic = sumBigInts(
+    previousBuckets.map((bucket) => bucket.totalTrafficBytes),
+  );
   const totalTraffic = sumBigInts(buckets.map((bucket) => bucket.totalTrafficBytes));
-  const averageDailyTraffic =
-    buckets.length > 0 ? totalTraffic / BigInt(buckets.length) : 0n;
+  const averageDailyTraffic = buckets.length > 0 ? totalTraffic / BigInt(buckets.length) : 0n;
   const busiestBucket = buckets.reduce<DashboardTrendBucketSeed | null>((currentMax, bucket) => {
     if (!currentMax || bucket.totalTrafficBytes > currentMax.totalTrafficBytes) {
       return bucket;
@@ -199,9 +202,7 @@ function buildDashboardAnalytics(
 ) {
   const todayKey = startOfUtcDay(new Date()).toISOString();
   const trendBuckets = buildTrendBuckets(trendRows, windowDays);
-  const totalTrafficBytes = sumBigInts(
-    allTimeUsageRows.map((row) => row._sum.totalBytes ?? 0n),
-  );
+  const totalTrafficBytes = sumBigInts(allTimeUsageRows.map((row) => row._sum.totalBytes ?? 0n));
   const totalWindowTrafficBytes = sumBigInts(
     trendBuckets.map((bucket) => bucket.totalTrafficBytes),
   );
@@ -373,8 +374,9 @@ export class DashboardService {
     });
   }
 
-  async summary() {
+  async summary(admin: AuthenticatedAdmin) {
     await this.primeDashboardData('dashboard-summary');
+    const canViewInfrastructure = isSuperAdmin(admin);
 
     const trendStartDate = new Date(
       startOfUtcDay(new Date()).getTime() - (DASHBOARD_TREND_DAYS - 1) * DAY_IN_MS,
@@ -391,63 +393,63 @@ export class DashboardService {
       host,
       runtime,
     ] = await Promise.all([
-        this.prisma.client.count(),
-        this.prisma.client.count({
-          where: {
-            status: ClientStatus.ACTIVE,
-          },
-        }),
-        this.prisma.client.count({
-          where: {
-            status: ClientStatus.EXPIRED,
-          },
-        }),
-        this.prisma.client.count({
-          where: {
-            status: ClientStatus.DISABLED,
-          },
-        }),
-        this.prisma.client.count({
-          where: {
-            status: ClientStatus.BLOCKED,
-          },
-        }),
-        this.prisma.dailyClientUsage.aggregate({
-          _sum: {
-            totalBytes: true,
-          },
-        }),
-        this.prisma.dailyClientUsage.findMany({
-          distinct: ['clientId'],
-          orderBy: [{ bucketDate: 'desc' }, { updatedAt: 'desc' }],
-          select: {
-            activeConnections: true,
-            client: {
-              select: {
-                status: true,
-              },
+      this.prisma.client.count(),
+      this.prisma.client.count({
+        where: {
+          status: ClientStatus.ACTIVE,
+        },
+      }),
+      this.prisma.client.count({
+        where: {
+          status: ClientStatus.EXPIRED,
+        },
+      }),
+      this.prisma.client.count({
+        where: {
+          status: ClientStatus.DISABLED,
+        },
+      }),
+      this.prisma.client.count({
+        where: {
+          status: ClientStatus.BLOCKED,
+        },
+      }),
+      this.prisma.dailyClientUsage.aggregate({
+        _sum: {
+          totalBytes: true,
+        },
+      }),
+      this.prisma.dailyClientUsage.findMany({
+        distinct: ['clientId'],
+        orderBy: [{ bucketDate: 'desc' }, { updatedAt: 'desc' }],
+        select: {
+          activeConnections: true,
+          client: {
+            select: {
+              status: true,
             },
           },
-        }),
-        this.prisma.dailyClientUsage.findMany({
-          where: {
-            bucketDate: {
-              gte: trendStartDate,
-            },
+        },
+      }),
+      this.prisma.dailyClientUsage.findMany({
+        where: {
+          bucketDate: {
+            gte: trendStartDate,
           },
-          orderBy: [{ bucketDate: 'asc' }, { clientId: 'asc' }],
-          select: {
-            bucketDate: true,
-            clientId: true,
-            incomingBytes: true,
-            outgoingBytes: true,
-            totalBytes: true,
-            activeConnections: true,
-          },
-        }),
-        this.systemService.getHostMetrics(),
-        this.xrayService.getRuntimeSummary(),
-      ]);
+        },
+        orderBy: [{ bucketDate: 'asc' }, { clientId: 'asc' }],
+        select: {
+          bucketDate: true,
+          clientId: true,
+          incomingBytes: true,
+          outgoingBytes: true,
+          totalBytes: true,
+          activeConnections: true,
+        },
+      }),
+      canViewInfrastructure ? this.systemService.getHostMetrics() : Promise.resolve(null),
+      canViewInfrastructure ? this.xrayService.getRuntimeSummary() : Promise.resolve(null),
+    ]);
     const onlineNow = latestConnections.filter(
       (item) => item.activeConnections > 0 && item.client.status === ClientStatus.ACTIVE,
     ).length;
@@ -466,11 +468,16 @@ export class DashboardService {
       },
       trends,
       host,
-      runtime: {
-        lastConfigSyncAt: runtime.lastConfigSyncAt,
-        lastStatsSnapshotAt: runtime.lastStatsSnapshotAt,
-        onlineUsers: runtime.onlineUsers,
-        xrayStatus: runtime.status,
+      runtime: runtime
+        ? {
+            lastConfigSyncAt: runtime.lastConfigSyncAt,
+            lastStatsSnapshotAt: runtime.lastStatsSnapshotAt,
+            onlineUsers: runtime.onlineUsers,
+            xrayStatus: runtime.status,
+          }
+        : null,
+      capabilities: {
+        canViewInfrastructure,
       },
       message:
         'Дашборд считает онлайн по тем же live-снимкам клиентов, что и список клиентов, поэтому online-статус больше не расходится между экранами.',

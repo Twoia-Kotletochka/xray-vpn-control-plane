@@ -2,12 +2,14 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import { ClientStatus, TransportProfile } from '@prisma/client';
 
+import { canViewSensitiveClientConfig } from '../../common/auth/admin-role.utils';
+import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
 import {
   emptyClientUsage,
   resolveEffectiveClientStatus,
-  serializeClient,
+  serializeClientForAdmin,
 } from '../clients/client-presenter';
 import { WireguardService } from '../wireguard/wireguard.service';
 import { XrayService } from '../xray/xray.service';
@@ -43,9 +45,7 @@ type VlessTransportBundle = {
   variants: VlessTransportVariant[];
 };
 
-type WireguardTransportBundle = Awaited<
-  ReturnType<WireguardService['getClientBundle']>
->;
+type WireguardTransportBundle = Awaited<ReturnType<WireguardService['getClientBundle']>>;
 
 type SubscriptionTransportBundle = NonNullable<WireguardTransportBundle> | VlessTransportBundle;
 
@@ -83,7 +83,7 @@ export class SubscriptionsService {
     };
   }
 
-  async getClientBundle(clientId: string) {
+  async getClientBundle(clientId: string, admin: AuthenticatedAdmin) {
     await this.captureUsageSnapshotBestEffort();
 
     const client = await this.prisma.client.findUnique({
@@ -104,6 +104,12 @@ export class SubscriptionsService {
       throw new NotFoundException('Client was not found.');
     }
 
+    if (!canViewSensitiveClientConfig(admin, client.createdByAdminUserId)) {
+      throw new ForbiddenException(
+        'Client connection configs are available only to the owner or a super admin.',
+      );
+    }
+
     const usage = await this.loadClientUsage(client.id);
     const vlessTransport = this.buildVlessTransportBundle(client);
     const wireguardTransport = await this.wireguardService.getClientBundle(client);
@@ -114,7 +120,7 @@ export class SubscriptionsService {
     const primaryConfig = this.buildCompatibilityConfig(primaryTransport);
 
     return {
-      client: serializeClient(client, usage),
+      client: serializeClientForAdmin(client, usage, admin),
       config: primaryConfig,
       instructions: primaryTransport?.instructions ?? [],
       platformGuides: primaryTransport?.platformGuides ?? [],
@@ -153,8 +159,9 @@ export class SubscriptionsService {
     }
 
     const preferredVariant =
-      vlessTransport.variants.find((variant) => variant.addressMode === vlessTransport.defaultVariant) ??
-      vlessTransport.variants[0];
+      vlessTransport.variants.find(
+        (variant) => variant.addressMode === vlessTransport.defaultVariant,
+      ) ?? vlessTransport.variants[0];
 
     if (!preferredVariant) {
       throw new ForbiddenException('VLESS transport is not available for this client.');

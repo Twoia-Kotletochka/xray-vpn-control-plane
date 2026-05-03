@@ -5,7 +5,7 @@ import { Roles } from '../../common/auth/roles.decorator';
 import { SystemService } from './system.service';
 
 @Controller('system')
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR, AdminRole.READ_ONLY)
+@Roles(AdminRole.SUPER_ADMIN)
 export class SystemController {
   constructor(private readonly systemService: SystemService) {}
 

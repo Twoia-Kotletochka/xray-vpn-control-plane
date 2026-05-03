@@ -56,6 +56,7 @@ model AdminUser {
   updatedAt     DateTime       @updatedAt
   sessions      AdminSession[]
   auditLogs     AuditLog[]
+  ownedClients  Client[]       @relation("ClientOwner")
 }
 
 model AdminSession {
@@ -75,6 +76,7 @@ model AdminSession {
 
 model Client {
   id                 String           @id @default(cuid())
+  createdByAdminUserId String?
   uuid               String           @unique
   emailTag           String           @unique
   displayName        String
@@ -97,11 +99,13 @@ model Client {
   xrayInboundTag     String           @default("vless-reality-main")
   lastActivatedAt    DateTime?
   lastSeenAt         DateTime?
+  createdByAdminUser AdminUser?       @relation("ClientOwner", fields: [createdByAdminUserId], references: [id], onDelete: SetNull)
   usage              DailyClientUsage[]
   wireguardPeer      WireguardPeer?
 
   @@index([status])
   @@index([expiresAt])
+  @@index([createdByAdminUserId])
 }
 
 model WireguardPeer {

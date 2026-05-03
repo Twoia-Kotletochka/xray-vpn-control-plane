@@ -1,6 +1,17 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { type Client, ClientStatus, Prisma, type TransportProfile } from '@prisma/client';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  AdminRole,
+  type Client,
+  ClientStatus,
+  Prisma,
+  type TransportProfile,
+} from '@prisma/client';
 import type { Request } from 'express';
 
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
@@ -16,7 +27,7 @@ import {
 import {
   emptyClientUsage,
   resolveEffectiveClientStatus,
-  serializeClient,
+  serializeClientForAdmin,
 } from './client-presenter';
 import type { CreateClientDto } from './dto/create-client.dto';
 import type { ExtendClientDto } from './dto/extend-client.dto';
@@ -30,7 +41,7 @@ export class ClientsService {
     private readonly wireguardService: WireguardService,
   ) {}
 
-  async list(query: PaginationQueryDto) {
+  async list(query: PaginationQueryDto, admin: AuthenticatedAdmin) {
     await this.expireClients();
     await this.captureUsageSnapshotBestEffort('clients-list');
 
@@ -75,7 +86,7 @@ export class ClientsService {
 
     return {
       items: items.map((item) =>
-        serializeClient(item, usageMap.get(item.id) ?? emptyClientUsage()),
+        serializeClientForAdmin(item, usageMap.get(item.id) ?? emptyClientUsage(), admin),
       ),
       pagination: {
         page,
@@ -88,7 +99,7 @@ export class ClientsService {
     };
   }
 
-  async getById(clientId: string) {
+  async getById(clientId: string, admin: AuthenticatedAdmin) {
     await this.expireClients();
     await this.captureUsageSnapshotBestEffort('client-detail');
 
@@ -122,7 +133,7 @@ export class ClientsService {
     });
 
     return {
-      ...serializeClient(client, usageMap.get(client.id) ?? emptyClientUsage()),
+      ...serializeClientForAdmin(client, usageMap.get(client.id) ?? emptyClientUsage(), admin),
       usageHistory: usageHistory.map((bucket) => ({
         date: bucket.bucketDate.toISOString(),
         incomingBytes: bucket.incomingBytes.toString(),
@@ -133,7 +144,7 @@ export class ClientsService {
     };
   }
 
-  async exportClients() {
+  async exportClients(admin: AuthenticatedAdmin) {
     await this.expireClients();
     await this.captureUsageSnapshotBestEffort('clients-export', true);
 
@@ -156,7 +167,7 @@ export class ClientsService {
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
       items: items.map((item) =>
-        serializeClient(item, usageMap.get(item.id) ?? emptyClientUsage()),
+        serializeClientForAdmin(item, usageMap.get(item.id) ?? emptyClientUsage(), admin),
       ),
     };
   }
@@ -169,7 +180,7 @@ export class ClientsService {
     let skipped = 0;
 
     for (const item of parsed.items) {
-      const outcome = await this.importSingleClient(item, parsed.overwriteExisting);
+      const outcome = await this.importSingleClient(item, parsed.overwriteExisting, admin.id);
 
       if (outcome.status === 'skipped') {
         skipped += 1;
@@ -236,6 +247,7 @@ export class ClientsService {
     const client = await this.prisma.$transaction(async (tx) => {
       const created = await tx.client.create({
         data: {
+          createdByAdminUserId: admin.id,
           uuid: payload.customUuid ?? randomUUID(),
           emailTag: this.buildEmailTag(payload.displayName),
           displayName: payload.displayName.trim(),
@@ -283,7 +295,7 @@ export class ClientsService {
     });
 
     await this.syncClientBestEffort(client);
-    return serializeClient(client, emptyClientUsage());
+    return serializeClientForAdmin(client, emptyClientUsage(), admin);
   }
 
   async update(
@@ -292,7 +304,7 @@ export class ClientsService {
     admin: AuthenticatedAdmin,
     request: Request,
   ) {
-    const existing = await this.requireClient(clientId);
+    const existing = await this.requireManageableClient(clientId, admin);
     const startsAt =
       payload.startsAt !== undefined
         ? payload.startsAt
@@ -378,7 +390,7 @@ export class ClientsService {
 
     await this.syncClientBestEffort(client);
     const usageMap = await this.loadUsageMap([client.id]);
-    return serializeClient(client, usageMap.get(client.id) ?? emptyClientUsage());
+    return serializeClientForAdmin(client, usageMap.get(client.id) ?? emptyClientUsage(), admin);
   }
 
   async extend(
@@ -387,7 +399,7 @@ export class ClientsService {
     admin: AuthenticatedAdmin,
     request: Request,
   ) {
-    const existing = await this.requireClient(clientId);
+    const existing = await this.requireManageableClient(clientId, admin);
     const baseDate = existing.expiresAt ?? new Date();
     const expiresAt = payload.expiresAt
       ? new Date(payload.expiresAt)
@@ -396,7 +408,7 @@ export class ClientsService {
         : existing.expiresAt;
 
     if (!expiresAt) {
-      return this.getById(clientId);
+      return this.getById(clientId, admin);
     }
 
     const client = await this.prisma.$transaction(async (tx) => {
@@ -438,11 +450,11 @@ export class ClientsService {
 
     await this.syncClientBestEffort(client);
     const usageMap = await this.loadUsageMap([client.id]);
-    return serializeClient(client, usageMap.get(client.id) ?? emptyClientUsage());
+    return serializeClientForAdmin(client, usageMap.get(client.id) ?? emptyClientUsage(), admin);
   }
 
   async resetTraffic(clientId: string, admin: AuthenticatedAdmin, request: Request) {
-    const client = await this.requireClient(clientId);
+    const client = await this.requireManageableClient(clientId, admin);
     await this.captureUsageSnapshotBestEffort('client-reset-traffic', true);
 
     await this.prisma.$transaction(async (tx) => {
@@ -483,13 +495,13 @@ export class ClientsService {
       });
     });
 
-    const refreshed = await this.requireClient(clientId);
+    const refreshed = await this.requireManageableClient(clientId, admin);
     await this.syncClientBestEffort(refreshed);
-    return this.getById(clientId);
+    return this.getById(clientId, admin);
   }
 
   async remove(clientId: string, admin: AuthenticatedAdmin, request: Request) {
-    const client = await this.requireClient(clientId);
+    const client = await this.requireManageableClient(clientId, admin);
     await this.captureUsageSnapshotBestEffort('client-delete', true);
 
     await this.prisma.$transaction(async (tx) => {
@@ -565,6 +577,20 @@ export class ClientsService {
 
     if (!client) {
       throw new NotFoundException('Client was not found.');
+    }
+
+    return client;
+  }
+
+  private async requireManageableClient(clientId: string, admin: AuthenticatedAdmin) {
+    const client = await this.requireClient(clientId);
+
+    if (!client.createdByAdminUserId || client.createdByAdminUserId !== admin.id) {
+      if (admin.role !== AdminRole.SUPER_ADMIN) {
+        throw new ForbiddenException(
+          'This client can only be managed by its owner or a super admin.',
+        );
+      }
     }
 
     return client;
@@ -664,7 +690,11 @@ export class ClientsService {
     );
   }
 
-  private async importSingleClient(item: ImportedClientRecord, overwriteExisting: boolean) {
+  private async importSingleClient(
+    item: ImportedClientRecord,
+    overwriteExisting: boolean,
+    ownerAdminUserId: string,
+  ) {
     const existing = await this.findImportTarget(item);
 
     if (existing && !overwriteExisting) {
@@ -702,6 +732,7 @@ export class ClientsService {
       );
       const data: Prisma.ClientUncheckedCreateInput = {
         createdAt,
+        createdByAdminUserId: existing?.createdByAdminUserId ?? ownerAdminUserId,
         deviceLimit: item.deviceLimit ?? null,
         displayName: item.displayName.trim(),
         emailTag,

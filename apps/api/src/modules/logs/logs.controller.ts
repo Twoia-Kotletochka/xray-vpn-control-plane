@@ -5,7 +5,7 @@ import { Roles } from '../../common/auth/roles.decorator';
 import { LogsService } from './logs.service';
 
 @Controller('logs')
-@Roles(AdminRole.SUPER_ADMIN, AdminRole.OPERATOR, AdminRole.READ_ONLY)
+@Roles(AdminRole.SUPER_ADMIN)
 export class LogsController {
   constructor(private readonly logsService: LogsService) {}
 

@@ -76,6 +76,9 @@ describe('DashboardPage', () => {
         onlineUsers: 2,
         xrayStatus: 'healthy',
       },
+      capabilities: {
+        canViewInfrastructure: true,
+      },
       message: 'dashboard payload',
     };
 

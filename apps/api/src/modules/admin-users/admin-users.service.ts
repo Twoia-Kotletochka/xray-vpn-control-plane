@@ -50,8 +50,14 @@ export class AdminUsersService {
   ) {}
 
   async list(admin: AuthenticatedAdmin) {
+    const where = this.canManageAdmins(admin)
+      ? undefined
+      : {
+          id: admin.id,
+        };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.adminUser.findMany({
+        where,
         orderBy: {
           createdAt: 'asc',
         },
@@ -66,7 +72,9 @@ export class AdminUsersService {
           updatedAt: true,
         },
       }),
-      this.prisma.adminUser.count(),
+      this.prisma.adminUser.count({
+        where,
+      }),
     ]);
 
     return {
