@@ -6,6 +6,7 @@ import type { Request } from 'express';
 import type { AuthenticatedAdmin } from '../../common/auth/authenticated-admin.interface';
 import { PrismaService } from '../../common/database/prisma.service';
 import type { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { WireguardService } from '../wireguard/wireguard.service';
 import { XrayService } from '../xray/xray.service';
 import {
   type ImportedClientBundle,
@@ -26,6 +27,7 @@ export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xrayService: XrayService,
+    private readonly wireguardService: WireguardService,
   ) {}
 
   async list(query: PaginationQueryDto) {
@@ -55,6 +57,14 @@ export class ClientsService {
         },
         skip,
         take: pageSize,
+        include: {
+          wireguardPeer: {
+            select: {
+              assignedIpv4: true,
+              lastHandshakeAt: true,
+            },
+          },
+        },
       }),
       this.prisma.client.count({
         where,
@@ -85,6 +95,14 @@ export class ClientsService {
     const client = await this.prisma.client.findUnique({
       where: {
         id: clientId,
+      },
+      include: {
+        wireguardPeer: {
+          select: {
+            assignedIpv4: true,
+            lastHandshakeAt: true,
+          },
+        },
       },
     });
 
@@ -122,6 +140,14 @@ export class ClientsService {
     const items = await this.prisma.client.findMany({
       orderBy: {
         createdAt: 'asc',
+      },
+      include: {
+        wireguardPeer: {
+          select: {
+            assignedIpv4: true,
+            lastHandshakeAt: true,
+          },
+        },
       },
     });
     const usageMap = await this.loadUsageMap(items.map((item) => item.id));
@@ -197,6 +223,9 @@ export class ClientsService {
     const startsAt = payload.startsAt ? new Date(payload.startsAt) : new Date();
     const expiresAt = this.resolveExpiry(startsAt, payload.expiresAt, payload.durationDays);
     const requestedStatus = payload.status ?? ClientStatus.ACTIVE;
+    const vlessEnabled = payload.vlessEnabled ?? true;
+    const wireguardEnabled = payload.wireguardEnabled ?? true;
+    this.assertAtLeastOneTransportEnabled(vlessEnabled, wireguardEnabled);
     const status = resolveEffectiveClientStatus({
       isTrafficUnlimited,
       status: requestedStatus,
@@ -220,8 +249,18 @@ export class ClientsService {
           isTrafficUnlimited,
           deviceLimit: payload.deviceLimit,
           ipLimit: payload.ipLimit,
+          vlessEnabled,
+          wireguardEnabled,
           subscriptionToken: randomBytes(24).toString('base64url'),
           transportProfile: payload.transportProfile,
+        },
+        include: {
+          wireguardPeer: {
+            select: {
+              assignedIpv4: true,
+              lastHandshakeAt: true,
+            },
+          },
         },
       });
 
@@ -265,6 +304,9 @@ export class ClientsService {
         ? this.resolveExpiry(startsAt ?? new Date(), payload.expiresAt, payload.durationDays)
         : existing.expiresAt;
     const requestedStatus = payload.status ?? existing.status;
+    const vlessEnabled = payload.vlessEnabled ?? existing.vlessEnabled;
+    const wireguardEnabled = payload.wireguardEnabled ?? existing.wireguardEnabled;
+    this.assertAtLeastOneTransportEnabled(vlessEnabled, wireguardEnabled);
     const status =
       requestedStatus === ClientStatus.DISABLED || requestedStatus === ClientStatus.BLOCKED
         ? requestedStatus
@@ -302,7 +344,17 @@ export class ClientsService {
           isTrafficUnlimited,
           deviceLimit: payload.deviceLimit,
           ipLimit: payload.ipLimit,
+          vlessEnabled,
+          wireguardEnabled,
           transportProfile: payload.transportProfile,
+        },
+        include: {
+          wireguardPeer: {
+            select: {
+              assignedIpv4: true,
+              lastHandshakeAt: true,
+            },
+          },
         },
       });
 
@@ -355,6 +407,14 @@ export class ClientsService {
         data: {
           expiresAt,
           status: ClientStatus.ACTIVE,
+        },
+        include: {
+          wireguardPeer: {
+            select: {
+              assignedIpv4: true,
+              lastHandshakeAt: true,
+            },
+          },
         },
       });
 
@@ -621,6 +681,7 @@ export class ClientsService {
     const outgoingBytes = this.parseBigInt(item.outgoingBytes) ?? 0n;
     const totalBytes = this.parseBigInt(item.trafficUsedBytes) ?? 0n;
     const requestedStatus = item.status ?? ClientStatus.ACTIVE;
+    this.assertAtLeastOneTransportEnabled(item.vlessEnabled, item.wireguardEnabled);
     const status =
       requestedStatus === ClientStatus.DISABLED || requestedStatus === ClientStatus.BLOCKED
         ? requestedStatus
@@ -656,6 +717,8 @@ export class ClientsService {
         transportProfile: item.transportProfile,
         updatedAt: new Date(),
         uuid: item.uuid,
+        vlessEnabled: item.vlessEnabled,
+        wireguardEnabled: item.wireguardEnabled,
         xrayInboundTag: item.xrayInboundTag,
         durationDays: item.durationDays ?? null,
       };
@@ -788,6 +851,12 @@ export class ClientsService {
     return BigInt(value);
   }
 
+  private assertAtLeastOneTransportEnabled(vlessEnabled: boolean, wireguardEnabled: boolean) {
+    if (!vlessEnabled && !wireguardEnabled) {
+      throw new BadRequestException('At least one transport must remain enabled for the client.');
+    }
+  }
+
   private async syncClientBestEffort(
     client: Pick<
       Client,
@@ -798,15 +867,20 @@ export class ClientsService {
       | 'status'
       | 'trafficLimitBytes'
       | 'transportProfile'
+      | 'vlessEnabled'
       | 'uuid'
+      | 'wireguardEnabled'
     >,
   ) {
-    try {
-      await this.xrayService.syncClient(client);
-    } catch {
-      // The control plane keeps the canonical state in PostgreSQL.
-      // If Xray is temporarily unavailable, the periodic reconciler will repair runtime drift.
-    }
+    await Promise.allSettled([
+      this.xrayService.syncClient(client).catch(() => {
+        // The control plane keeps the canonical state in PostgreSQL.
+        // If Xray is temporarily unavailable, the periodic reconciler will repair runtime drift.
+      }),
+      this.wireguardService.syncClient(client).catch(() => {
+        // WireGuard runtime is also eventually consistent and will be reconciled in the background.
+      }),
+    ]);
   }
 
   private async captureUsageSnapshotBestEffort(reason: string, force = false) {

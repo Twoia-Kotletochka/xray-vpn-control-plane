@@ -90,15 +90,34 @@ model Client {
   isTrafficUnlimited Boolean          @default(false)
   deviceLimit        Int?
   ipLimit            Int?
+  vlessEnabled       Boolean          @default(true)
+  wireguardEnabled   Boolean          @default(false)
   subscriptionToken  String           @unique
   transportProfile   TransportProfile @default(VLESS_REALITY_TCP)
   xrayInboundTag     String           @default("vless-reality-main")
   lastActivatedAt    DateTime?
   lastSeenAt         DateTime?
   usage              DailyClientUsage[]
+  wireguardPeer      WireguardPeer?
 
   @@index([status])
   @@index([expiresAt])
+}
+
+model WireguardPeer {
+  id               String   @id @default(cuid())
+  clientId         String   @unique
+  assignedIpv4     String   @unique
+  privateKeyEnc    String
+  publicKey        String   @unique
+  presharedKeyEnc  String?
+  observedRxBytes  BigInt   @default(0)
+  observedTxBytes  BigInt   @default(0)
+  lastHandshakeAt  DateTime?
+  lastObservedAt   DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
 
 model DailyClientUsage {

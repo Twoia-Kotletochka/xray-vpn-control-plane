@@ -77,6 +77,14 @@ export class CreateClientDto {
   transportProfile?: TransportProfile = TransportProfile.VLESS_REALITY_TCP;
 
   @IsOptional()
+  @IsBoolean()
+  vlessEnabled?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  wireguardEnabled?: boolean = true;
+
+  @IsOptional()
   @IsUUID()
   customUuid?: string;
 }

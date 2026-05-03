@@ -210,6 +210,22 @@ generate_admin_password() {
   openssl rand -base64 24 | tr -d '\n' | tr '/+=' 'XYZ' | cut -c1-20
 }
 
+generate_wireguard_keys() {
+  local private_key
+  local public_key
+
+  command_exists wg || error "wg is required. Run bootstrap first or install WireGuard tools on the host."
+
+  private_key="$(wg genkey)"
+  public_key="$(printf '%s' "${private_key}" | wg pubkey)"
+
+  if [[ -z "${private_key}" || -z "${public_key}" ]]; then
+    error "Could not generate a WireGuard keypair."
+  fi
+
+  printf '%s\n%s\n' "${private_key}" "${public_key}"
+}
+
 write_install_summary() {
   local summary_password="$1"
 
@@ -345,6 +361,19 @@ if is_blank_or_placeholder "$(get_env_var API_CORS_ORIGIN)"; then
   set_env_var API_CORS_ORIGIN "${panel_url}"
 fi
 
+server_public_ip="$(get_env_var SERVER_PUBLIC_IP)"
+if is_blank_or_placeholder "${server_public_ip}"; then
+  if is_ipv4_address "${panel_host}"; then
+    server_public_ip="${panel_host}"
+  else
+    server_public_ip="$(detect_public_host || true)"
+  fi
+fi
+
+if [[ -n "${server_public_ip}" ]]; then
+  set_env_var SERVER_PUBLIC_IP "${server_public_ip}"
+fi
+
 postgres_password="$(get_env_var POSTGRES_PASSWORD)"
 if is_blank_or_placeholder "${postgres_password}"; then
   postgres_password="$(generate_hex 18)"
@@ -383,6 +412,31 @@ if is_blank_or_placeholder "$(get_env_var XRAY_REALITY_PRIVATE_KEY)" || is_blank
   mapfile -t reality_keypair < <(generate_reality_keys "${xray_image}")
   set_env_var XRAY_REALITY_PRIVATE_KEY "${reality_keypair[0]}"
   set_env_var XRAY_REALITY_PUBLIC_KEY "${reality_keypair[1]}"
+fi
+
+wireguard_enabled="$(get_env_var WIREGUARD_ENABLED)"
+wireguard_enabled="${wireguard_enabled:-false}"
+
+if [[ "${wireguard_enabled}" == "true" ]]; then
+  if is_blank_or_placeholder "$(get_env_var WIREGUARD_CONFIG_ENCRYPTION_SECRET)"; then
+    set_env_var WIREGUARD_CONFIG_ENCRYPTION_SECRET "$(generate_hex 32)"
+  fi
+
+  if is_blank_or_placeholder "$(get_env_var WIREGUARD_SERVER_PRIVATE_KEY)" || is_blank_or_placeholder "$(get_env_var WIREGUARD_SERVER_PUBLIC_KEY)"; then
+    mapfile -t wireguard_keypair < <(generate_wireguard_keys)
+    set_env_var WIREGUARD_SERVER_PRIVATE_KEY "${wireguard_keypair[0]}"
+    set_env_var WIREGUARD_SERVER_PUBLIC_KEY "${wireguard_keypair[1]}"
+  fi
+
+  if is_blank_or_placeholder "$(get_env_var WIREGUARD_PUBLIC_HOST)" && [[ ! "${panel_host}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    set_env_var WIREGUARD_PUBLIC_HOST "${panel_host}"
+  fi
+
+  if command_exists ufw; then
+    wireguard_port="$(get_env_var WIREGUARD_PORT)"
+    wireguard_port="${wireguard_port:-51820}"
+    ufw allow "${wireguard_port}/udp" >/dev/null 2>&1 || true
+  fi
 fi
 
 initial_admin_username="$(get_env_var INITIAL_ADMIN_USERNAME)"

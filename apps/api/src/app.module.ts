@@ -13,6 +13,7 @@ import { HealthModule } from './modules/health/health.module';
 import { LogsModule } from './modules/logs/logs.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { SystemModule } from './modules/system/system.module';
+import { WireguardModule } from './modules/wireguard/wireguard.module';
 import { XrayModule } from './modules/xray/xray.module';
 
 @Module({
@@ -33,6 +34,7 @@ import { XrayModule } from './modules/xray/xray.module';
     LogsModule,
     AuditLogModule,
     SubscriptionsModule,
+    WireguardModule,
     XrayModule,
   ],
 })

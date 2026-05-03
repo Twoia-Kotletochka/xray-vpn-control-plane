@@ -112,6 +112,11 @@ export class LogsService {
         label: 'Caddy access log',
         path: this.configService.get('CADDY_ACCESS_LOG_FILE', { infer: true }),
       },
+      {
+        id: 'wireguard',
+        label: 'WireGuard runtime log',
+        path: this.configService.get('WIREGUARD_LOG_FILE', { infer: true }),
+      },
     ];
   }
 }

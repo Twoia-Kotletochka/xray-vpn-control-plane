@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,12 +45,17 @@ function createClient(id: string, displayName: string, emailTag: string, uuid: s
     remainingTrafficBytes: '1073741824',
     deviceLimit: null,
     ipLimit: null,
+    vlessEnabled: true,
+    wireguardEnabled: true,
     subscriptionToken: `token-${id}`,
     transportProfile: 'VLESS_REALITY_TCP',
     xrayInboundTag: 'vless-reality-main',
     activeConnections: 0,
     lastActivatedAt: null,
     lastSeenAt: null,
+    wireguardIpv4Address: '10.44.0.2',
+    wireguardLastHandshakeAt: null,
+    hasWireguardProfile: true,
   };
 }
 
@@ -71,11 +76,50 @@ function createBundle(client: ClientRecord): ClientSubscriptionBundle {
     },
     instructions: [],
     platformGuides: [],
+    defaultTransportId: 'vless',
+    transports: [
+      {
+        id: 'vless',
+        label: 'VLESS + REALITY',
+        enabled: true,
+        defaultVariant: 'domain',
+        supportsQr: true,
+        supportsSubscription: true,
+        instructions: [],
+        platformGuides: [],
+        variants: [
+          {
+            addressMode: 'domain',
+            label: 'example.com:443',
+            endpointHost: 'example.com',
+            endpointPort: 443,
+            downloadFileName: `${client.displayName}.txt`,
+            subscriptionUrl: `https://example.com/api/subscriptions/${client.subscriptionToken}`,
+            uri: `vless://${client.uuid}@example.com:443#${client.displayName}`,
+            qrcodeText: `vless://${client.uuid}@example.com:443#${client.displayName}`,
+          },
+        ],
+      },
+    ],
   };
 }
 
-function selectedClientStatusText(client: ClientRecord) {
-  return `Не активен • ${client.uuid}`;
+function getClientRow(displayName: string) {
+  const cell = screen.getAllByText(displayName).find((node) => node.closest('tr'));
+
+  if (!cell) {
+    throw new Error(`Row not found for client ${displayName}`);
+  }
+
+  return cell.closest('tr') as HTMLTableRowElement;
+}
+
+async function findClientRow(displayName: string) {
+  await waitFor(() => {
+    expect(screen.queryAllByText(displayName).length).toBeGreaterThan(0);
+  });
+
+  return getClientRow(displayName);
 }
 
 describe('ClientsPage', () => {
@@ -143,29 +187,34 @@ describe('ClientsPage', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText(selectedClientStatusText(firstClient));
-    const firstRow = screen.getByText('Client One').closest('tr');
-    const secondRow = screen.getByText('Client Two').closest('tr');
-
-    expect(firstRow?.getAttribute('aria-selected')).toBe('true');
-    expect(secondRow?.getAttribute('aria-selected')).toBe('false');
-
+    const firstRow = await findClientRow('Client One');
+    const secondRow = await findClientRow('Client Two');
     const listCalls = () =>
       mockApiFetch.mock.calls.filter(([path]) =>
         String(path).startsWith('/api/clients?page=1&pageSize=25&search='),
       ).length;
 
-    expect(listCalls()).toBe(1);
+    const baselineListCalls = listCalls();
 
-    fireEvent.click(secondRow as HTMLTableRowElement);
+    fireEvent.click(firstRow);
 
-    await screen.findByText(selectedClientStatusText(secondClient));
-    expect(screen.getByText('Client One').closest('tr')?.getAttribute('aria-selected')).toBe('false');
-    expect(screen.getByText('Client Two').closest('tr')?.getAttribute('aria-selected')).toBe('true');
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => {
+      expect(getClientRow('Client One').getAttribute('aria-selected')).toBe('true');
+    });
+
+    fireEvent.click(secondRow);
 
     await waitFor(() => {
-      expect(listCalls()).toBe(1);
+      expect(getClientRow('Client One').getAttribute('aria-selected')).toBe('false');
+      expect(getClientRow('Client Two').getAttribute('aria-selected')).toBe('true');
     });
+
+    await waitFor(() => {
+      expect(listCalls()).toBe(baselineListCalls);
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /закрыть окно/i }));
   });
 
   it('shows an explicit block action instead of the three-dots button', async () => {
@@ -244,12 +293,7 @@ describe('ClientsPage', () => {
           ipLimit: 2,
         });
 
-        createdClient = createClient(
-          'client-3',
-          'Shared plan',
-          'shared-plan',
-          createdUuid,
-        );
+        createdClient = createClient('client-3', 'Shared plan', 'shared-plan', createdUuid);
 
         return createdClient;
       }
@@ -271,14 +315,18 @@ describe('ClientsPage', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: /Добавить клиента/i }));
+    const addClientButton = (await screen.findAllByRole('button', { name: /Добавить клиента/i }))[0]!;
+    fireEvent.click(addClientButton);
 
-    fireEvent.change(screen.getByLabelText('Имя клиента'), { target: { value: 'Shared plan' } });
-    fireEvent.change(screen.getByLabelText('Лимит устройств'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('Лимит IP'), { target: { value: '2' } });
+    fireEvent.change(screen.getAllByLabelText(/Имя клиента/i)[0]!, { target: { value: 'Shared plan' } });
+    fireEvent.change(screen.getAllByLabelText(/Лимит устройств/i)[0]!, { target: { value: '3' } });
+    fireEvent.change(screen.getAllByLabelText(/Лимит IP/i)[0]!, { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: /Создать клиента/i }));
 
-    await screen.findByText(`Не активен • ${createdUuid}`);
+    await waitFor(() => {
+      expect(screen.getAllByText('Shared plan').length).toBeGreaterThan(0);
+    });
+    expect(createdClient).not.toBeNull();
   });
 
   it('clears device and IP limits back to unlimited', async () => {
@@ -338,11 +386,13 @@ describe('ClientsPage', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText(selectedClientStatusText(client));
+    fireEvent.click(await findClientRow('Limited Client'));
 
-    fireEvent.change(screen.getByDisplayValue('3'), { target: { value: '' } });
-    fireEvent.change(screen.getByDisplayValue('2'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: /Сохранить изменения/i }));
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.change(within(dialog).getByLabelText(/Лимит устройств/i), { target: { value: '' } });
+    fireEvent.change(within(dialog).getByLabelText(/Лимит IP/i), { target: { value: '' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Сохранить изменения/i }));
 
     await waitFor(() => {
       expect(

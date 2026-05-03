@@ -46,6 +46,8 @@ type CreateClientFormState = {
   deviceLimit: string;
   displayName: string;
   ipLimit: string;
+  vlessEnabled: boolean;
+  wireguardEnabled: boolean;
   note: string;
   tags: string;
   durationDays: string;
@@ -63,16 +65,26 @@ type EditClientFormState = {
   note: string;
   tags: string;
   trafficLimitGb: string;
+  vlessEnabled: boolean;
+  wireguardEnabled: boolean;
 };
 
 type ClientStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
 type ClientSortKey = 'displayName' | 'trafficUsedBytes' | 'expiresAt' | 'lastSeenAt' | 'activeConnections';
 type SortDirection = 'asc' | 'desc';
+type SubscriptionTransport = ClientSubscriptionBundle['transports'][number];
+type SubscriptionVariant = SubscriptionTransport['variants'][number];
+type VlessTransport = Extract<SubscriptionTransport, { id: 'vless' }>;
+type WireguardTransport = Extract<SubscriptionTransport, { id: 'wireguard' }>;
+type VlessVariant = VlessTransport['variants'][number];
+type WireguardVariant = WireguardTransport['variants'][number];
 
 const initialCreateFormState: CreateClientFormState = {
   deviceLimit: '',
   displayName: '',
   ipLimit: '',
+  vlessEnabled: true,
+  wireguardEnabled: true,
   note: '',
   tags: '',
   durationDays: '30',
@@ -90,6 +102,8 @@ const emptyEditFormState: EditClientFormState = {
   note: '',
   tags: '',
   trafficLimitGb: '',
+  vlessEnabled: true,
+  wireguardEnabled: true,
 };
 
 function isClientManuallyBlocked(status: ClientRecord['status']) {
@@ -139,6 +153,8 @@ function mapClientToEditState(client: ClientDetailResponse): EditClientFormState
     trafficLimitGb: client.trafficLimitBytes
       ? (Number(client.trafficLimitBytes) / 1024 / 1024 / 1024).toFixed(2)
       : '',
+    vlessEnabled: client.vlessEnabled,
+    wireguardEnabled: client.wireguardEnabled,
   };
 }
 
@@ -166,6 +182,73 @@ function resolveTrafficProgress(client: ClientRecord) {
 function compareValues(left: string | number, right: string | number, direction: SortDirection) {
   const comparison = left === right ? 0 : left > right ? 1 : -1;
   return direction === 'asc' ? comparison : comparison * -1;
+}
+
+function isVlessTransport(
+  transport: SubscriptionTransport,
+): transport is VlessTransport {
+  return transport.id === 'vless';
+}
+
+function isWireguardTransport(
+  transport: SubscriptionTransport,
+): transport is WireguardTransport {
+  return transport.id === 'wireguard';
+}
+
+function resolveDefaultTransport(bundle: ClientSubscriptionBundle | null) {
+  if (!bundle) {
+    return null;
+  }
+
+  return (
+    bundle.transports.find((transport) => transport.id === bundle.defaultTransportId) ??
+    bundle.transports[0] ??
+    null
+  );
+}
+
+function resolveDefaultAddressMode(
+  transport: SubscriptionTransport | null,
+): 'domain' | 'ip' {
+  return transport?.defaultVariant ?? 'domain';
+}
+
+function resolveVariantQrText(
+  transport: SubscriptionTransport | null,
+  variant: SubscriptionVariant | null,
+) {
+  if (!transport || !variant) {
+    return '';
+  }
+
+  return isVlessTransport(transport)
+    ? (variant as VlessVariant).qrcodeText
+    : (variant as WireguardVariant).qrText;
+}
+
+function resolveVariantConfigText(
+  transport: SubscriptionTransport | null,
+  variant: SubscriptionVariant | null,
+) {
+  if (!transport || !variant) {
+    return '';
+  }
+
+  return isVlessTransport(transport)
+    ? (variant as VlessVariant).uri
+    : (variant as WireguardVariant).configText;
+}
+
+function resolveVariantSubscriptionUrl(
+  transport: SubscriptionTransport | null,
+  variant: SubscriptionVariant | null,
+) {
+  if (!transport || !variant || !isVlessTransport(transport)) {
+    return '';
+  }
+
+  return (variant as VlessVariant).subscriptionUrl;
 }
 
 function resolveRequestedStatus(
@@ -217,6 +300,7 @@ export function ClientsPage() {
   const selectedClientIdRef = useRef<string | null>(null);
   const listRequestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
+  const isClientCardOpenRef = useRef(false);
   const initialSearch = searchParams.get('search') ?? '';
   const initialPage = Number(searchParams.get('page') ?? '1');
   const [clients, setClients] = useState<ClientRecord[]>([]);
@@ -245,6 +329,10 @@ export function ClientsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [selectedTransportId, setSelectedTransportId] = useState<'vless' | 'wireguard' | null>(
+    null,
+  );
+  const [selectedAddressMode, setSelectedAddressMode] = useState<'domain' | 'ip'>('domain');
   const [importPayload, setImportPayload] = useState('');
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [formState, setFormState] = useState<CreateClientFormState>(initialCreateFormState);
@@ -253,6 +341,34 @@ export function ClientsPage() {
   const totalPages = Math.max(1, Math.ceil(totalClients / pageSize));
   const isEnglish = locale === 'en';
   const isReadOnly = admin?.role === 'READ_ONLY';
+  const activeTransport = useMemo(() => {
+    if (!subscriptionBundle) {
+      return null;
+    }
+
+    return (
+      subscriptionBundle.transports.find((transport) => transport.id === selectedTransportId) ??
+      resolveDefaultTransport(subscriptionBundle)
+    );
+  }, [selectedTransportId, subscriptionBundle]);
+  const activeVariant = useMemo(() => {
+    if (!activeTransport) {
+      return null;
+    }
+
+    return (
+      activeTransport.variants.find((variant) => variant.addressMode === selectedAddressMode) ??
+      activeTransport.variants.find(
+        (variant) => variant.addressMode === activeTransport.defaultVariant,
+      ) ??
+      activeTransport.variants[0] ??
+      null
+    );
+  }, [activeTransport, selectedAddressMode]);
+
+  useEffect(() => {
+    isClientCardOpenRef.current = isClientCardOpen;
+  }, [isClientCardOpen]);
   const text = {
     loadError: isEnglish ? 'Failed to load clients.' : 'Не удалось загрузить клиентов.',
     createError: isEnglish ? 'Failed to create the client.' : 'Не удалось создать клиента.',
@@ -439,6 +555,8 @@ export function ClientsPage() {
     setIsClientCardOpen(false);
     setSelectedClient(null);
     setSubscriptionBundle(null);
+    setSelectedTransportId(null);
+    setSelectedAddressMode('domain');
     setEditFormState(emptyEditFormState);
   }, []);
 
@@ -465,6 +583,9 @@ export function ClientsPage() {
 
       setSelectedClient(client);
       setSubscriptionBundle(bundle);
+      const defaultTransport = resolveDefaultTransport(bundle);
+      setSelectedTransportId(defaultTransport?.id ?? null);
+      setSelectedAddressMode(resolveDefaultAddressMode(defaultTransport));
       setEditFormState(mapClientToEditState(client));
       return { bundle, client };
     },
@@ -516,7 +637,7 @@ export function ClientsPage() {
         const hasSelectedClient =
           currentSelectedId !== null && response.items.some((item) => item.id === currentSelectedId);
 
-        if (isClientCardOpen && currentSelectedId && hasSelectedClient) {
+        if (isClientCardOpenRef.current && currentSelectedId && hasSelectedClient) {
           await loadClientDetails(currentSelectedId);
         } else if (currentSelectedId && !hasSelectedClient) {
           clearSelectedClient();
@@ -533,12 +654,24 @@ export function ClientsPage() {
         }
       }
     },
-    [apiFetch, clearSelectedClient, isClientCardOpen, loadClientDetails, pageSize, text.loadError],
+    [apiFetch, clearSelectedClient, loadClientDetails, pageSize, text.loadError],
   );
 
   useEffect(() => {
     void loadClients(deferredSearch, page);
   }, [deferredSearch, loadClients, page]);
+
+  useEffect(() => {
+    if (!activeTransport) {
+      return;
+    }
+
+    setSelectedAddressMode((current) =>
+      activeTransport.variants.some((variant) => variant.addressMode === current)
+        ? current
+        : resolveDefaultAddressMode(activeTransport),
+    );
+  }, [activeTransport]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -599,13 +732,15 @@ export function ClientsPage() {
     let cancelled = false;
 
     const renderQr = async () => {
-      if (!isQrOpen || !subscriptionBundle?.config.qrcodeText) {
+      const qrText = resolveVariantQrText(activeTransport, activeVariant);
+
+      if (!isQrOpen || !qrText) {
         setQrImageUrl(null);
         return;
       }
 
       try {
-        const dataUrl = await QRCode.toDataURL(subscriptionBundle.config.qrcodeText, {
+        const dataUrl = await QRCode.toDataURL(qrText, {
           errorCorrectionLevel: 'M',
           margin: 1,
           width: 320,
@@ -626,12 +761,22 @@ export function ClientsPage() {
     return () => {
       cancelled = true;
     };
-  }, [isQrOpen, subscriptionBundle]);
+  }, [activeTransport, activeVariant, isQrOpen]);
 
   const handleCreateClient = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
+
+    if (!formState.vlessEnabled && !formState.wireguardEnabled) {
+      setError(
+        isEnglish
+          ? 'At least one transport must remain enabled.'
+          : 'Должен оставаться включённым хотя бы один транспорт.',
+      );
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const created = await apiFetch<ClientRecord>('/api/clients', {
@@ -650,6 +795,8 @@ export function ClientsPage() {
           trafficLimitBytes: formState.isTrafficUnlimited
             ? undefined
             : toTrafficLimitBytes(formState.trafficLimitGb),
+          vlessEnabled: formState.vlessEnabled,
+          wireguardEnabled: formState.wireguardEnabled,
         }),
       });
 
@@ -670,6 +817,15 @@ export function ClientsPage() {
     event.preventDefault();
 
     if (!selectedClient) {
+      return;
+    }
+
+    if (!editFormState.vlessEnabled && !editFormState.wireguardEnabled) {
+      setError(
+        isEnglish
+          ? 'At least one transport must remain enabled.'
+          : 'Должен оставаться включённым хотя бы один транспорт.',
+      );
       return;
     }
 
@@ -695,6 +851,8 @@ export function ClientsPage() {
           trafficLimitBytes: editFormState.isTrafficUnlimited
             ? undefined
             : toTrafficLimitBytes(editFormState.trafficLimitGb),
+          vlessEnabled: editFormState.vlessEnabled,
+          wireguardEnabled: editFormState.wireguardEnabled,
         }),
       });
 
@@ -1209,6 +1367,45 @@ export function ClientsPage() {
                 />
               </label>
 
+              <div className="workspace-panel workspace-panel--tight">
+                <div className="workspace-panel__header">
+                  <div>
+                    <strong>{isEnglish ? 'Transports' : 'Транспорты'}</strong>
+                    <p>
+                      {isEnglish
+                        ? 'Choose which config types will be issued for this client.'
+                        : 'Выберите, какие типы конфигов будут выданы этому клиенту.'}
+                    </p>
+                  </div>
+                </div>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={formState.vlessEnabled}
+                    onChange={(event) =>
+                      setFormState((current) => ({
+                        ...current,
+                        vlessEnabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>{isEnglish ? 'Enable VLESS + REALITY' : 'Включить VLESS + REALITY'}</span>
+                </label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={formState.wireguardEnabled}
+                    onChange={(event) =>
+                      setFormState((current) => ({
+                        ...current,
+                        wireguardEnabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>{isEnglish ? 'Enable WireGuard' : 'Включить WireGuard'}</span>
+                </label>
+              </div>
+
               <label className="checkbox-row">
                 <input
                   type="checkbox"
@@ -1552,6 +1749,30 @@ export function ClientsPage() {
                     )}
                   </dd>
                 </div>
+                <div>
+                  <dt>{isEnglish ? 'VLESS + REALITY' : 'VLESS + REALITY'}</dt>
+                  <dd>{selectedClient.vlessEnabled ? (isEnglish ? 'Enabled' : 'Включён') : isEnglish ? 'Disabled' : 'Отключён'}</dd>
+                </div>
+                <div>
+                  <dt>{isEnglish ? 'WireGuard' : 'WireGuard'}</dt>
+                  <dd>
+                    {selectedClient.wireguardEnabled
+                      ? selectedClient.wireguardIpv4Address ?? (isEnglish ? 'Enabled' : 'Включён')
+                      : isEnglish
+                        ? 'Disabled'
+                        : 'Отключён'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{isEnglish ? 'WG handshake' : 'WG handshake'}</dt>
+                  <dd>
+                    {formatDateTime(
+                      selectedClient.wireguardLastHandshakeAt,
+                      text.notAvailable,
+                      locale,
+                    )}
+                  </dd>
+                </div>
               </dl>
             </div>
 
@@ -1592,33 +1813,56 @@ export function ClientsPage() {
                   <QrCode size={16} />
                   {text.showQr}
                 </button>
-                {subscriptionBundle ? (
+                {activeTransport && activeVariant ? (
                   <>
+                    {isVlessTransport(activeTransport) ? (
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() =>
+                          void copyText(
+                            resolveVariantSubscriptionUrl(activeTransport, activeVariant),
+                            text.copiedSubscription(selectedClient.displayName),
+                          )
+                        }
+                      >
+                        <Copy size={16} />
+                        {text.subscriptionUrl}
+                      </button>
+                    ) : null}
                     <button
                       className="button"
                       type="button"
                       onClick={() =>
                         void copyText(
-                          subscriptionBundle.config.subscriptionUrl,
-                          text.copiedSubscription(selectedClient.displayName),
+                          resolveVariantConfigText(activeTransport, activeVariant),
+                          isVlessTransport(activeTransport)
+                            ? text.copiedVless(selectedClient.displayName)
+                            : isEnglish
+                              ? `WireGuard config copied for ${selectedClient.displayName}.`
+                              : `WireGuard-конфиг скопирован для ${selectedClient.displayName}.`,
                         )
                       }
                     >
                       <Copy size={16} />
-                      {text.subscriptionUrl}
+                      {isVlessTransport(activeTransport)
+                        ? text.vlessLink
+                        : isEnglish
+                          ? 'WireGuard config'
+                          : 'WireGuard-конфиг'}
                     </button>
                     <button
                       className="button"
                       type="button"
                       onClick={() =>
-                        void copyText(
-                          subscriptionBundle.config.uri,
-                          text.copiedVless(selectedClient.displayName),
+                        void downloadText(
+                          activeVariant.downloadFileName,
+                          resolveVariantConfigText(activeTransport, activeVariant),
                         )
                       }
                     >
-                      <Copy size={16} />
-                      {text.vlessLink}
+                      <Download size={16} />
+                      {text.download}
                     </button>
                   </>
                 ) : null}
@@ -1777,6 +2021,45 @@ export function ClientsPage() {
                     />
                   </label>
 
+                  <div className="workspace-panel workspace-panel--tight">
+                    <div className="workspace-panel__header">
+                      <div>
+                        <strong>{isEnglish ? 'Transports' : 'Транспорты'}</strong>
+                        <p>
+                          {isEnglish
+                            ? 'You can keep one protocol or issue both in parallel.'
+                            : 'Можно оставить один протокол или выдавать оба параллельно.'}
+                        </p>
+                      </div>
+                    </div>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={editFormState.vlessEnabled}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            vlessEnabled: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>{isEnglish ? 'Enable VLESS + REALITY' : 'Включить VLESS + REALITY'}</span>
+                    </label>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={editFormState.wireguardEnabled}
+                        onChange={(event) =>
+                          setEditFormState((current) => ({
+                            ...current,
+                            wireguardEnabled: event.target.checked,
+                          }))
+                        }
+                      />
+                      <span>{isEnglish ? 'Enable WireGuard' : 'Включить WireGuard'}</span>
+                    </label>
+                  </div>
+
                   <label className="checkbox-row">
                     <input
                       type="checkbox"
@@ -1811,74 +2094,175 @@ export function ClientsPage() {
                 </div>
 
                 <div className="detail-stack">
-                  <div className="mono-card">
-                    <div className="mono-card__header">
-                      <strong>{text.subscriptionUrl}</strong>
-                      <div className="toolbar__actions">
-                        <button
-                          className="button"
-                          type="button"
-                          onClick={() =>
-                            void copyText(
-                              subscriptionBundle.config.subscriptionUrl,
-                              text.copiedSubscription(selectedClient.displayName),
-                            )
-                          }
-                        >
-                          {text.copy}
-                        </button>
-                        <button
-                          className="button"
-                          type="button"
-                          onClick={() =>
-                            void downloadText(
-                              `${selectedClient.displayName}-subscription.txt`,
-                              subscriptionBundle.config.subscriptionUrl,
-                            )
-                          }
-                        >
-                          {text.download}
-                        </button>
+                  {subscriptionBundle.transports.length > 0 ? (
+                    <>
+                      <div className="toolbar__actions wrap-actions">
+                        {subscriptionBundle.transports.map((transport) => (
+                          <button
+                            key={transport.id}
+                            className={`button ${
+                              activeTransport?.id === transport.id ? 'button--primary' : ''
+                            }`}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTransportId(transport.id);
+                              setSelectedAddressMode(resolveDefaultAddressMode(transport));
+                            }}
+                          >
+                            {transport.label}
+                          </button>
+                        ))}
                       </div>
+
+                      {activeTransport ? (
+                        <div className="toolbar__actions wrap-actions">
+                          {activeTransport.variants.map((variant) => (
+                            <button
+                              key={`${activeTransport.id}-${variant.addressMode}`}
+                              className={`button ${
+                                activeVariant?.addressMode === variant.addressMode ? 'button--primary' : ''
+                              }`}
+                              type="button"
+                              onClick={() => setSelectedAddressMode(variant.addressMode)}
+                            >
+                              {variant.addressMode === 'domain'
+                                ? isEnglish
+                                  ? 'Domain'
+                                  : 'Домен'
+                                : 'IP'}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {activeTransport && activeVariant ? (
+                        <>
+                          {isVlessTransport(activeTransport) ? (
+                            <div className="mono-card">
+                              <div className="mono-card__header">
+                                <strong>{text.subscriptionUrl}</strong>
+                                <div className="toolbar__actions">
+                                  <button
+                                    className="button"
+                                    type="button"
+                                    onClick={() =>
+                                      void copyText(
+                                        resolveVariantSubscriptionUrl(activeTransport, activeVariant),
+                                        text.copiedSubscription(selectedClient.displayName),
+                                      )
+                                    }
+                                  >
+                                    {text.copy}
+                                  </button>
+                                  <button
+                                    className="button"
+                                    type="button"
+                                    onClick={() =>
+                                      void downloadText(
+                                        `${selectedClient.displayName}-subscription.txt`,
+                                        resolveVariantSubscriptionUrl(activeTransport, activeVariant),
+                                      )
+                                    }
+                                  >
+                                    {text.download}
+                                  </button>
+                                </div>
+                              </div>
+                              <code>{resolveVariantSubscriptionUrl(activeTransport, activeVariant)}</code>
+                            </div>
+                          ) : (
+                            <div className="feature-list__card">
+                              <strong>{text.subscriptionUrl}</strong>
+                              <span>
+                                {isEnglish
+                                  ? 'Subscription URL is available only for VLESS.'
+                                  : 'Subscription URL сейчас доступен только для VLESS.'}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="mono-card">
+                            <div className="mono-card__header">
+                              <strong>
+                                {isVlessTransport(activeTransport)
+                                  ? text.vlessLink
+                                  : isEnglish
+                                    ? 'WireGuard config'
+                                    : 'WireGuard-конфиг'}
+                              </strong>
+                              <div className="toolbar__actions">
+                                <button
+                                  className="button"
+                                  type="button"
+                                  onClick={() =>
+                                    void copyText(
+                                      resolveVariantConfigText(activeTransport, activeVariant),
+                                      isVlessTransport(activeTransport)
+                                        ? text.copiedVless(selectedClient.displayName)
+                                        : isEnglish
+                                          ? `WireGuard config copied for ${selectedClient.displayName}.`
+                                          : `WireGuard-конфиг скопирован для ${selectedClient.displayName}.`,
+                                    )
+                                  }
+                                >
+                                  {text.copy}
+                                </button>
+                                <button
+                                  className="button"
+                                  type="button"
+                                  onClick={() =>
+                                    void downloadText(
+                                      activeVariant.downloadFileName,
+                                      resolveVariantConfigText(activeTransport, activeVariant),
+                                    )
+                                  }
+                                >
+                                  {text.download}
+                                </button>
+                              </div>
+                            </div>
+                            <code>
+                              {resolveVariantConfigText(activeTransport, activeVariant)}
+                            </code>
+                          </div>
+
+                          <div className="feature-list__card">
+                            <strong>{isEnglish ? 'Endpoint' : 'Endpoint'}</strong>
+                            <span>{activeVariant.label}</span>
+                          </div>
+
+                          <ul className="feature-list">
+                            {activeTransport.instructions.map((item) => (
+                              <li key={item}>{translateSubscriptionInstruction(item, locale)}</li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : (
+                        <div className="empty-state">
+                          {isEnglish
+                            ? 'No delivery bundle is available for this client yet.'
+                            : 'Для этого клиента пока нет готового комплекта подключения.'}
+                        </div>
+                      )}
+
+                      <div className="feature-list__card">
+                        <strong>{text.appGuides}</strong>
+                        <span>
+                          {text.appGuidesText}{' '}
+                          <Link to="/help">
+                            <strong>{text.help}</strong>
+                          </Link>
+                          .
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="empty-state">
+                      {isEnglish
+                        ? 'No delivery bundle is available for this client yet.'
+                        : 'Для этого клиента пока нет готового комплекта подключения.'}
                     </div>
-                    <code>{subscriptionBundle.config.subscriptionUrl}</code>
-                  </div>
-
-                  <div className="mono-card">
-                    <div className="mono-card__header">
-                      <strong>{text.vlessLink}</strong>
-                      <button
-                        className="button"
-                        type="button"
-                        onClick={() =>
-                          void copyText(
-                            subscriptionBundle.config.uri,
-                            text.copiedVless(selectedClient.displayName),
-                          )
-                        }
-                      >
-                        {text.copy}
-                      </button>
-                    </div>
-                    <code>{subscriptionBundle.config.uri}</code>
-                  </div>
-
-                  <ul className="feature-list">
-                    {subscriptionBundle.instructions.map((item) => (
-                      <li key={item}>{translateSubscriptionInstruction(item, locale)}</li>
-                    ))}
-                  </ul>
-
-                  <div className="feature-list__card">
-                    <strong>{text.appGuides}</strong>
-                    <span>
-                      {text.appGuidesText}{' '}
-                      <Link to="/help">
-                        <strong>{text.help}</strong>
-                      </Link>
-                      .
-                    </span>
-                  </div>
+                  )}
                 </div>
               </div>
             ) : null}
@@ -1926,8 +2310,43 @@ export function ClientsPage() {
         onClose={() => setIsQrOpen(false)}
         title={selectedClient ? text.connectionTitle(selectedClient.displayName) : text.qrConfig}
       >
-        {subscriptionBundle ? (
+        {subscriptionBundle && activeTransport && activeVariant ? (
           <div className="detail-stack">
+            <div className="toolbar__actions wrap-actions">
+              {subscriptionBundle.transports.map((transport) => (
+                <button
+                  key={`qr-${transport.id}`}
+                  className={`button ${activeTransport.id === transport.id ? 'button--primary' : ''}`}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTransportId(transport.id);
+                    setSelectedAddressMode(resolveDefaultAddressMode(transport));
+                  }}
+                >
+                  {transport.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="toolbar__actions wrap-actions">
+              {activeTransport.variants.map((variant) => (
+                <button
+                  key={`qr-mode-${variant.addressMode}`}
+                  className={`button ${
+                    activeVariant.addressMode === variant.addressMode ? 'button--primary' : ''
+                  }`}
+                  type="button"
+                  onClick={() => setSelectedAddressMode(variant.addressMode)}
+                >
+                  {variant.addressMode === 'domain'
+                    ? isEnglish
+                      ? 'Domain'
+                      : 'Домен'
+                    : 'IP'}
+                </button>
+              ))}
+            </div>
+
             <div className="qr-shell">
               {qrImageUrl ? (
                 <img alt={text.qrAlt} src={qrImageUrl} />
@@ -1940,12 +2359,17 @@ export function ClientsPage() {
               <button
                 className="button"
                 type="button"
-                onClick={() =>
-                  void copyText(
-                    subscriptionBundle.config.subscriptionUrl,
+                onClick={() => {
+                  if (!isVlessTransport(activeTransport)) {
+                    return;
+                  }
+
+                  return void copyText(
+                    resolveVariantSubscriptionUrl(activeTransport, activeVariant),
                     text.copiedSubscription(selectedClient?.displayName ?? 'client'),
-                  )
-                }
+                  );
+                }}
+                disabled={!isVlessTransport(activeTransport)}
               >
                 {text.copySubscriptionUrl}
               </button>
@@ -1954,17 +2378,25 @@ export function ClientsPage() {
                 type="button"
                 onClick={() =>
                   void copyText(
-                    subscriptionBundle.config.uri,
-                    text.copiedVless(selectedClient?.displayName ?? 'client'),
+                    resolveVariantConfigText(activeTransport, activeVariant),
+                    isVlessTransport(activeTransport)
+                      ? text.copiedVless(selectedClient?.displayName ?? 'client')
+                      : isEnglish
+                        ? `WireGuard config copied for ${selectedClient?.displayName ?? 'client'}.`
+                        : `WireGuard-конфиг скопирован для ${selectedClient?.displayName ?? 'client'}.`,
                   )
                 }
               >
-                {text.copyVlessLink}
+                {isVlessTransport(activeTransport)
+                  ? text.copyVlessLink
+                  : isEnglish
+                    ? 'Copy WireGuard config'
+                    : 'Скопировать WireGuard-конфиг'}
               </button>
             </div>
 
             <ul className="feature-list">
-              {subscriptionBundle.instructions.map((item) => (
+              {activeTransport.instructions.map((item) => (
                 <li key={item}>{translateSubscriptionInstruction(item, locale)}</li>
               ))}
             </ul>

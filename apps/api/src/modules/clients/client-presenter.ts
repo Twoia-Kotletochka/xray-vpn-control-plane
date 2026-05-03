@@ -1,4 +1,4 @@
-import { type Client, ClientStatus, type Prisma } from '@prisma/client';
+import { type Client, ClientStatus, type Prisma, type WireguardPeer } from '@prisma/client';
 
 type ClientUsageAggregate = {
   activeConnections: number;
@@ -9,6 +9,7 @@ type ClientUsageAggregate = {
 
 type ClientRecord = Client & {
   tags: Prisma.JsonValue | null;
+  wireguardPeer?: Pick<WireguardPeer, 'assignedIpv4' | 'lastHandshakeAt'> | null;
 };
 
 function asIsoString(value: Date | null): string | null {
@@ -96,11 +97,16 @@ export function serializeClient(client: ClientRecord, usage: ClientUsageAggregat
     remainingTrafficBytes: asBigIntString(remainingTrafficBytes),
     deviceLimit: client.deviceLimit,
     ipLimit: client.ipLimit,
+    vlessEnabled: client.vlessEnabled,
+    wireguardEnabled: client.wireguardEnabled,
     subscriptionToken: client.subscriptionToken,
     transportProfile: client.transportProfile,
     xrayInboundTag: client.xrayInboundTag,
     activeConnections: usage.activeConnections,
     lastActivatedAt: asIsoString(client.lastActivatedAt),
     lastSeenAt: asIsoString(client.lastSeenAt),
+    wireguardIpv4Address: client.wireguardPeer?.assignedIpv4 ?? null,
+    wireguardLastHandshakeAt: asIsoString(client.wireguardPeer?.lastHandshakeAt ?? null),
+    hasWireguardProfile: Boolean(client.wireguardPeer),
   };
 }

@@ -35,6 +35,8 @@ apps/web/coverage/
 infra/backup/output/
 infra/runtime/
 infra/xray/generated/
+infra/wireguard/generated/
+infra/wireguard/runtime/
 .tmp/
 
 .DS_Store

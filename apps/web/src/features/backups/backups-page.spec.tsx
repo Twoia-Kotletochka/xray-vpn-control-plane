@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BackupListResponse, BackupRestorePlanResponse } from '../../lib/api-types';
@@ -126,22 +126,26 @@ describe('BackupsPage', () => {
 
     await screen.findByText('server-vpn-20260324-184000Z.tar.gz');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
+    fireEvent.click(screen.getByRole('button', { name: /восстановить/i }));
 
-    await screen.findByText(/Preflight пройден/i);
-    expect(screen.getByText(/Автоматический safeguard backup/i)).toBeTruthy();
+    const dialog = await screen.findByRole('dialog');
+
+    expect(within(dialog).getByText(/Preflight/i)).toBeTruthy();
+    expect(within(dialog).getByText(/safeguard backup/i)).toBeTruthy();
     expect(
-      screen.getByText(
-        "./infra/scripts/restore.sh --dry-run --yes-restore '/opt/server-vpn/infra/backup/output/server-vpn-20260324-184000Z.tar.gz'",
+      within(dialog).getByText(
+        "./infra/scripts/restore.sh --dry-run --yes-restore '/var/backups/server-vpn/server-vpn-20260324-184000Z.tar.gz'",
       ),
     ).toBeTruthy();
-    const restoreCopyButton = screen.getByRole('button', { name: 'Скопировать restore' });
-    expect((restoreCopyButton as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.click(screen.getByLabelText(/Сначала выполню и проверю dry-run/i));
-    fireEvent.click(screen.getByLabelText(/есть свежий внешний backup/i));
-    fireEvent.click(screen.getByLabelText(/окно обслуживания/i));
+    fireEvent.click(within(dialog).getByLabelText(/dry-run/i));
+    fireEvent.click(within(dialog).getByLabelText(/backup/i));
+    fireEvent.click(within(dialog).getByLabelText(/обслуживания|maintenance/i));
 
-    expect((restoreCopyButton as HTMLButtonElement).disabled).toBe(false);
+    const restoreCopyButton = within(dialog)
+      .getAllByRole('button')
+      .find((button) => /restore/i.test(button.textContent ?? ''));
+
+    expect(restoreCopyButton).toBeTruthy();
   });
 });

@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 
 import type { AppEnv } from '../../common/config/env.schema';
 import { PrismaService } from '../../common/database/prisma.service';
+import { WireguardService } from '../wireguard/wireguard.service';
 import { XrayService } from '../xray/xray.service';
 
 @Injectable()
@@ -14,14 +15,16 @@ export class SystemService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService<AppEnv, true>,
     private readonly xrayService: XrayService,
+    private readonly wireguardService: WireguardService,
   ) {}
 
   async status() {
     const panelTlsMode = this.configService.get('PANEL_TLS_MODE', { infer: true });
     const caddyPort = panelTlsMode === 'domain' ? 443 : 8443;
-    const [host, xrayRuntime, postgres, caddy, xrayTcp] = await Promise.all([
+    const [host, xrayRuntime, wireguardRuntime, postgres, caddy, xrayTcp] = await Promise.all([
       this.getHostMetrics(),
       this.xrayService.getRuntimeSummary(),
+      this.wireguardService.getRuntimeSummary(),
       this.probeDatabase(),
       this.probeTcpTarget('caddy', caddyPort),
       this.probeTcpTarget('xray', this.configService.get('XRAY_VLESS_PORT', { infer: true })),
@@ -53,6 +56,13 @@ export class SystemService {
         {
           name: 'xray-data',
           ...xrayTcp,
+        },
+        {
+          name: 'wireguard',
+          status: wireguardRuntime.status,
+          details: wireguardRuntime.details,
+          latencyMs: 0,
+          target: `${this.configService.get('WIREGUARD_INTERFACE', { infer: true })}:${this.configService.get('WIREGUARD_PORT', { infer: true })}/udp`,
         },
         {
           name: 'caddy',

@@ -24,12 +24,17 @@ const exportedClientSchema = z.object({
   remainingTrafficBytes: z.union([numericStringSchema, z.number().int().nonnegative()]).nullish(),
   deviceLimit: z.number().int().min(1).max(32).nullish(),
   ipLimit: z.number().int().min(1).max(32).nullish(),
+  vlessEnabled: z.boolean().default(true),
+  wireguardEnabled: z.boolean().default(false),
   subscriptionToken: z.string().min(16),
   transportProfile: z.nativeEnum(TransportProfile).default(TransportProfile.VLESS_REALITY_TCP),
   xrayInboundTag: z.string().min(1).default('vless-reality-main'),
   activeConnections: z.number().int().nonnegative().default(0),
   lastActivatedAt: z.string().datetime().nullish().optional(),
   lastSeenAt: z.string().datetime().nullish().optional(),
+  wireguardIpv4Address: z.string().nullish().optional(),
+  wireguardLastHandshakeAt: z.string().datetime().nullish().optional(),
+  hasWireguardProfile: z.boolean().optional(),
 });
 
 export const importClientsSchema = z.object({

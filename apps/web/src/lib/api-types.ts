@@ -59,12 +59,17 @@ export type ClientRecord = {
   remainingTrafficBytes: string | null;
   deviceLimit: number | null;
   ipLimit: number | null;
+  vlessEnabled: boolean;
+  wireguardEnabled: boolean;
   subscriptionToken: string;
   transportProfile: string;
   xrayInboundTag: string;
   activeConnections: number;
   lastActivatedAt: string | null;
   lastSeenAt: string | null;
+  wireguardIpv4Address: string | null;
+  wireguardLastHandshakeAt: string | null;
+  hasWireguardProfile: boolean;
 };
 
 export type ClientListResponse = {
@@ -102,6 +107,56 @@ export type ClientSubscriptionBundle = {
     clientApp: string;
     steps: string[];
   }>;
+  defaultTransportId: 'vless' | 'wireguard' | null;
+  transports: Array<
+    | {
+        id: 'vless';
+        label: string;
+        enabled: boolean;
+        defaultVariant: 'domain' | 'ip';
+        supportsQr: true;
+        supportsSubscription: true;
+        instructions: string[];
+        platformGuides: Array<{
+          platform: string;
+          clientApp: string;
+          steps: string[];
+        }>;
+        variants: Array<{
+          addressMode: 'domain' | 'ip';
+          label: string;
+          endpointHost: string;
+          endpointPort: number;
+          downloadFileName: string;
+          subscriptionUrl: string;
+          uri: string;
+          qrcodeText: string;
+        }>;
+      }
+    | {
+        id: 'wireguard';
+        label: string;
+        enabled: boolean;
+        defaultVariant: 'domain' | 'ip';
+        supportsQr: true;
+        supportsSubscription: false;
+        instructions: string[];
+        platformGuides: Array<{
+          platform: string;
+          clientApp: string;
+          steps: string[];
+        }>;
+        variants: Array<{
+          addressMode: 'domain' | 'ip';
+          label: string;
+          endpointHost: string;
+          endpointPort: number;
+          downloadFileName: string;
+          configText: string;
+          qrText: string;
+        }>;
+      }
+  >;
 };
 
 export type ClientExportBundle = {

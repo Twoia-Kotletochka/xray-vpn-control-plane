@@ -4,11 +4,17 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE="${ROOT_DIR}/.env"
 PANEL_TLS_MODE_VALUE=""
+WIREGUARD_ENABLED_VALUE=""
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   echo "Missing .env. Copy .env.example to .env first." >&2
   exit 1
 fi
+
+get_env_var() {
+  local key="$1"
+  grep "^${key}=" "${ENV_FILE}" | cut -d'=' -f2- || true
+}
 
 normalize_legacy_env_paths() {
   local current_backup_dir
@@ -43,14 +49,18 @@ prepare_runtime_dirs() {
 
   mkdir -p "${ROOT_DIR}/infra/xray/generated"
   mkdir -p "${ROOT_DIR}/infra/backup/output"
+  mkdir -p "${ROOT_DIR}/infra/wireguard/generated"
+  mkdir -p "${ROOT_DIR}/infra/wireguard/runtime"
   mkdir -p "${log_dir}"
 
   touch "${log_dir}/api.log"
   touch "${log_dir}/xray-access.log"
   touch "${log_dir}/xray-error.log"
   touch "${log_dir}/caddy-access.log"
+  touch "${log_dir}/wireguard.log"
+  touch "${ROOT_DIR}/infra/wireguard/runtime/wg-show.dump"
 
-  chmod 0644 "${log_dir}/api.log" "${log_dir}/caddy-access.log"
+  chmod 0644 "${log_dir}/api.log" "${log_dir}/caddy-access.log" "${log_dir}/wireguard.log"
   chmod 0666 "${log_dir}/xray-access.log" "${log_dir}/xray-error.log"
 }
 
@@ -78,13 +88,25 @@ bash "${ROOT_DIR}/infra/scripts/ensure-ssh-access.sh"
 
 PANEL_TLS_MODE_VALUE="$(grep '^PANEL_TLS_MODE=' "${ENV_FILE}" | cut -d'=' -f2- || true)"
 PANEL_TLS_MODE_VALUE="${PANEL_TLS_MODE_VALUE:-ip}"
+WIREGUARD_ENABLED_VALUE="$(get_env_var WIREGUARD_ENABLED)"
+WIREGUARD_ENABLED_VALUE="${WIREGUARD_ENABLED_VALUE:-false}"
 mapfile -t compose_args < <(compose_files)
 
-docker compose "${compose_args[@]}" build api caddy
+if [[ "${WIREGUARD_ENABLED_VALUE}" == "true" ]]; then
+  docker compose "${compose_args[@]}" build api caddy wireguard
+else
+  docker compose "${compose_args[@]}" build api caddy
+fi
 docker compose "${compose_args[@]}" up -d postgres
 docker compose "${compose_args[@]}" run --rm api npm run prisma:deploy
 docker compose "${compose_args[@]}" run --rm api npm run prisma:seed
 docker compose "${compose_args[@]}" up -d --remove-orphans api xray caddy
+
+if [[ "${WIREGUARD_ENABLED_VALUE}" == "true" ]]; then
+  docker compose "${compose_args[@]}" up -d --remove-orphans wireguard
+else
+  docker compose "${compose_args[@]}" rm -sf wireguard >/dev/null 2>&1 || true
+fi
 
 if [[ "${PANEL_TLS_MODE_VALUE}" == "domain" ]]; then
   docker compose "${compose_args[@]}" pull haproxy

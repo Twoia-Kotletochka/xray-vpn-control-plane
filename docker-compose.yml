@@ -40,6 +40,7 @@ services:
       - ./infra/backup/output:/var/backups/server-vpn
       - ./infra/runtime/logs:/var/log/server-vpn
       - ./infra/xray/generated:/var/lib/server-vpn/xray:ro
+      - ./infra/wireguard:/var/lib/server-vpn/wireguard
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/healthz >/dev/null || exit 1']
       interval: 15s
@@ -104,6 +105,36 @@ services:
       retries: 5
     networks:
       - backend
+
+  wireguard:
+    build:
+      context: .
+      dockerfile: infra/docker/wireguard.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      api:
+        condition: service_healthy
+    network_mode: host
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./infra/wireguard:/var/lib/server-vpn/wireguard
+      - ./infra/runtime/logs:/var/log/server-vpn
+    healthcheck:
+      test: ['CMD-SHELL', 'wg show "${WIREGUARD_INTERFACE:-wg0}" >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   backend:

@@ -54,8 +54,8 @@ export function parseOnlineUserStatName(value: string): string | null {
 
 export function normalizeOnlineUserEmailTags(values: string[]) {
   return values
-    .map((value) => parseOnlineUserStatName(value) ?? value)
     .map((value) => value.trim())
+    .map((value) => parseOnlineUserStatName(value) ?? value)
     .filter((value) => value.length > 0);
 }
 

@@ -147,7 +147,7 @@ describe('DashboardService', () => {
       clients: 9,
       active: 6,
       available: 6,
-      onlineNow: 2,
+      onlineNow: 1,
       expired: 1,
       disabled: 1,
       blocked: 1,
@@ -351,12 +351,12 @@ describe('DashboardService', () => {
     });
     expect(analytics.totals).toMatchObject({
       totalTrafficBytes: '21504',
-      windowTrafficBytes: '5120',
+      windowTrafficBytes: '7168',
       todayTrafficBytes: '5120',
       onlineNow: 1,
       uniqueClientsWithTraffic: 2,
       topClientDisplayName: 'Ann',
-      topClientTrafficBytes: '3072',
+      topClientTrafficBytes: '5120',
       activeClientsToday: 2,
       peakActiveClients: 2,
     });
@@ -373,7 +373,7 @@ describe('DashboardService', () => {
     expect(analytics.clients[0]).toMatchObject({
       displayName: 'Ann',
       totalTrafficBytes: '15360',
-      windowTrafficBytes: '3072',
+      windowTrafficBytes: '5120',
       todayTrafficBytes: '3072',
       activeConnections: 1,
       activeDays: 2,

@@ -139,6 +139,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
       | 'status'
       | 'trafficLimitBytes'
       | 'transportProfile'
+      | 'vlessEnabled'
       | 'uuid'
     >,
   ) {
@@ -146,7 +147,7 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    if (resolveEffectiveClientStatus(client) !== ClientStatus.ACTIVE) {
+    if (!client.vlessEnabled || resolveEffectiveClientStatus(client) !== ClientStatus.ACTIVE) {
       await this.removeUser(client.emailTag);
       return;
     }
@@ -250,12 +251,13 @@ export class XrayService implements OnModuleInit, OnModuleDestroy {
         status: true,
         trafficLimitBytes: true,
         transportProfile: true,
+        vlessEnabled: true,
         uuid: true,
       },
     });
 
     for (const client of clients) {
-      if (resolveEffectiveClientStatus(client) === ClientStatus.ACTIVE) {
+      if (client.vlessEnabled && resolveEffectiveClientStatus(client) === ClientStatus.ACTIVE) {
         await this.addOrReplaceUser(client);
         continue;
       }
