@@ -1,0 +1,18 @@
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 6
+
+[sshd]
+enabled = true
+
+; The panel jail will be enabled after auth failure logs are emitted in a stable structured format.
+; [xray-vpn-control-plane-panel-auth]
+; enabled = true
+; port = 8443
+; filter = xray-vpn-control-plane-panel-auth
+; logpath = /var/log/xray-vpn-control-plane/panel-auth.log
+; maxretry = 6
+; findtime = 10m
+; bantime = 1h
+

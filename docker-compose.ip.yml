@@ -1,0 +1,8 @@
+services:
+  xray:
+    ports:
+      - '${XRAY_VLESS_PORT}:${XRAY_VLESS_PORT}/tcp'
+
+  caddy:
+    ports:
+      - '${PANEL_HTTPS_PORT:-8443}:8443/tcp'

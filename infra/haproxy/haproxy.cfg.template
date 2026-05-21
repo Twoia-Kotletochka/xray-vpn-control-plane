@@ -1,0 +1,35 @@
+global
+  log stdout format raw local0
+  maxconn 4096
+
+defaults
+  log global
+  mode tcp
+  option tcplog
+  timeout connect 5s
+  timeout client 1m
+  timeout server 1m
+  timeout tunnel 1h
+
+frontend http_in
+  bind *:80
+  default_backend panel_http
+
+backend panel_http
+  server caddy caddy:80 check
+
+frontend tls_in
+  bind *:443
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req_ssl_hello_type 1 }
+
+  acl panel_sni req.ssl_sni -i __PANEL_HOST__
+
+  use_backend panel_tls if panel_sni
+  default_backend xray_tls
+
+backend panel_tls
+  server caddy caddy:443 check
+
+backend xray_tls
+  server xray xray:__XRAY_VLESS_PORT__ check

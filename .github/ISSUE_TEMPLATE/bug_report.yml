@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible problem
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include real server IPs, domains, tokens, subscription URLs, private keys, or client configs.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps needed to reproduce the issue.
+      placeholder: |
+        1. Deploy with ...
+        2. Open ...
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: deploy_mode
+    attributes:
+      label: Deployment mode
+      options:
+        - IP-only
+        - Domain
+        - Manual/custom
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: VPS OS
+      placeholder: "Debian 12, Ubuntu 24.04, ..."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Paste only sanitized logs with secrets and live endpoints removed.
+      render: shell
